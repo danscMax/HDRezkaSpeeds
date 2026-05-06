@@ -1,0 +1,17 @@
+{
+  "name": "speeds-feedback-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker that forwards feedback from HDRezkaSpeeds and VideoSpeeds extensions to a Telegram bot.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "logs": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260101.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^4.0.0"
+  }
+}

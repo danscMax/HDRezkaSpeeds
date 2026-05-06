@@ -102,3 +102,28 @@ export const SELECTOR_CACHE_PREFIX = 'vs-cache:';
  * subsequent extension-side edits.
  */
 export const TM_MIGRATION_FLAG = '__migrated_from_tm';
+
+/**
+ * Feedback Worker endpoint. The Worker source lives in
+ * `cloudflare-worker/`; the URL is whatever the deploy step printed
+ * (e.g. `https://speeds-feedback.<account>.workers.dev`).
+ *
+ * Replace the placeholder before shipping a build that wires the
+ * feedback form to the live Worker. Until then the form falls back
+ * to the mailto: link displayed below the submit button.
+ */
+export const FEEDBACK_WORKER_URL =
+  'https://speeds-feedback.REPLACE-ME.workers.dev/feedback';
+
+/**
+ * Plain-text contact, shown as a fallback when the Worker call fails
+ * (and prefilled into the in-extension feedback page footer).
+ */
+export const FALLBACK_CONTACT_EMAIL = 'matsiyak@gmail.com';
+
+/**
+ * App identifier sent to the Worker so it can route / label messages
+ * coming from this extension. Mirror of the value declared in
+ * `cloudflare-worker/wrangler.toml` ALLOWED_APPS.
+ */
+export const FEEDBACK_APP_ID = 'hdrezka';

@@ -10,6 +10,7 @@
  * Ported from .user.js:4370-4615 (attachSettingsHandlers).
  */
 
+import { browser } from 'wxt/browser';
 import type { AppContext } from '../../app/context';
 import { captureHotkey, formatHotkey } from '../../speed/hotkeys';
 import { defaultSettings, type Hotkey, type SliderPosition } from '../../storage/types';
@@ -21,6 +22,24 @@ import {
 import { refreshDiagnosticStatus } from './diag-status';
 import type { Lang } from '../../i18n/dict';
 import type { ActiveTab } from './modal';
+
+/**
+ * Open the in-extension feedback page in a new tab. Resolved via
+ * `runtime.getURL` so it works under both `chrome-extension://` and
+ * `moz-extension://` schemes; the page itself is shipped as a WXT
+ * entrypoint (`src/entrypoints/feedback/`).
+ */
+function openFeedbackPage(): void {
+  try {
+    const url = browser.runtime.getURL('/feedback.html');
+    void browser.tabs.create({ url });
+  } catch {
+    // Last-ditch: in pages where browser.tabs is unavailable (content
+    // script context — shouldn't happen here, but defensive), fall back
+    // to a regular window.open.
+    try { window.open('feedback.html', '_blank'); } catch { /* swallow */ }
+  }
+}
 
 export interface SettingsHandlersDeps {
   /** Update which tab is rendered next time. The host re-renders. */
@@ -325,6 +344,10 @@ export function attachSettingsHandlers(
   for (const btn of Array.from(menuRoot.querySelectorAll<HTMLButtonElement>('[data-vs-diag]'))) {
     ctx.cleanup.addEventListener(btn, 'click', () => {
       const action = btn.dataset.vsDiag;
+      if (action === 'feedback') {
+        openFeedbackPage();
+        return;
+      }
       if (
         action === 'recheck' ||
         action === 'copy' ||

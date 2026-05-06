@@ -1,0 +1,23 @@
+name = "speeds-feedback"
+main = "src/index.ts"
+compatibility_date = "2026-05-06"
+
+# CORS Worker — no observability dashboard needed beyond Cloudflare's own tail.
+workers_dev = true
+
+[vars]
+# Comma-separated list of `app` field values the Worker will accept.
+# Add new entries here when a new sister extension hooks into the
+# same feedback endpoint.
+ALLOWED_APPS = "hdrezka,videospeeds"
+
+# KV namespace for per-IP rate limiting. Create with:
+#   wrangler kv namespace create RATE_LIMIT
+# Then paste the returned `id` below in place of "REPLACE_WITH_KV_ID".
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "REPLACE_WITH_KV_ID"
+
+# Secrets are NOT declared here — set them with:
+#   wrangler secret put TELEGRAM_BOT_TOKEN
+#   wrangler secret put TELEGRAM_CHAT_ID
