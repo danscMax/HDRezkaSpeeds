@@ -24,20 +24,26 @@ import type { Lang } from '../../i18n/dict';
 import type { ActiveTab } from './modal';
 
 /**
- * Open the in-extension feedback page in a new tab. Resolved via
- * `runtime.getURL` so it works under both `chrome-extension://` and
- * `moz-extension://` schemes; the page itself is shipped as a WXT
- * entrypoint (`src/entrypoints/feedback/`).
+ * Open the in-extension feedback page in a new tab.
+ *
+ * `runtime.getURL` resolves to the absolute moz-extension:// /
+ * chrome-extension:// URL of the bundled feedback.html; we then call
+ * `window.open` because `browser.tabs.create` is NOT exposed in
+ * content-script contexts. The user-gesture from the original click
+ * carries through, so the popup-blocker doesn't intervene.
+ *
+ * The earlier implementation tried `browser.tabs.create` first and
+ * fell back to `window.open('feedback.html')` — but that fallback
+ * fired EVERY time (since tabs is unavailable) and `'feedback.html'`
+ * is a relative URL the host page resolves against its own origin,
+ * landing the user at rezka.ag/.../feedback.html → 404.
  */
 function openFeedbackPage(): void {
   try {
     const url = browser.runtime.getURL('/feedback.html');
-    void browser.tabs.create({ url });
-  } catch {
-    // Last-ditch: in pages where browser.tabs is unavailable (content
-    // script context — shouldn't happen here, but defensive), fall back
-    // to a regular window.open.
-    try { window.open('feedback.html', '_blank'); } catch { /* swallow */ }
+    window.open(url, '_blank');
+  } catch (e) {
+    console.warn('[HDREZKA-SPEEDS] Failed to open feedback page', e);
   }
 }
 
