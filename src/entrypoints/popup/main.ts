@@ -269,12 +269,16 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
       },
     });
 
-    // Auto-fetch status on Diagnostics tab open so the user sees a live
-    // result without having to click "Recheck". Best-effort — if no
-    // active video tab is reachable we silently fall back to the static
-    // "not checked yet" placeholder.
+    // Force a fresh check on Diagnostics tab open (not get-status) so
+    // popup and gear-menu always agree at the moment the user looks
+    // at them. get-status returns the last cached report which can
+    // lag the gear-menu's live one by a couple of seconds — same
+    // page state, but two paths reading the cache at different times
+    // produced contradictory readings (popup said "Waiting", gear
+    // said "All good"). Forcing recheck adds ~50ms but eliminates
+    // the surprise.
     if (activeTab === 'diag') {
-      void sendToActiveTab({ type: 'vs:get-status' }).then((report) => {
+      void sendToActiveTab({ type: 'vs:recheck' }).then((report) => {
         if (report) applyReportToMenu(menu, ctx.i18n, report);
       });
     }
