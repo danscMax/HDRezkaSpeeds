@@ -1,0 +1,239 @@
+/* Popup shell -- shares the in-player modal styles via styles.ts injection.
+   Only the popup shell sizing + the no-supported-page placeholder live here. */
+
+:root {
+  color-scheme: light dark;
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  /* HDRezka cyan palette — defined here so the popup's link[rel=stylesheet]
+     ships it before the JS-injected <style id="vs-styles"> hits the DOM
+     (avoids a single render frame with the styles.ts fallback red). */
+  --vs-accent: #00a1db;
+  --vs-accent-dark: #0080b0;
+  --vs-accent-darker: #005f85;
+  --vs-accent-rgb: 0, 161, 219;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: rgba(28, 28, 28, 0.98);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Light theme — applyPopupTheme() in main.ts sets html[data-vs-theme="light"]
+   when prefers-color-scheme is light. The settings-menu styles cascade in
+   from styles.ts and pick up the light --vs-menu-* tokens automatically;
+   here we only override the popup-shell-specific surfaces. */
+html[data-vs-theme="light"], html[data-vs-theme="light"] body {
+  background: rgba(248, 248, 250, 0.98);
+  color: rgba(15, 15, 15, 0.92);
+}
+html[data-vs-theme="light"] .vs-popup-loading,
+html[data-vs-theme="light"] .vs-popup-empty {
+  color: rgba(15, 15, 15, 0.55);
+}
+html[data-vs-theme="light"] .vs-popup-empty-title {
+  color: rgba(15, 15, 15, 0.85);
+}
+html[data-vs-theme="light"] .vs-skel-tabs {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+html[data-vs-theme="light"] .vs-skel-pill,
+html[data-vs-theme="light"] .vs-skel-line,
+html[data-vs-theme="light"] .vs-skel-block,
+html[data-vs-theme="light"] .vs-skel-row {
+  background: rgba(0, 0, 0, 0.06);
+}
+html[data-vs-theme="light"] .vs-popup-diag-hint {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(15, 15, 15, 0.55);
+}
+
+/* Popup sizing — pin width + height so the window does not shift when
+ * the user switches tabs (audit feedback 2026-04-28).
+ *
+ * Background:
+ *   - Chrome's toolbar popup samples body dimensions once shortly after
+ *     the HTML loads. The settings-menu's intrinsic width can shift by
+ *     a few px between tabs (different scrollbar visibility, different
+ *     content widths), and the popup window picked up the new value on
+ *     each render.
+ *
+ * Strategy (CSS-Tricks / MDN best practice 2026):
+ *   1. html { width: 380px }       — hard-pin the popup window width.
+ *   2. html { min-height: 500px }  — open at ~natural menu height.
+ *   3. body { min-height: 100vh }  — body fills the html container
+ *      (matches the WXT React/Vue starter templates verbatim).
+ *
+ * The matching `.vs-popup-shell .settings-menu` override below removes
+ * the in-player max-height + overflow:auto so the popup body can grow
+ * naturally without spawning an internal scrollbar (which used to
+ * appear on the General tab and pull the content sideways).
+ */
+html {
+  width: 380px;
+  /* Replace the default platform scrollbar with a thin themed one so the
+     popup matches the in-player settings modal aesthetic. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+html[data-vs-theme="light"] {
+  scrollbar-color: rgba(0, 0, 0, 0.20) transparent;
+}
+body {
+  /* Body sizes to content. Earlier we forced 100vh + html min-height 500
+     to stop the toolbar popup from sampling a half-rendered DOM, but the
+     synchronous skeleton in main.ts now lays out at the real size from
+     frame 0 so the artificial floor isn't needed — and it caused visible
+     blank space below the content on light theme (audit 0.2.0). */
+  min-height: 0;
+}
+/* WebKit browsers (Chrome, Edge) need explicit ::-webkit-scrollbar rules;
+   `scrollbar-width: thin` alone is a Firefox-only hint. */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+}
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+html[data-vs-theme="light"]::-webkit-scrollbar-thumb,
+html[data-vs-theme="light"] body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.22);
+}
+html[data-vs-theme="light"]::-webkit-scrollbar-thumb:hover,
+html[data-vs-theme="light"] body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.34);
+}
+
+.vs-popup-shell {
+  padding: 12px;
+}
+
+.vs-popup-loading,
+.vs-popup-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vs-popup-empty-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* The settings menu, when rendered inside the popup, inherits the styles
+   injected by src/ui/styles.ts but we override position so it occupies the
+   popup body instead of floating absolute. */
+.vs-popup-shell .settings-menu {
+  position: static;
+  display: block !important;
+  background: transparent;
+  box-shadow: none;
+  /* Drop the modal's outer border too — it creates a visible "double
+     frame" inside the toolbar popup window on light theme. */
+  border: none;
+  padding: 0;
+  min-width: 0;
+  /* In the popup the body itself is the scroll container — Chrome popup
+     window grows to fit body up to its 600px ceiling. Drop the in-player
+     max-height + overflow:auto so we never get a nested scrollbar
+     fighting for the same vertical space. */
+  max-height: none;
+  overflow: visible;
+}
+/* Inner tab-panel has its own max-height: 60vh + overflow-y in the
+   shared modal stylesheet — disable in popup so the tab body flows
+   inline and only the popup window itself grows / scrolls. */
+.vs-popup-shell .vs-tab-panel {
+  max-height: none;
+  overflow: visible;
+}
+
+/* Skeleton placeholder — rendered synchronously by main.ts before async
+   bootstrap finishes. Matches the natural shape of the real settings
+   menu (header bar, 4 tab pills, body sections) so the popup window
+   opens at the right size on first paint. Replaced in-place by the
+   real menu within ~50-200ms; the soft pulse animation makes the swap
+   feel intentional rather than glitchy. */
+.vs-popup-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+}
+.vs-skel-header {
+  display: flex;
+}
+.vs-skel-tabs {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.vs-skel-pill {
+  height: 14px;
+  width: 22%;
+  border-radius: 4px;
+}
+.vs-skel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.vs-skel-line {
+  height: 10px;
+  width: 100%;
+  border-radius: 4px;
+}
+.vs-skel-line.vs-skel-w-40 { width: 40%; }
+.vs-skel-line.vs-skel-w-60 { width: 60%; }
+.vs-skel-block {
+  height: 36px;
+  width: 100%;
+  border-radius: 8px;
+}
+.vs-skel-row {
+  height: 28px;
+  width: 100%;
+  border-radius: 8px;
+}
+.vs-skel-pill,
+.vs-skel-line,
+.vs-skel-block,
+.vs-skel-row {
+  background: rgba(255, 255, 255, 0.06);
+  animation: vs-skel-pulse 1.2s ease-in-out infinite;
+}
+@keyframes vs-skel-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.9; }
+}
+
+/* Diag tab "open in player" hint */
+.vs-popup-diag-hint {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.6);
+}

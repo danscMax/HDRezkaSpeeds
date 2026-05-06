@@ -1,0 +1,1078 @@
+/* Welcome page — opened in a new tab on first install (background.ts ->
+ * chrome.runtime.onInstalled with reason='install').
+ *
+ * v0.1.42: replaces the abstract "4 tip cards" layout with HTML/CSS replicas
+ * of the actual in-player panel and settings menu, decorated with inline
+ * annotations. Users learn by reading the very thing they will see in
+ * the wild — no paraphrasing, no abstract icons.
+ */
+
+:root,
+html[data-vs-theme="dark"] {
+  color-scheme: dark;
+  --vs-bg: #0a0a0c;
+  --vs-bg-radial: #1a0a14;
+  --vs-card: rgba(255, 255, 255, 0.04);
+  --vs-card-border: rgba(255, 255, 255, 0.08);
+  --vs-fg: rgba(255, 255, 255, 0.95);
+  --vs-fg-soft: rgba(255, 255, 255, 0.62);
+  --vs-fg-dim: rgba(255, 255, 255, 0.4);
+  --vs-accent: #00a1db;
+  --vs-accent-rgb: 0, 161, 219;
+  --vs-orange: #ff7a00;
+  --vs-red: #ff0033;
+  /* HDRezka brand cyan-blue. --vs-hdr for non-text accents (dots, borders,
+     hovers where contrast requirement is 3:1 non-text), --vs-hdr-bg for
+     backgrounds under white text where 4.5:1 is needed. #00a1db on #fff
+     is 3.07:1 (fails AA for text); #0080b0 on #fff is 4.86:1 (passes). */
+  --vs-hdr: #00a1db;
+  --vs-hdr-bg: #0080b0;
+  --vs-success: #34c759;
+  /* Stage tokens (Block A panel + Block B settings replica). */
+  --vs-stage-bg-1: #14101a;
+  --vs-stage-bg-2: #0d0a14;
+  --vs-stage-border: rgba(255, 255, 255, 0.06);
+  --vs-stage-glow-pink: rgba(0, 161, 219, 0.1);
+  --vs-stage-glow-blue: rgba(0, 161, 219, 0.08);
+  /* Hotkey card surface. */
+  --vs-card-bg-1: rgba(255, 255, 255, 0.03);
+  --vs-card-bg-2: rgba(255, 255, 255, 0.01);
+  --vs-card-divider: rgba(255, 255, 255, 0.05);
+  /* Replica panel internals. */
+  --vs-replica-panel-bg: #0f0f0f;
+  --vs-replica-panel-border: rgba(255, 255, 255, 0.08);
+  --vs-replica-pill-bg: rgba(255, 255, 255, 0.06);
+  --vs-replica-pill-fg: rgba(255, 255, 255, 0.78);
+  --vs-replica-track: rgba(255, 255, 255, 0.18);
+  --vs-replica-gear-bg: rgba(255, 255, 255, 0.08);
+  --vs-replica-gear-fg: rgba(255, 255, 255, 0.7);
+  /* Settings replica internals. */
+  --vs-settings-bg: rgba(20, 20, 22, 0.94);
+  --vs-settings-border: rgba(255, 255, 255, 0.08);
+  --vs-settings-divider: rgba(255, 255, 255, 0.06);
+  --vs-settings-tab-fg: rgba(255, 255, 255, 0.55);
+  --vs-settings-section-fg: rgba(255, 255, 255, 0.45);
+  --vs-settings-input-bg: rgba(255, 255, 255, 0.05);
+  --vs-settings-input-border: rgba(255, 255, 255, 0.12);
+  --vs-settings-input-fg: rgba(255, 255, 255, 0.55);
+  --vs-settings-pill-bg: rgba(255, 255, 255, 0.05);
+  --vs-settings-pill-border: rgba(255, 255, 255, 0.1);
+  --vs-settings-pill-fg: rgba(255, 255, 255, 0.6);
+  /* Active state — dark-red gradient + white text. Mirrors the real
+     settings menu (src/ui/styles.ts --vs-menu-active-*) so the welcome
+     replica honestly previews what the user will see in the popup. */
+  --vs-settings-active-bg: linear-gradient(135deg, #0080b0 0%, #005f85 100%);
+  --vs-settings-active-fg: #ffffff;
+  --vs-settings-active-border: transparent;
+  --vs-settings-active-glow: 0 2px 10px rgba(0, 161, 219, 0.35);
+  /* Hotkey input. */
+  --vs-hk-bg: rgba(255, 255, 255, 0.06);
+  --vs-hk-border: rgba(255, 255, 255, 0.16);
+  --vs-hk-bg-hover: rgba(255, 255, 255, 0.09);
+  --vs-hk-shadow: 0 0 0 transparent;
+  /* Donate panel + cta-secondary. */
+  --vs-donate-bg-radial: rgba(255, 110, 135, 0.15);
+  --vs-donate-bg-fill: rgba(255, 255, 255, 0.03);
+  --vs-donate-border: rgba(255, 110, 135, 0.2);
+  --vs-donate-link-bg: rgba(255, 255, 255, 0.05);
+  --vs-donate-link-border: rgba(255, 255, 255, 0.15);
+  --vs-cta-secondary-border: rgba(255, 255, 255, 0.35);
+  --vs-cta-secondary-bg-hover: rgba(255, 255, 255, 0.06);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html[data-vs-theme="light"] {
+  color-scheme: light;
+  --vs-bg: #f5f5f7;
+  --vs-bg-radial: #fff0f3;
+  --vs-card: rgba(0, 0, 0, 0.04);
+  --vs-card-border: rgba(0, 0, 0, 0.08);
+  --vs-fg: rgba(15, 15, 15, 0.92);
+  --vs-fg-soft: rgba(15, 15, 15, 0.6);
+  --vs-fg-dim: rgba(15, 15, 15, 0.4);
+  --vs-stage-bg-1: #ffffff;
+  --vs-stage-bg-2: #f7f7f9;
+  --vs-stage-border: rgba(0, 0, 0, 0.08);
+  --vs-stage-glow-pink: rgba(0, 161, 219, 0.08);
+  --vs-stage-glow-blue: rgba(0, 161, 219, 0.06);
+  --vs-card-bg-1: rgba(0, 0, 0, 0.03);
+  --vs-card-bg-2: rgba(0, 0, 0, 0.01);
+  --vs-card-divider: rgba(0, 0, 0, 0.06);
+  /* Replica panel — light theme matches what the user sees on a light
+     YouTube page: light-tinted pills with dark text. Panel surface itself
+     is a soft light-grey (the real panel is transparent, but a subtle
+     tint helps it stand out from the stage gradient). */
+  --vs-replica-panel-bg: #ebebef;
+  --vs-replica-panel-border: rgba(0, 0, 0, 0.10);
+  --vs-replica-pill-bg: rgba(0, 0, 0, 0.06);
+  --vs-replica-pill-fg: rgba(15, 15, 15, 0.85);
+  --vs-replica-track: rgba(0, 0, 0, 0.22);
+  --vs-replica-gear-bg: rgba(0, 0, 0, 0.14);
+  --vs-replica-gear-fg: rgba(15, 15, 15, 0.78);
+  --vs-settings-bg: rgba(255, 255, 255, 0.97);
+  --vs-settings-border: rgba(0, 0, 0, 0.08);
+  --vs-settings-divider: rgba(0, 0, 0, 0.06);
+  --vs-settings-tab-fg: rgba(15, 15, 15, 0.55);
+  --vs-settings-section-fg: rgba(15, 15, 15, 0.5);
+  --vs-settings-input-bg: rgba(0, 0, 0, 0.04);
+  --vs-settings-input-border: rgba(0, 0, 0, 0.12);
+  --vs-settings-input-fg: rgba(15, 15, 15, 0.55);
+  --vs-settings-pill-bg: rgba(0, 0, 0, 0.04);
+  --vs-settings-pill-border: rgba(0, 0, 0, 0.16);
+  --vs-settings-pill-fg: rgba(15, 15, 15, 0.7);
+  /* Same dark-red gradient on light theme so the welcome replica
+     matches the real popup (parity with --vs-menu-active in styles.ts). */
+  --vs-settings-active-bg: linear-gradient(135deg, #0080b0 0%, #005f85 100%);
+  --vs-settings-active-fg: #ffffff;
+  --vs-settings-active-border: transparent;
+  --vs-settings-active-glow: 0 2px 10px rgba(0, 161, 219, 0.35);
+  --vs-hk-bg: #ffffff;
+  --vs-hk-border: rgba(0, 0, 0, 0.18);
+  --vs-hk-bg-hover: rgba(0, 0, 0, 0.04);
+  --vs-hk-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --vs-donate-bg-radial: rgba(255, 110, 135, 0.10);
+  --vs-donate-bg-fill: rgba(255, 255, 255, 0.4);
+  --vs-donate-border: rgba(255, 110, 135, 0.3);
+  --vs-donate-link-bg: rgba(0, 0, 0, 0.04);
+  --vs-donate-link-border: rgba(0, 0, 0, 0.12);
+  --vs-cta-secondary-border: rgba(0, 0, 0, 0.18);
+  --vs-cta-secondary-bg-hover: rgba(0, 0, 0, 0.04);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(ellipse at top, var(--vs-bg-radial) 0%, var(--vs-bg) 50%);
+  color: var(--vs-fg);
+  font-size: 15px;
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+#welcome-app {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 48px 32px 120px;
+}
+
+/* ─── Language switcher (fixed top-right) ─────────────────────────── */
+
+.lang-switcher {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 2px;
+  background: var(--vs-card);
+  border: 1px solid var(--vs-card-border);
+  border-radius: 8px;
+  padding: 3px;
+  backdrop-filter: blur(8px);
+  z-index: 50;
+}
+.lang-btn {
+  padding: 5px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--vs-fg-soft);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 140ms ease, color 140ms ease;
+}
+.lang-btn:hover { color: var(--vs-fg); background: var(--vs-card); filter: brightness(1.1); }
+.lang-btn.active {
+  background: var(--vs-card-border);
+  color: var(--vs-fg);
+}
+.lang-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* ─── Hero ────────────────────────────────────────────────────────── */
+
+.welcome-hero {
+  text-align: center;
+  margin-bottom: 48px;
+}
+.welcome-icon {
+  width: 88px;
+  height: 88px;
+  border-radius: 22%;
+  margin: 0 auto 24px;
+  background: linear-gradient(135deg, var(--vs-orange), var(--vs-red));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 28px rgba(0, 161, 219, 0.3);
+  animation: hero-icon-pulse 3s ease-in-out infinite;
+}
+@keyframes hero-icon-pulse {
+  0%, 100% { box-shadow: 0 8px 28px rgba(0, 161, 219, 0.3); }
+  50%      { box-shadow: 0 12px 40px rgba(0, 161, 219, 0.5); }
+}
+.welcome-icon svg {
+  width: 48px;
+  height: 48px;
+  color: #fff;
+}
+.welcome-title {
+  font-size: 36px;
+  font-weight: 800;
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+  /* Fallback solid colour ensures the headline is visible if the
+     gradient/clip-path fails (forced-colors mode, older WebKit). */
+  color: var(--vs-fg);
+  background: linear-gradient(135deg, var(--vs-fg) 0%, var(--vs-fg-soft) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+@media (forced-colors: active) {
+  .welcome-title {
+    -webkit-text-fill-color: CanvasText;
+    background: none;
+  }
+}
+.welcome-sub {
+  font-size: 17px;
+  color: var(--vs-fg-soft);
+  margin: 0 auto 8px;
+  max-width: 580px;
+}
+.welcome-value {
+  font-size: 14px;
+  color: var(--vs-accent);
+  font-weight: 600;
+  margin: 0 0 28px;
+}
+
+.welcome-sites {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+.welcome-site-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--vs-fg-soft);
+  font-weight: 500;
+}
+.welcome-site-pill .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+/* Brand-coloured presence dot for HDRezka. */
+.welcome-site-pill[data-site="hdrezka"] .dot {
+  background: var(--vs-hdr);
+  box-shadow: 0 0 0 3px rgba(0, 161, 219, 0.18);
+}
+.welcome-site-pill[data-site="hdrezka"] strong { color: var(--vs-hdr); }
+
+/* ─── Section headers ─────────────────────────────────────────────── */
+
+.section-header {
+  text-align: center;
+  margin: 64px 0 24px;
+}
+.section-header h2 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+.section-header p {
+  font-size: 14px;
+  color: var(--vs-fg-soft);
+  margin: 0 auto;
+  max-width: 480px;
+}
+
+/* ─── Block A: real-panel replica ─────────────────────────────────── */
+
+.real-stage {
+  position: relative;
+  margin: 0 auto;
+  padding: 32px 28px;
+  background: linear-gradient(135deg, var(--vs-stage-bg-1) 0%, var(--vs-stage-bg-2) 100%);
+  border: 1px solid var(--vs-stage-border);
+  border-radius: 18px;
+  max-width: 940px;
+  overflow: hidden;
+  /* Side columns clamp 170–220px (annotations stay readable) while the
+     centre column auto-sizes to the panel. Whole grid is centred so
+     annotations sit close to the panel rather than flying off into
+     wide-viewport voids. */
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) auto minmax(170px, 220px);
+  grid-template-rows: auto auto;
+  /* Layout chosen so the SVG connectors never cross each other:
+     - clicks → first pill (horizontal, far-left of panel)
+     - gear → gear button (horizontal, gear is the right-most panel item)
+     - slider → slider thumb (vertical from below, slider sits in panel
+       centre and an "up from below" path doesn't intersect gear). */
+  grid-template-areas:
+    "clicks panel  gear"
+    ".      slider .";
+  align-items: center;
+  justify-items: center;
+  justify-content: center;
+  column-gap: 20px;
+  row-gap: 20px;
+}
+.real-stage::before {
+  content: '';
+  position: absolute;
+  inset: -50% -10% 50% -10%;
+  background: radial-gradient(ellipse at top, var(--vs-stage-glow-pink), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.real-stage > .real-panel { grid-area: panel; }
+.real-stage > .ann-clicks { grid-area: clicks; justify-self: start; }
+.real-stage > .ann-slider { grid-area: slider; justify-self: end; }
+.real-stage > .ann-gear   { grid-area: gear; }
+
+.real-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--vs-replica-panel-bg);
+  border: 1px solid var(--vs-replica-panel-border);
+  border-radius: 28px;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+.real-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--vs-replica-pill-bg);
+  border: none;
+  font: 500 13px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--vs-replica-pill-fg);
+  cursor: default;
+  transition: background 140ms ease, color 140ms ease;
+  white-space: nowrap;
+}
+.real-pill.active {
+  /* Background uses --vs-hdr-bg (#0080b0) so white text passes AA contrast.
+     Glow ring uses bright --vs-hdr because it's non-text and benefits from
+     the brighter HDRezka cyan. */
+  background: var(--vs-hdr-bg);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(0, 161, 219, 0.18), 0 4px 16px rgba(0, 161, 219, 0.4);
+}
+.real-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+}
+.real-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 90px;
+  height: 4px;
+  border-radius: 2px;
+  /* 2x of 0.75–10 range = (2 - 0.75) / (10 - 0.75) ≈ 13.5%. Inactive
+     part uses --vs-replica-track so it stays visible on light theme
+     (was hardcoded white-alpha which vanished on white). */
+  background: linear-gradient(to right, var(--vs-hdr) 0%, var(--vs-hdr) 13.5%, var(--vs-replica-track) 13.5%, var(--vs-replica-track) 100%);
+  outline: none;
+  pointer-events: none;
+}
+.real-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: default;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.real-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 50%;
+  background: #fff;
+  cursor: default;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.real-gear {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--vs-replica-gear-bg);
+  border: 1px solid var(--vs-replica-panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vs-replica-gear-fg);
+  cursor: default;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+.real-gear svg { width: 16px; height: 16px; }
+
+/* ─── Annotations ─────────────────────────────────────────────────── */
+
+.annotation {
+  font-size: 13px;
+  color: var(--vs-fg-soft);
+  font-weight: 500;
+  position: relative;
+  z-index: 3;
+  outline: none;
+}
+.annotation strong { color: var(--vs-fg); font-weight: 600; }
+.annotation .ann-label {
+  position: relative;
+  background: var(--vs-card);
+  /* WCAG AA non-text contrast (3:1) on the dark stage background needs
+     accent at ≥0.55 alpha; was 0.3, fails AA. */
+  border: 1px solid rgba(var(--vs-accent-rgb), 0.55);
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: inline-block;
+  max-width: 240px;
+  line-height: 1.45;
+  backdrop-filter: blur(8px);
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+/* ─── Connectors: SVG overlay drawn by main.ts wireConnectors() ──── *
+ *
+ * Each `.real-stage` / `.real-stage-settings` gets an absolutely-
+ * positioned SVG that paints orthogonal dashed paths from annotation
+ * edges to target edges. Pseudo-element shortcuts removed in favour of
+ * accurate paths; CSS only handles SVG positioning + raster behind. */
+.real-stage > svg.connectors,
+.real-stage-settings > svg.connectors {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+  overflow: visible;
+}
+
+/* Within Block A the side columns are 170-220px — keep annotation
+   labels inside that envelope. Block B's right column is wider so its
+   override stays at the default 240px. */
+.real-stage > .annotation .ann-label { max-width: 200px; }
+
+/* Annotations are now keyboard-focusable buttons. Show a clear focus
+   ring with sufficient contrast. */
+.annotation:focus-visible .ann-label {
+  outline: 2px solid #fff;
+  outline-offset: 4px;
+}
+
+/* ─── Hover linking: annotation ↔ UI part ─────────────────────────── *
+ *
+ * `wireHoverGroups()` in main.ts pairs every element carrying
+ * `data-ann-group="<key>"` with the matching annotation. Both sides get
+ * the `vs-hover` class so the user sees a synchronised highlight,
+ * regardless of which side they pointed at.
+ */
+.annotation.vs-hover .ann-label {
+  background: rgba(var(--vs-accent-rgb), 0.1);
+  border-color: rgba(var(--vs-accent-rgb), 0.65);
+  box-shadow: 0 0 0 4px rgba(var(--vs-accent-rgb), 0.08);
+}
+
+.real-pill.vs-hover {
+  background: rgba(var(--vs-accent-rgb), 0.18);
+  color: #fff;
+  outline: 1px solid rgba(var(--vs-accent-rgb), 0.5);
+}
+.real-pill.active.vs-hover {
+  /* Don't drown the active pill — keep the YT-red, just add a glow. */
+  background: var(--vs-hdr);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--vs-accent-rgb), 0.5), 0 4px 16px rgba(0, 161, 219, 0.4);
+}
+.real-slider-wrap.vs-hover {
+  background: rgba(var(--vs-accent-rgb), 0.1);
+  border-radius: 12px;
+  outline: 1px solid rgba(var(--vs-accent-rgb), 0.4);
+  outline-offset: 2px;
+}
+.real-gear.vs-hover {
+  background: rgba(var(--vs-accent-rgb), 0.22);
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(var(--vs-accent-rgb), 0.4);
+}
+.rs-tabs.vs-hover {
+  outline: 1px solid rgba(var(--vs-accent-rgb), 0.45);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.rs-header-help.vs-hover {
+  color: rgba(var(--vs-accent-rgb), 1);
+  outline: 1px solid rgba(var(--vs-accent-rgb), 0.5);
+  outline-offset: 3px;
+  border-radius: 50%;
+}
+.rs-preset-section.vs-hover {
+  outline: 1px dashed rgba(var(--vs-accent-rgb), 0.45);
+  outline-offset: 6px;
+  border-radius: 8px;
+}
+
+/* `cursor: pointer` rather than `cursor: help` — `help` signals a tooltip
+   is available and there isn't one. Pointer correctly tells the user
+   "this changes something on the page when interacted with". */
+.real-pill[data-ann-group],
+.real-slider-wrap[data-ann-group],
+.real-gear[data-ann-group],
+.rs-header-help[data-ann-group],
+.rs-tabs[data-ann-group],
+.rs-preset-section[data-ann-group] { cursor: pointer; }
+.annotation { cursor: pointer; }
+
+/* ─── Block B: settings replica ───────────────────────────────────── */
+
+.real-stage-settings {
+  position: relative;
+  margin: 0 auto;
+  padding: 40px;
+  background: linear-gradient(135deg, var(--vs-stage-bg-1) 0%, var(--vs-stage-bg-2) 100%);
+  border: 1px solid var(--vs-stage-border);
+  border-radius: 18px;
+  max-width: 900px;
+  overflow: hidden;
+  /* Grid: settings replica + annotations column, each in its own cell.
+     Replica is 380px so all 4 tabs ("Поддержать" included) fit without
+     clipping the rounded right border. */
+  display: grid;
+  grid-template-columns: 420px minmax(0, 220px);
+  gap: 32px;
+  justify-content: center;
+  align-items: start;
+}
+.real-stage-settings::before {
+  content: '';
+  position: absolute;
+  inset: -50% -10% 50% -10%;
+  background: radial-gradient(ellipse at top, var(--vs-stage-glow-blue), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+.settings-anns {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+  align-self: stretch;
+  justify-content: space-around;
+}
+.settings-anns .annotation { display: block; }
+.settings-anns .ann-label { max-width: 220px; }
+
+.real-settings {
+  width: 420px;
+  background: var(--vs-settings-bg);
+  border: 1px solid var(--vs-settings-border);
+  border-radius: 14px;
+  color: var(--vs-fg);
+  font-family: 'Inter Tight', -apple-system, sans-serif;
+  font-size: 13px;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.rs-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--vs-settings-divider);
+}
+.rs-header .gear-mini {
+  width: 16px;
+  height: 16px;
+  color: var(--vs-hdr);
+}
+.rs-header-title {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+}
+.rs-header-help {
+  width: 18px;
+  height: 18px;
+  color: var(--vs-fg-soft);
+}
+.rs-header-version {
+  font-size: 11px;
+  color: var(--vs-fg-dim);
+  font-variant-numeric: tabular-nums;
+}
+.rs-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 10px 12px 0;
+  border-bottom: 1px solid var(--vs-settings-divider);
+}
+.rs-tab {
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  color: var(--vs-settings-tab-fg);
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+  white-space: nowrap;
+}
+.rs-tab.active {
+  color: var(--vs-fg);
+  border-bottom: 2px solid var(--vs-hdr);
+}
+.rs-tab svg { width: 13px; height: 13px; }
+.rs-panel {
+  padding: 14px 16px 16px;
+}
+.rs-section-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--vs-settings-section-fg);
+  text-transform: uppercase;
+  margin: 12px 0 8px;
+}
+.rs-section-label:first-child { margin-top: 0; }
+
+.rs-segmented {
+  display: flex;
+  gap: 2px;
+  background: var(--vs-card);
+  border-radius: 9px;
+  padding: 4px;
+}
+.rs-seg-opt {
+  flex: 1;
+  padding: 0 6px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  color: var(--vs-settings-tab-fg);
+  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 6px;
+  cursor: default;
+}
+.rs-seg-opt.active {
+  background: var(--vs-settings-active-bg);
+  color: var(--vs-settings-active-fg);
+  box-shadow: inset 0 0 0 1px var(--vs-settings-active-border), var(--vs-settings-active-glow);
+  font-weight: 600;
+}
+.rs-seg-opt svg { width: 11px; height: 11px; }
+
+.rs-help-text {
+  font-size: 11.5px;
+  color: var(--vs-fg-soft);
+  margin: 0 0 10px;
+}
+.rs-preset-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.rs-preset-pill {
+  padding: 5px 10px;
+  background: var(--vs-settings-pill-bg);
+  border: 1px solid var(--vs-settings-pill-border);
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--vs-settings-pill-fg);
+  font-weight: 500;
+}
+.rs-preset-pill.active {
+  background: var(--vs-settings-active-bg);
+  border-color: var(--vs-settings-active-border);
+  color: var(--vs-settings-active-fg);
+  font-weight: 600;
+  box-shadow: var(--vs-settings-active-glow);
+}
+.rs-custom-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.rs-custom-input {
+  flex: 1;
+  padding: 5px 9px;
+  background: var(--vs-settings-input-bg);
+  border: 1px solid var(--vs-settings-input-border);
+  border-radius: 7px;
+  font-size: 11.5px;
+  color: var(--vs-settings-input-fg);
+}
+.rs-custom-add {
+  padding: 5px 12px;
+  background: var(--vs-settings-active-bg);
+  border: 1px solid var(--vs-settings-active-border);
+  border-radius: 7px;
+  color: var(--vs-settings-active-fg);
+  font-size: 11.5px;
+  font-weight: 600;
+  box-shadow: var(--vs-settings-active-glow);
+  cursor: default;
+}
+.rs-reset-link {
+  font-size: 11px;
+  color: var(--vs-fg-soft);
+  margin-top: 8px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: default;
+}
+
+/* ─── Hotkeys live editor ─────────────────────────────────────────── */
+
+.hotkeys-section {
+  margin: 64px 0 24px;
+}
+.hotkeys-card {
+  margin: 0 auto;
+  max-width: 560px;
+  padding: 24px 28px 20px;
+  background: linear-gradient(135deg, var(--vs-card-bg-1), var(--vs-card-bg-2));
+  border: 1px solid var(--vs-card-border);
+  border-radius: 14px;
+}
+.hk-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.4fr) minmax(160px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+.hk-row + .hk-row {
+  border-top: 1px solid var(--vs-card-divider);
+}
+.hk-label {
+  font-size: 13.5px;
+  color: var(--vs-fg);
+  font-weight: 500;
+}
+.hk-capture {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  padding: 8px 12px;
+  background: var(--vs-hk-bg);
+  border: 1px solid var(--vs-hk-border);
+  border-radius: 7px;
+  color: var(--vs-fg);
+  cursor: pointer;
+  caret-color: transparent;
+  text-align: center;
+  box-shadow: var(--vs-hk-shadow);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.hk-capture:hover {
+  background: var(--vs-hk-bg-hover);
+  border-color: rgba(var(--vs-accent-rgb), 0.4);
+}
+.hk-capture:focus,
+.hk-capture:focus-visible {
+  outline: none;
+  border-color: rgba(var(--vs-accent-rgb), 0.65);
+  background: rgba(var(--vs-accent-rgb), 0.08);
+  box-shadow: 0 0 0 3px rgba(var(--vs-accent-rgb), 0.18);
+}
+
+.hk-step-row { grid-template-columns: minmax(120px, 0.4fr) 90px auto auto; }
+.hk-step {
+  width: 90px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--vs-hk-bg);
+  border: 1px solid var(--vs-hk-border);
+  border-radius: 7px;
+  color: var(--vs-fg);
+  text-align: center;
+  box-shadow: var(--vs-hk-shadow);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.hk-step:hover {
+  border-color: rgba(var(--vs-accent-rgb), 0.4);
+}
+.hk-step:focus,
+.hk-step:focus-visible {
+  outline: none;
+  border-color: rgba(var(--vs-accent-rgb), 0.65);
+  background: rgba(var(--vs-accent-rgb), 0.08);
+  box-shadow: 0 0 0 3px rgba(var(--vs-accent-rgb), 0.18);
+}
+.hk-unit {
+  color: var(--vs-fg-soft);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.hk-saved {
+  font-size: 11.5px;
+  color: var(--vs-success);
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  white-space: nowrap;
+  min-width: 70px;
+  text-align: right;
+}
+.hk-saved-visible { opacity: 1; }
+
+.hk-rebind {
+  margin: 16px 0 4px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--vs-fg-dim);
+}
+.hk-more {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--vs-fg-soft);
+}
+
+@media (max-width: 540px) {
+  .hk-row,
+  .hk-step-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .hk-saved { text-align: left; }
+}
+
+/* ─── Tips footer (re-open + pin) ─────────────────────────────────── */
+
+.tips-block {
+  margin: 28px auto 0;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 16px;
+}
+.tip-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--vs-fg-soft);
+  line-height: 1.5;
+}
+.tip-row .tip-icon {
+  color: var(--vs-accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.tip-row strong {
+  color: var(--vs-fg);
+  font-weight: 600;
+}
+
+/* ─── Donate ──────────────────────────────────────────────────────── */
+
+.welcome-donate {
+  background:
+    radial-gradient(ellipse at top, var(--vs-donate-bg-radial), transparent 70%),
+    var(--vs-donate-bg-fill);
+  border: 1px solid var(--vs-donate-border);
+  border-radius: 18px;
+  padding: 36px;
+  text-align: center;
+  margin: 64px 0 48px;
+}
+.welcome-donate-heart {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 12px;
+  color: var(--vs-accent);
+  animation: heart-pulse 1.8s ease-in-out infinite;
+}
+@keyframes heart-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.15); }
+}
+.welcome-donate h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.welcome-donate p {
+  font-size: 14px;
+  color: var(--vs-fg-soft);
+  margin: 0 auto 20px;
+  max-width: 480px;
+}
+.welcome-donate-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.welcome-donate-link {
+  padding: 10px 20px;
+  background: var(--vs-donate-link-bg);
+  border: 1px solid var(--vs-donate-link-border);
+  border-radius: 10px;
+  color: var(--vs-fg);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.welcome-donate-link:hover {
+  background: var(--vs-card);
+  border-color: var(--vs-donate-link-border);
+  filter: brightness(1.05);
+}
+.welcome-donate-tip {
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--vs-fg-soft);
+  font-style: italic;
+}
+
+/* ─── CTA row ─────────────────────────────────────────────────────── */
+
+.welcome-cta-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.welcome-cta {
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  transition: all 160ms ease;
+}
+.welcome-cta.cta-hdr {
+  background: var(--vs-hdr-bg);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(0, 161, 219, 0.35);
+}
+.welcome-cta.cta-hdr:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(0, 161, 219, 0.5);
+  background: #006a92;
+}
+.welcome-cta.cta-secondary {
+  background: transparent;
+  /* 0.18 alpha on dark gives 1.95:1 — fails 3:1 for the only button
+     boundary. 0.35 yields ~3:1, AA-pass. */
+  border-color: var(--vs-cta-secondary-border);
+  color: var(--vs-fg);
+}
+.welcome-cta.cta-secondary:hover {
+  background: var(--vs-cta-secondary-bg-hover);
+  border-color: var(--vs-fg-soft);
+}
+
+/* Focus ring shared by every keyboard-reachable CTA / donate link. White
+   double-outline gives ≥3:1 against any background on this page (red,
+   blue, donate-pink, body dark). */
+.welcome-cta:focus-visible,
+.welcome-donate-link:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.65);
+}
+.welcome-cta:focus:not(:focus-visible),
+.welcome-donate-link:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.welcome-version {
+  text-align: center;
+  margin-top: 32px;
+  font-size: 11px;
+  color: var(--vs-fg-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+/* Narrow viewport: collapse to single column. The grid still works
+   structurally — annotations stack below the panel / settings replica
+   instead of beside them. Connectors hidden — they pointed sideways
+   when annotations were beside the panel; below the panel they would
+   point at empty space. */
+@media (max-width: 760px) {
+  .real-stage {
+    padding: 24px;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "panel"
+      "clicks"
+      "slider"
+      "gear";
+    gap: 16px;
+  }
+  .real-stage > .ann-clicks,
+  .real-stage > .ann-slider,
+  .real-stage > .ann-gear {
+    justify-self: center;
+  }
+  .real-stage > svg.connectors,
+  .real-stage-settings > svg.connectors { display: none; }
+  .real-stage-settings {
+    padding: 24px;
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .real-settings { width: 100%; max-width: 420px; }
+  .settings-anns { width: 100%; max-width: 420px; }
+}

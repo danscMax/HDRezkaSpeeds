@@ -1,0 +1,33 @@
+{
+  "name": "hdrezka-speeds",
+  "version": "0.2.0",
+  "description": "HDRezka Speed Controller — speed buttons, slider, hotkeys, diagnostics. Bilingual (EN/RU).",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox --mv3",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox --mv3",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox --mv3",
+    "build:userscript": "vite build --config vite.userscript.config.ts",
+    "compile": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "postinstall": "wxt prepare"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@vitest/ui": "^2.1.9",
+    "happy-dom": "^15.11.7",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "vite-plugin-monkey": "^7.1.9",
+    "vitest": "^2.1.9",
+    "web-ext": "^8.10.0",
+    "wxt": "^0.20.25"
+  }
+}
