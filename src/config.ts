@@ -113,7 +113,7 @@ export const TM_MIGRATION_FLAG = '__migrated_from_tm';
  * to the mailto: link displayed below the submit button.
  */
 export const FEEDBACK_WORKER_URL =
-  'https://speeds-feedback.REPLACE-ME.workers.dev/feedback';
+  'https://speeds-feedback.matsiyak.workers.dev/feedback';
 
 /**
  * Plain-text contact, shown as a fallback when the Worker call fails

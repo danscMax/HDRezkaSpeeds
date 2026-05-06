@@ -16,7 +16,7 @@ ALLOWED_APPS = "hdrezka,videospeeds"
 # Then paste the returned `id` below in place of "REPLACE_WITH_KV_ID".
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
-id = "REPLACE_WITH_KV_ID"
+id = "4c6a64b0790940f180c479dd2755fa3e"
 
 # Secrets are NOT declared here — set them with:
 #   wrangler secret put TELEGRAM_BOT_TOKEN
