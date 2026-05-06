@@ -1,5 +1,7 @@
 # HDRezka Speed Controller
 
+**English** | [Русский](README.ru.md)
+
 Browser extension (Chrome MV3 + Firefox MV3) that adds an always-visible
 row of speed buttons, a fine-grained slider, and customizable keyboard
 shortcuts to the HDRezka video player.
