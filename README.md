@@ -50,10 +50,10 @@ See [PRIVACY.md](./PRIVACY.md).
 
 ### Install
 
-- **Chrome Web Store** — *(submission pending)*
-- **Firefox AMO** — *(submission pending)*
+- **Firefox AMO** — [**Install from AMO**](https://addons.mozilla.org/firefox/addon/hdrezka-speed-controller/) ✅ approved
+- **Chrome Web Store** — *(under review)*
 
-Manual install from a build (until the listings are approved):
+Manual install from a build (Chrome, until the CWS listing is approved):
 
 ```bash
 git clone https://github.com/danscMax/HDRezkaSpeeds.git
@@ -157,10 +157,10 @@ GPL-3.0-or-later. See [LICENSE](./LICENSE).
 
 ### Установка
 
+- **Firefox AMO** — [**Установить из AMO**](https://addons.mozilla.org/firefox/addon/hdrezka-speed-controller/) ✅ одобрено
 - **Chrome Web Store** — *(на ревью)*
-- **Firefox AMO** — *(на ревью)*
 
-Ручная установка из исходников (пока листинги не одобрены):
+Ручная установка из исходников (для Chrome — пока листинг не одобрен):
 
 ```bash
 git clone https://github.com/danscMax/HDRezkaSpeeds.git
