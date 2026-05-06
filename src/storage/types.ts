@@ -76,12 +76,19 @@ export function defaultSettings(language: Lang, site?: Site): Settings {
     rememberSpeed: true,
     language,
     hotkeys: {
+      // Default switched away from Ctrl+C / Ctrl+V (audit 0.2.8) —
+      // they collide with the system copy/paste shortcut. Active
+      // selection guards mostly catch the conflict, but the moment a
+      // user mouse-selects something on the page and hits Ctrl+C the
+      // browser's copy fires AND speed jumps; Alt+Shift+Arrow has no
+      // such collision in any mainstream site or OS-level shortcut.
+      // Insert keys kept as the secondary slot for HTPC remotes.
       speedUp: [
-        { ctrl: true, shift: false, alt: false, meta: false, key: 'KeyC' },
+        { ctrl: false, shift: true, alt: true, meta: false, key: 'ArrowUp' },
         { ctrl: true, shift: false, alt: false, meta: false, key: 'Insert' },
       ],
       speedDown: [
-        { ctrl: true, shift: false, alt: false, meta: false, key: 'KeyV' },
+        { ctrl: false, shift: true, alt: true, meta: false, key: 'ArrowDown' },
         { ctrl: false, shift: true, alt: false, meta: false, key: 'Insert' },
       ],
     },

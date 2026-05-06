@@ -1,0 +1,145 @@
+# Changelog
+
+Notable changes per release. Format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
+versioning is [SemVer](https://semver.org/).
+
+## [0.2.8] — 2026-05-06
+
+### Changed
+- **Default hotkeys** moved off `Ctrl+C` / `Ctrl+V` (collided with the
+  system copy/paste shortcut whenever the user had a text selection
+  on the page) to `Alt+Shift+ArrowUp` / `Alt+Shift+ArrowDown`.
+  Existing installations keep their saved hotkeys; new installs get
+  the safer default.
+- **Feedback form**: the "Attach diagnostic report" checkbox is now
+  unchecked by default. The diagnostic blob carries device-fingerprint
+  bits (settings, browser, viewport, language) — opt-in only.
+- **Feedback payload**: stopped sending the full `userAgent` string.
+  Browser-version detection moves into the opt-in diagnostic snapshot.
+
+### Privacy
+- AMO `data_collection_permissions` updated from `'none'` to
+  `'technicalAndInteractionData'` to honestly disclose the optional
+  Send-feedback flow. PRIVACY.md updated to match.
+
+## [0.2.7] — 2026-05-06
+
+### Fixed
+- **Popup flicker on Diagnostics open**: the storage listener was
+  rerendering the whole menu on every `vs-cache:*` write that
+  HealthChecker emitted; now filtered to settings/speed keys only
+  with a 50 ms coalesce window.
+
+### Changed
+- Settings menu width 340 → 380, popup width 380 → 420 so the
+  four-tab strip (Общие/Клавиши/Диагностика/Поддержать) fits
+  without label cropping.
+
+## [0.2.6] — 2026-05-06
+
+### Changed
+- Popup auto-runs `vs:recheck` on Diagnostics tab open instead of
+  reading cached `getLastReport()`. Popup and gear menu now always
+  agree on the report at the moment the user looks at them.
+
+## [0.2.5] — 2026-05-06
+
+### Fixed
+- Four-tab strip overflowed both popup (380px) and gear menu (340px)
+  frames after the previous `flex: 0 0 auto` underline fix. Switched
+  to `flex: 1 1 0` + `min-width: 0` + `overflow: hidden` so tabs
+  share width evenly and crop on overflow without spilling past the
+  flex-box.
+
+## [0.2.4] — 2026-05-06
+
+### Added
+- **Live diagnostics in toolbar popup**: content script gains a
+  `runtime.onMessage` listener for `vs:recheck` / `vs:get-status` /
+  `vs:purge-cache`. Popup's "Recheck" / "Copy report" / "Purge
+  cache" buttons now run for real over the message channel. Full
+  reset stays gear-only.
+
+### Fixed
+- Active-tab underline was visibly shorter than the label because the
+  flex container could shrink the button below its intrinsic content
+  width while `white-space: nowrap` text spilled out. Pinned with
+  `flex: 0 0 auto`.
+
+## [0.2.3] — 2026-05-06
+
+### Added
+- Feedback button **in three places**: General-tab CTA (large, for
+  ordinary users), Diagnostics-tab action (for power users already
+  exploring tooling), Support-tab row (next to CloudTips).
+- Feedback contact field is now **free-form text** ("How to reach
+  you back") — accepts email, `@telegram`, Discord tag, anything.
+
+### Fixed
+- Diagnostics-tab action grid in the toolbar popup pointed at services
+  that only exist in the content script. The buttons are now visually
+  disabled in popup context with an explanatory banner above the menu;
+  Send-feedback button stays enabled.
+
+## [0.2.2] — 2026-05-06
+
+### Changed
+- Moved feedback button out of the Diagnostics tab into the Support
+  tab — Diagnostics is power-user territory; ordinary users couldn't
+  find feedback there.
+
+### Fixed
+- Popup width pinned with `min-width: 380px` on `<html>`, `<body>`
+  AND `.vs-popup-shell` to defend against Firefox sampling body's
+  intrinsic width on first paint and collapsing the popup to ~60px.
+
+## [0.2.1] — 2026-05-06
+
+### Added
+- **Cloudflare Worker** (`cloudflare-worker/`) that accepts feedback
+  POSTs from both extensions and forwards them to a Telegram bot.
+  Per-IP rate limit 5/hour via KV.
+- **In-extension feedback page** (`feedback.html`): rating, message,
+  optional reply email, opt-in diagnostic snapshot.
+
+### Fixed
+- Feedback button tried `browser.tabs.create` (unavailable in content
+  script) and silently fell back to `window.open('feedback.html')` —
+  a relative URL the host page resolved against its own origin,
+  landing the user at e.g. `rezka.ag/.../feedback.html` → 404. Now
+  uses `runtime.getURL()` for the absolute extension URL.
+
+## [0.2.0] — 2026-05-06
+
+### Added
+- Initial public release of HDRezka Speed Controller.
+- **Eleven preset speed buttons** (1.0x – 2.0x in 0.1 steps), tuned
+  for movie playback.
+- **Slider** for in-between values, accent-coloured fill.
+- **Hotkeys**: Ctrl+C +0.1 / Ctrl+V −0.1 by default (changed in
+  0.2.8 — see above).
+- **Gear menu** with Общие / Клавиши / Диагностика / Поддержать tabs.
+- **Toolbar popup** mirrors the gear menu.
+- **Auto-follows HDRezka theme** (light/dark) — multi-strategy
+  detection: data-attributes, `b-body--*` classes, luminance walk,
+  body text-color cross-check, deferred re-checks at 200/600/1500 ms
+  + window.load to defeat HDRezka's JS-applied theme race.
+- **Bilingual EN/RU** (auto-detected on first run; switchable in
+  Settings).
+- **Five-strategy DiscoveryEngine** (cache → exact → substring →
+  ancestor-of-video → geometric heuristic) so the panel survives
+  HDRezka layout changes.
+- **Plyr playback-rate persistence patched** — episode changes can't
+  override the user's chosen speed.
+- **URL allow-list**: bootstrap only on `/films/*.html`,
+  `/series/*.html`, `/cartoons/*.html`, `/animation/*.html`,
+  `/show/*.html`, `/documentary/*.html` — listing pages
+  (`/continue/`, `/favorites/`, profile, search) skipped.
+- **Mirrors covered**: hdrezka.ag, rezka.ag, hdrezka.me, hdrezka.co,
+  hdrezka.website, hdrezka.cm, hdrezka-home.tv, rezkify.com,
+  rezkery.com, kinopub.me.
+- **Welcome page** with onboarding + bilingual switch.
+- **Privacy**: zero telemetry, zero analytics, zero remote calls
+  (the optional 0.2.1 feedback flow is the only outbound path,
+  triggered by an explicit user action).

@@ -74,7 +74,10 @@ function renderForm(host: HTMLElement, t: Translator): void {
     rating: 'neutral',
     message: '',
     contact: '',
-    attachDiagnostics: true,
+    // Off by default — the diagnostic blob carries enough fingerprint
+    // bits (settings, browser, viewport, language) that we don't want
+    // it transmitted unless the user actively opts in (audit 0.2.8).
+    attachDiagnostics: false,
   };
 
   const ratingBtn = (value: Rating, emoji: string, labelKey: string): HTMLButtonElement => {
@@ -117,7 +120,6 @@ function renderForm(host: HTMLElement, t: Translator): void {
 
   const diagCheckbox = h('input', {
     type: 'checkbox',
-    checked: 'checked',
   }) as HTMLInputElement;
   diagCheckbox.addEventListener('change', () => {
     state.attachDiagnostics = diagCheckbox.checked;
@@ -290,7 +292,9 @@ async function submit(state: FormState): Promise<void> {
     message: state.message,
     contact: state.contact || undefined,
     diagnostics,
-    userAgent: navigator.userAgent,
+    // userAgent removed in 0.2.8 — adds fingerprint surface and the
+    // browser-version detection inside the diagnostic snapshot is
+    // already enough for repro purposes when the user opts in.
   };
 
   let res: Response;

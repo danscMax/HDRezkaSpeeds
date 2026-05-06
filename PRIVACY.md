@@ -47,8 +47,10 @@ want to send it to the developer.
 | `host_permissions` (HDRezka mirrors) | Inject the speed-control UI into the HDRezka video player. The extension does not run on any other site. |
 
 The Firefox manifest declares
-`browser_specific_settings.gecko.data_collection_permissions: { required: ['none'] }`
-so the AMO listing makes the zero-collection promise machine-readable.
+`browser_specific_settings.gecko.data_collection_permissions: { required: ['technicalAndInteractionData'] }`
+because the optional Send-feedback form transmits the user's message
+to a developer-owned Cloudflare Worker. Outside that explicit user-
+initiated action no data leaves the browser.
 
 ### Feedback form
 
@@ -132,9 +134,10 @@ issue, если хотите отправить разработчику.
 | `host_permissions` (зеркала HDRezka) | Встраивать панель управления скоростью в плеер HDRezka. Расширение не работает на других сайтах. |
 
 В Firefox-манифесте задекларировано
-`browser_specific_settings.gecko.data_collection_permissions: { required: ['none'] }`,
-чтобы листинг AMO мог автоматически проверить обещание о нулевом
-сборе данных.
+`browser_specific_settings.gecko.data_collection_permissions: { required: ['technicalAndInteractionData'] }`,
+поскольку опциональная форма «Связаться с автором» отправляет ваше
+сообщение на Cloudflare Worker, которым владеет автор. Вне этого
+явного действия пользователя никакие данные браузер не покидают.
 
 ### Форма обратной связи
 

@@ -68,7 +68,15 @@ export default defineConfig({
             gecko: {
               id: 'hdrezka-speeds@maxscorpy',
               strict_min_version: '142.0',
-              data_collection_permissions: { required: ['none'] },
+              // The optional feedback form (Settings -> Support -> Send
+              // feedback) POSTs the user's message + chosen contact
+              // method + opt-in diagnostic snapshot to a developer-
+              // owned Cloudflare Worker, which forwards them to the
+              // developer's personal Telegram. That puts the
+              // collection bucket above 'none'. Everything else
+              // (settings, speed presets) still lives only in
+              // browser.storage.local — see PRIVACY.md.
+              data_collection_permissions: { required: ['technicalAndInteractionData'] },
             },
           },
         }
