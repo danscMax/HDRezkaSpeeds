@@ -361,18 +361,6 @@ function diagTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
         ' ',
         t('diag.btn.full_reset'),
       ),
-      h(
-        'button',
-        {
-          class: 'vs-action',
-          'data-vs-diag': 'feedback',
-          title: t('diag.btn.feedback.tip'),
-          style: 'grid-column: 1 / -1;',
-        },
-        vsIcon('mail', 14),
-        ' ',
-        t('diag.btn.feedback'),
-      ),
     ),
     vsSection(
       t('settings.export'),

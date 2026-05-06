@@ -182,10 +182,32 @@ export function renderDonateSection(i18n: Translator): HTMLElement {
     externalArrow,
   );
 
+  // Feedback link — same row visual style as the CloudTips button so
+  // the Support tab reads as a coherent "ways to talk to / help the
+  // author" group. Uses data-vs-diag="feedback" so the existing
+  // handler in handlers.ts wires it up automatically.
+  const feedbackBtn = h(
+    'button',
+    {
+      type: 'button',
+      class: 'vs-donate-cloudtips',
+      'data-vs-diag': 'feedback',
+      title: t('diag.btn.feedback.tip'),
+    },
+    h(
+      'span',
+      { class: 'vs-donate-stack' },
+      h('span', { class: 'vs-donate-label' }, t('diag.btn.feedback')),
+      h('span', { class: 'vs-donate-desc' }, t('feedback.intro')),
+    ),
+    vsIcon('mail', 14),
+  );
+
   return h(
     'div',
     { class: 'vs-donate-content' },
     h('p', { class: 'vs-donate-intro' }, t('donate.thanks')),
+    feedbackBtn,
     cloudtipsBtn,
     buildCryptoMethod(TON, i18n),
     buildCryptoMethod(USDT_TRC20, i18n),

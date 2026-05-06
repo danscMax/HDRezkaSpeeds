@@ -71,10 +71,18 @@ html[data-vs-theme="light"] .vs-popup-diag-hint {
  * naturally without spawning an internal scrollbar (which used to
  * appear on the General tab and pull the content sideways).
  */
-html {
+/* Hard-pin the popup width on BOTH html and body. Some Firefox builds
+   sample body's intrinsic width on first paint and shrink the popup
+   window to whatever the body wants — and the synchronous skeleton's
+   intrinsic width is much smaller than 380px (vertical column of
+   pills, vertical text fragments). Min-width belts-and-braces so the
+   sample never reads below 380. Audit 0.2.1: users reported popup
+   collapsing to ~60px after install. */
+html, body {
   width: 380px;
-  /* Replace the default platform scrollbar with a thin themed one so the
-     popup matches the in-player settings modal aesthetic. */
+  min-width: 380px;
+}
+html {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
@@ -82,12 +90,11 @@ html[data-vs-theme="light"] {
   scrollbar-color: rgba(0, 0, 0, 0.20) transparent;
 }
 body {
-  /* Body sizes to content. Earlier we forced 100vh + html min-height 500
-     to stop the toolbar popup from sampling a half-rendered DOM, but the
-     synchronous skeleton in main.ts now lays out at the real size from
-     frame 0 so the artificial floor isn't needed — and it caused visible
-     blank space below the content on light theme (audit 0.2.0). */
   min-height: 0;
+}
+.vs-popup-shell {
+  width: 100%;
+  min-width: 380px;
 }
 /* WebKit browsers (Chrome, Edge) need explicit ::-webkit-scrollbar rules;
    `scrollbar-width: thin` alone is a Firefox-only hint. */
