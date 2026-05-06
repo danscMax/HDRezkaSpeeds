@@ -1402,6 +1402,39 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
 }
 .vs-action.danger:hover svg { color: #f87171; }
 
+/* Large "talk to the author" CTA shown at the bottom of the General
+   tab. The same feedback affordance also lives in the Diagnostics
+   action grid (small button, for users already exploring tooling)
+   and as a row in the Support tab — three placements, all bound to
+   data-vs-diag="feedback" so the handler stays single-source. The
+   General-tab CTA is the visually prominent one because that's where
+   regular users land first. */
+.vs-feedback-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--vs-accent) 0%, var(--vs-accent-dark) 100%);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(var(--vs-accent-rgb), 0.3);
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+}
+.vs-feedback-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(var(--vs-accent-rgb), 0.45);
+  filter: brightness(1.05);
+}
+.vs-feedback-cta svg { color: #fff; }
+
 .vs-privacy-hint {
   display: flex;
   align-items: center;

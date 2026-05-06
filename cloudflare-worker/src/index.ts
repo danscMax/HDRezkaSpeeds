@@ -35,6 +35,10 @@ interface FeedbackPayload {
   version?: string;
   rating?: 'positive' | 'neutral' | 'negative';
   message: string;
+  /** Free-form contact info (email, @telegram, Discord tag, etc.). */
+  contact?: string;
+  /** Legacy field name kept for backwards compatibility with older
+   *  extension builds; treated identically to `contact` if present. */
   email?: string;
   diagnostics?: string;
   userAgent?: string;
@@ -136,10 +140,13 @@ function validate(p: FeedbackPayload, env: Env): string[] {
     errors.push('message_too_long');
   }
 
-  if (p.email !== undefined && p.email !== '') {
-    if (typeof p.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) {
-      errors.push('email');
-    }
+  // Contact is free-form text up to 200 chars (email, @telegram-handle,
+  // Discord tag, anything the user wants to be reached at). Skip strict
+  // email validation — it would reject perfectly valid Telegram/Discord
+  // handles. Just bound the length so a Worker request can't be abused.
+  const contactRaw = (p.contact ?? p.email ?? '').toString();
+  if (contactRaw.length > 200) {
+    errors.push('contact_too_long');
   }
 
   if (p.rating !== undefined && !['positive', 'neutral', 'negative'].includes(p.rating)) {
@@ -168,9 +175,10 @@ function formatTelegramMessage(p: FeedbackPayload, ip: string): string {
   lines.push(`<b>Message:</b>`);
   lines.push(escapeHtml(p.message.trim()));
 
-  if (p.email) {
+  const contactValue = (p.contact ?? p.email ?? '').toString().trim();
+  if (contactValue) {
     lines.push('');
-    lines.push(`<b>Reply to:</b> ${escapeHtml(p.email)}`);
+    lines.push(`<b>Contact:</b> ${escapeHtml(contactValue)}`);
   }
 
   if (p.url) {

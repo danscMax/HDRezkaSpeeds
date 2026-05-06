@@ -244,3 +244,28 @@ html[data-vs-theme="light"] body::-webkit-scrollbar-thumb:hover {
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.6);
 }
+.vs-popup-diag-hint-top {
+  margin: 0 12px 8px;
+  background: rgba(0, 161, 219, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 161, 219, 0.30);
+}
+html[data-vs-theme="light"] .vs-popup-diag-hint-top {
+  background: rgba(0, 161, 219, 0.10);
+  color: rgba(15, 15, 15, 0.85);
+  border-color: rgba(0, 161, 219, 0.30);
+}
+
+/* In the toolbar popup, the Diagnostics action grid points at services
+   that only exist inside the content script (HealthChecker, selector
+   cache). Disable them visually here so the user doesn't tap a button
+   that silently no-ops. The "feedback" button is exempt — it opens a
+   real extension page that works from any context. */
+.vs-popup-shell .vs-action-grid > [data-vs-diag]:not([data-vs-diag="feedback"]) {
+  opacity: 0.40;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.vs-popup-shell .vs-status[data-vs-diag-status] {
+  opacity: 0.55;
+}

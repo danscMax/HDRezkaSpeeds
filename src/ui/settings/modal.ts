@@ -260,6 +260,22 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
     langSection,
     behaviorSection,
     advancedSection,
+    // Big "talk to the author" CTA at the bottom — same data-vs-diag
+    // hook the Diagnostics tab uses, just styled larger so a regular
+    // user finds it without diving into Diagnostics. Same handler in
+    // handlers.ts opens feedback.html.
+    h(
+      'button',
+      {
+        type: 'button',
+        class: 'vs-feedback-cta',
+        'data-vs-diag': 'feedback',
+        title: t('diag.btn.feedback.tip'),
+      },
+      vsIcon('mail', 16),
+      ' ',
+      t('diag.btn.feedback'),
+    ),
   );
 }
 
@@ -360,6 +376,17 @@ function diagTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
         vsIcon('alert', 14),
         ' ',
         t('diag.btn.full_reset'),
+      ),
+      h(
+        'button',
+        {
+          class: 'vs-action vs-action-feedback',
+          'data-vs-diag': 'feedback',
+          title: t('diag.btn.feedback.tip'),
+        },
+        vsIcon('mail', 14),
+        ' ',
+        t('diag.btn.feedback'),
       ),
     ),
     vsSection(

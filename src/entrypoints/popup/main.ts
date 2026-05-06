@@ -206,19 +206,21 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
       }),
     );
     // Show the "open the player to run diagnostics" hint only on the
-     // Diagnostics tab — on General/Keys/Donate it has no context and just
-     // looked like a leaked tooltip pinned to the popup bottom (audit
-     // 0.2.0).
-    const children: Node[] = [menu];
+    // Diagnostics tab — on General/Keys/Donate it has no context and
+    // just looked like a leaked tooltip pinned to the popup bottom
+    // (audit 0.2.0). Goes BEFORE the menu so the user sees it before
+    // they reach for the (greyed-out) action buttons.
+    const children: Node[] = [];
     if (activeTab === 'diag') {
       children.push(
         h(
           'div',
-          { class: 'vs-popup-diag-hint' },
-          ctx.i18n.t('diag.status.click_to_check'),
+          { class: 'vs-popup-diag-hint vs-popup-diag-hint-top' },
+          ctx.i18n.t('diag.popup_hint'),
         ),
       );
     }
+    children.push(menu);
     host.replaceChildren(...children);
     attachSettingsHandlers(menu, ctx, {
       setActiveTab: (t) => { activeTab = t; },

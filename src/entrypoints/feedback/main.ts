@@ -35,7 +35,7 @@ type Rating = 'positive' | 'neutral' | 'negative';
 interface FormState {
   rating: Rating;
   message: string;
-  email: string;
+  contact: string;
   attachDiagnostics: boolean;
 }
 
@@ -73,7 +73,7 @@ function renderForm(host: HTMLElement, t: Translator): void {
   const state: FormState = {
     rating: 'neutral',
     message: '',
-    email: '',
+    contact: '',
     attachDiagnostics: true,
   };
 
@@ -106,14 +106,14 @@ function renderForm(host: HTMLElement, t: Translator): void {
   }) as HTMLTextAreaElement;
   messageEl.addEventListener('input', () => { state.message = messageEl.value; });
 
-  const emailEl = h('input', {
-    type: 'email',
+  const contactEl = h('input', {
+    type: 'text',
     class: 'fb-input',
-    placeholder: t.t('feedback.email.placeholder'),
-    autocomplete: 'email',
-    inputmode: 'email',
+    placeholder: t.t('feedback.contact.placeholder'),
+    maxlength: '200',
+    autocomplete: 'off',
   }) as HTMLInputElement;
-  emailEl.addEventListener('input', () => { state.email = emailEl.value.trim(); });
+  contactEl.addEventListener('input', () => { state.contact = contactEl.value.trim(); });
 
   const diagCheckbox = h('input', {
     type: 'checkbox',
@@ -155,9 +155,9 @@ function renderForm(host: HTMLElement, t: Translator): void {
     h(
       'div',
       { class: 'fb-section' },
-      h('label', { class: 'fb-label' }, t.t('feedback.email.label')),
-      emailEl,
-      h('div', { class: 'fb-hint' }, t.t('feedback.email.hint')),
+      h('label', { class: 'fb-label' }, t.t('feedback.contact.label')),
+      contactEl,
+      h('div', { class: 'fb-hint' }, t.t('feedback.contact.hint')),
     ),
     h(
       'div',
@@ -288,7 +288,7 @@ async function submit(state: FormState): Promise<void> {
     version: SCRIPT_VERSION,
     rating: state.rating,
     message: state.message,
-    email: state.email || undefined,
+    contact: state.contact || undefined,
     diagnostics,
     userAgent: navigator.userAgent,
   };
