@@ -14,6 +14,13 @@ export default defineConfig({
   zip: {
     excludeSources: [
       'dist-userscript/**',
+      // Store-listing PNGs are uploaded separately to AMO/CWS as listing
+      // assets; AMO's source zip only needs what's required to reproduce
+      // the submitted build, not marketing collateral.
+      'dist-store-assets/screenshots/**',
+      // Playwright cache + per-run profile dirs left by the screenshot
+      // generator. Not part of the source surface AMO needs.
+      'tests/store-screenshots/.tmp-profile/**',
       'Ссылка для чаевых.txt',
     ],
   },
