@@ -22,6 +22,7 @@ import type { AppContext } from '../../app/context';
 import { createBrowserStorageAdapter } from '../../storage/adapter';
 import { createSettingsStore } from '../../storage/settings-store';
 import { createSpeedStore } from '../../storage/speed-store';
+import { storageKeysFor } from '../../config';
 import { detectSite } from '../../sites/detect';
 import {
   attachSettingsHandlers,
@@ -294,12 +295,36 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
 
   // 5. Listen for storage.onChanged so the popup reflects edits made in
   //    the in-player gear without needing a manual refresh.
+  //
+  // Filtering is critical: HealthChecker writes selector-cache entries
+  // (vs-cache:* keys) on every recheck, and the recheck the popup
+  // itself triggers when Diagnostics opens caused a STORM of those
+  // writes — each one fired this listener, each one rerendered the
+  // entire popup, producing visible flicker on the Diagnostics tab
+  // (audit 0.2.7). Only react to settings/speed key changes, not
+  // cache or other internal state.
+  const settingsKeys = new Set([
+    storageKeysFor('hdrezka').settings,
+    storageKeysFor('hdrezka').speed,
+  ]);
+  let pendingRerender: ReturnType<typeof setTimeout> | null = null;
   const storageListener = (changes: Record<string, unknown>): void => {
     if (changes['__vs_skip__']) return;
-    rerender();
+    const changedKeys = Object.keys(changes);
+    if (!changedKeys.some((k) => settingsKeys.has(k))) return;
+    // Coalesce bursts from a single user action (settings update + speed
+    // update arriving in the same frame) into one rerender.
+    if (pendingRerender !== null) clearTimeout(pendingRerender);
+    pendingRerender = setTimeout(() => {
+      pendingRerender = null;
+      rerender();
+    }, 50);
   };
   browser.storage.local.onChanged.addListener(storageListener);
-  cleanup.add(() => browser.storage.local.onChanged.removeListener(storageListener));
+  cleanup.add(() => {
+    if (pendingRerender !== null) clearTimeout(pendingRerender);
+    browser.storage.local.onChanged.removeListener(storageListener);
+  });
 
   rerender();
 }

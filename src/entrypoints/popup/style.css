@@ -79,8 +79,8 @@ html[data-vs-theme="light"] .vs-popup-diag-hint {
    sample never reads below 380. Audit 0.2.1: users reported popup
    collapsing to ~60px after install. */
 html, body {
-  width: 380px;
-  min-width: 380px;
+  width: 420px;
+  min-width: 420px;
 }
 html {
   scrollbar-width: thin;
@@ -94,7 +94,7 @@ body {
 }
 .vs-popup-shell {
   width: 100%;
-  min-width: 380px;
+  min-width: 420px;
 }
 /* WebKit browsers (Chrome, Edge) need explicit ::-webkit-scrollbar rules;
    `scrollbar-width: thin` alone is a Firefox-only hint. */

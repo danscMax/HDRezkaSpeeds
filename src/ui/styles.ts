@@ -875,7 +875,7 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   color: var(--vs-text-primary);
   border-radius: 14px;
   padding: 0;
-  width: 340px;
+  width: 380px;
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 80px);
   border: 1px solid var(--vs-border);
