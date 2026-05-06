@@ -372,6 +372,59 @@ export async function bootstrap(
     }),
   );
 
+  // 14. Message listener for the toolbar popup. The popup runs in a
+  //     separate context with no access to HealthChecker / SelectorCache,
+  //     so when the user opens it on a video page it asks the active tab
+  //     (which is us) to run the diagnostic and stream the result back.
+  //     This lets the popup show a LIVE status instead of the static
+  //     "Not checked yet" placeholder.
+  const onPopupMessage = (
+    msg: unknown,
+  ): Promise<{ ok: boolean; report?: DiagnosticReport; error?: string }> => {
+    const m = msg as { type?: string } | null | undefined;
+    if (!m || typeof m.type !== 'string') {
+      return Promise.resolve({ ok: false, error: 'no_type' });
+    }
+    try {
+      switch (m.type) {
+        case 'vs:recheck': {
+          const report = healthChecker.runOnce();
+          return Promise.resolve({ ok: true, report });
+        }
+        case 'vs:get-status': {
+          const report = healthChecker.getLastReport() ?? healthChecker.runOnce();
+          return Promise.resolve({ ok: true, report });
+        }
+        case 'vs:purge-cache': {
+          void cache.purgeAll();
+          return Promise.resolve({ ok: true });
+        }
+        default:
+          return Promise.resolve({ ok: false, error: 'unknown_type' });
+      }
+    } catch (e) {
+      return Promise.resolve({
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
+  // Use a dynamic import for `wxt/browser` to avoid pulling it into the
+  // userscript bundle (the userscript build aliases it to a throwing
+  // shim — calling it here would error). The handler is fire-and-forget;
+  // the listener stays installed for the life of the content script.
+  void import('wxt/browser').then(({ browser: br }) => {
+    try {
+      br.runtime.onMessage.addListener(onPopupMessage);
+      cleanup.add(() => {
+        try { br.runtime.onMessage.removeListener(onPopupMessage); }
+        catch { /* swallow */ }
+      });
+    } catch (e) {
+      logger.warn('popup message listener install failed', e);
+    }
+  });
+
   logger.info('bootstrap complete');
   void NotificationKindCheck;
 }

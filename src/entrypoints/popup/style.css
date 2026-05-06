@@ -256,16 +256,13 @@ html[data-vs-theme="light"] .vs-popup-diag-hint-top {
   border-color: rgba(0, 161, 219, 0.30);
 }
 
-/* In the toolbar popup, the Diagnostics action grid points at services
-   that only exist inside the content script (HealthChecker, selector
-   cache). Disable them visually here so the user doesn't tap a button
-   that silently no-ops. The "feedback" button is exempt — it opens a
-   real extension page that works from any context. */
-.vs-popup-shell .vs-action-grid > [data-vs-diag]:not([data-vs-diag="feedback"]) {
+/* The "Full reset" button is the only one we keep disabled in popup
+   context — it's destructive enough that a misclick from outside the
+   gear menu (where the user is actively investigating) deserves the
+   safety net. Recheck / Copy / Purge cache run for real over the
+   message-passing channel established in src/index.ts. */
+.vs-popup-shell .vs-action-grid > [data-vs-diag="full-reset"] {
   opacity: 0.40;
   cursor: not-allowed;
   pointer-events: none;
-}
-.vs-popup-shell .vs-status[data-vs-diag-status] {
-  opacity: 0.55;
 }
