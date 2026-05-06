@@ -42,7 +42,7 @@ if (!existsSync(OUT)) {
   mkdirSync(OUT, { recursive: true });
 } else {
   for (const f of readdirSync(OUT)) {
-    if (f.endsWith('.png')) unlinkSync(join(OUT, f));
+    if (/\.(png|jpe?g)$/i.test(f)) unlinkSync(join(OUT, f));
   }
   console.log(`cleaned ${OUT}`);
 }
@@ -51,6 +51,15 @@ if (!existsSync(OUT)) {
 // imports under the chrome-extension:// scheme. headless=false is required
 // for extension loading (Chromium dropped extension support in headless
 // mode by default; "new headless" works but is unstable across versions).
+//
+// deviceScaleFactor stays at 1 — Chrome Web Store requires the screenshot
+// dimensions to match EXACTLY 1280x800 (or 640x400). With DPR=2 the
+// output PNG was 2560x1600 and CWS rejected it as "image size incorrect".
+//
+// Output format is JPEG to satisfy CWS's "JPEG or 24-bit PNG (no alpha)"
+// rule with no extra post-processing — JPEGs by definition cannot carry
+// an alpha channel, so we never trip the alpha-channel reject path
+// either.
 const userDataDir = resolve(__dirname, '.tmp-profile');
 const ctx = await chromium.launchPersistentContext(userDataDir, {
   headless: false,
@@ -61,13 +70,13 @@ const ctx = await chromium.launchPersistentContext(userDataDir, {
     '--no-default-browser-check',
   ],
   viewport: { width: 1280, height: 800 },
-  deviceScaleFactor: 2,
+  deviceScaleFactor: 1,
 });
 
 let n = 1;
 async function shoot(page, name, opts = {}) {
-  const file = join(OUT, `${String(n).padStart(2, '0')}-${name}.png`);
-  await page.screenshot({ path: file, ...opts });
+  const file = join(OUT, `${String(n).padStart(2, '0')}-${name}.jpg`);
+  await page.screenshot({ path: file, type: 'jpeg', quality: 92, ...opts });
   console.log(`saved ${file}`);
   n++;
 }
@@ -79,35 +88,14 @@ await page1.goto(pathToFileURL(MOCK).href, { waitUntil: 'load' });
 await page1.waitForTimeout(400);
 await shoot(page1, 'hdrezka-panel');
 
-// 2. Tight crop around the panel + player chrome.
-const rect = await page1.evaluate(() => {
-  const panel = document.querySelector('.vs-panel');
-  const player = document.querySelector('.b-player');
-  if (!panel || !player) return null;
-  const playerR = player.getBoundingClientRect();
-  const panelR = panel.getBoundingClientRect();
-  return {
-    top: Math.max(0, playerR.top - 8),
-    height: panelR.bottom - playerR.top + 16,
-  };
-});
-if (rect) {
-  await page1.screenshot({
-    path: join(OUT, `${String(n).padStart(2, '0')}-hdrezka-panel-close.png`),
-    clip: { x: 0, y: rect.top, width: 1280, height: Math.min(rect.height, 800 - rect.top) },
-  });
-  console.log(`saved hdrezka-panel-close.png (cropped)`);
-  n++;
-}
+// 2. Mock HDRezka — settings modal open.
+const page2 = await ctx.newPage();
+await page2.setViewportSize({ width: 1280, height: 800 });
+await page2.goto(pathToFileURL(MOCK).href + '?modal=1', { waitUntil: 'load' });
+await page2.waitForTimeout(600);
+await shoot(page2, 'hdrezka-settings');
 
-// 3. Mock HDRezka — settings modal open.
-const page3 = await ctx.newPage();
-await page3.setViewportSize({ width: 1280, height: 800 });
-await page3.goto(pathToFileURL(MOCK).href + '?modal=1', { waitUntil: 'load' });
-await page3.waitForTimeout(600);
-await shoot(page3, 'hdrezka-settings');
-
-// 4. Welcome — through the built extension. Discover its ID via the service
+// 3. Welcome — through the built extension. Discover its ID via the service
 // worker URL, then navigate to chrome-extension://<id>/welcome.html.
 let extId = null;
 // Wait a beat for the extension to register its service worker.

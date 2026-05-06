@@ -185,17 +185,18 @@ GPL-3.0-or-later.
 
 ## Screenshots to upload
 
-From `dist-store-assets/screenshots/`, in this recommended order:
+Three 1280x800 JPEGs in `dist-store-assets/screenshots/`, designed for
+the Chrome Web Store size + format constraints (CWS rejects anything
+that isn't exactly 1280x800 / 640x400 and won't accept PNGs with an
+alpha channel). Recommended upload order:
 
-1. `02-hdrezka-panel-close.png` — panel close-up (the hero shot, shows
-   the 1.0x – 2.0x ladder + slider + gear in tight context).
-2. `03-hdrezka-settings.png` — settings modal open: explains presets,
-   slider position, behaviour toggles in one image.
-3. `04-welcome-page.png` — welcome onboarding (light theme — adds
+1. `01-hdrezka-panel.jpg` — full-page HDRezka mock, shows where the
+   panel lives in context (header + player + panel below).
+2. `02-hdrezka-settings.jpg` — same page with the settings modal open,
+   explaining presets / slider position / behaviour toggles in one
+   image.
+3. `03-welcome-page.jpg` — welcome onboarding (light theme; adds
    visual variety to the otherwise dark deck).
-4. `01-hdrezka-panel.png` — full-page HDRezka context shot (header +
-   player + panel) so the listing reader sees where the panel lives
-   on a real page.
 
 Re-generate any time with: `node tests/store-screenshots/render.mjs`
 (needs an extension build under `.output/chrome-mv3/`; run
