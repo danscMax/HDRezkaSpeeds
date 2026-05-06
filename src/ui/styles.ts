@@ -1011,7 +1011,7 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   flex-shrink: 0;
 }
 .vs-tab {
-  padding: 6px 8px;
+  padding: 6px 6px;
   background: transparent;
   border: none;
   color: inherit;
@@ -1023,12 +1023,16 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   align-items: center;
   gap: 4px;
   white-space: nowrap;
-  /* Don't let a flex parent shrink the tab below its intrinsic content
-     width — when shrinkage was allowed, white-space:nowrap text spilled
-     outside the button while the active-state border-bottom stayed
-     pinned to the (smaller) flex-box width, producing an underline
-     visibly shorter than the visible label. */
-  flex: 0 0 auto;
+  /* flex: 1 1 0 distributes the tab strip width evenly across the
+     four tabs; min-width:0 + overflow:hidden lets text crop cleanly
+     instead of spilling past the flex-box. The active-state
+     border-bottom now matches the visible tab width, so the
+     underline reads correctly under the label even on narrow popups
+     where four-tab layout would otherwise overflow the 340px / 380px
+     menu frame. */
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
   transition: color 160ms ease, opacity 160ms ease, border-color 160ms ease;
 }
 .vs-tab:hover { opacity: 0.85; }
