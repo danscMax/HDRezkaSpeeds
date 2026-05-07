@@ -47,10 +47,14 @@ want to send it to the developer.
 | `host_permissions` (HDRezka mirrors) | Inject the speed-control UI into the HDRezka video player. The extension does not run on any other site. |
 
 The Firefox manifest declares
-`browser_specific_settings.gecko.data_collection_permissions: { required: ['technicalAndInteractionData'] }`
-because the optional Send-feedback form transmits the user's message
-to a developer-owned Cloudflare Worker. Outside that explicit user-
-initiated action no data leaves the browser.
+`browser_specific_settings.gecko.data_collection_permissions:
+{ required: ['none'], optional: ['personalCommunications',
+'technicalAndInteraction'] }`. The "required" array is `['none']`
+because nothing is collected automatically — settings stay in
+`browser.storage.local`. The two "optional" entries cover the
+Send-feedback flow only, which fires on an explicit user click and
+only transmits the diagnostic snapshot when the user ticks the
+attachment checkbox.
 
 ### Feedback form
 
@@ -134,10 +138,14 @@ issue, если хотите отправить разработчику.
 | `host_permissions` (зеркала HDRezka) | Встраивать панель управления скоростью в плеер HDRezka. Расширение не работает на других сайтах. |
 
 В Firefox-манифесте задекларировано
-`browser_specific_settings.gecko.data_collection_permissions: { required: ['technicalAndInteractionData'] }`,
-поскольку опциональная форма «Связаться с автором» отправляет ваше
-сообщение на Cloudflare Worker, которым владеет автор. Вне этого
-явного действия пользователя никакие данные браузер не покидают.
+`browser_specific_settings.gecko.data_collection_permissions:
+{ required: ['none'], optional: ['personalCommunications',
+'technicalAndInteraction'] }`. Массив "required" равен `['none']`,
+потому что ничего не собирается автоматически — настройки остаются
+в `browser.storage.local`. Две записи в "optional" описывают только
+форму «Связаться с автором»: она срабатывает по явному клику
+пользователя и передаёт диагностический снимок только если
+пользователь поставил соответствующую галочку.
 
 ### Форма обратной связи
 

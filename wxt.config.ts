@@ -68,15 +68,25 @@ export default defineConfig({
             gecko: {
               id: 'hdrezka-speeds@maxscorpy',
               strict_min_version: '142.0',
-              // The optional feedback form (Settings -> Support -> Send
-              // feedback) POSTs the user's message + chosen contact
-              // method + opt-in diagnostic snapshot to a developer-
-              // owned Cloudflare Worker, which forwards them to the
-              // developer's personal Telegram. That puts the
-              // collection bucket above 'none'. Everything else
-              // (settings, speed presets) still lives only in
-              // browser.storage.local — see PRIVACY.md.
-              data_collection_permissions: { required: ['technicalAndInteractionData'] },
+              // The extension itself collects nothing automatically —
+              // settings/presets stay in browser.storage.local. The
+              // Send-feedback form (Settings -> Support -> Send
+              // feedback) is fully opt-in: the user types a message,
+              // optionally adds a contact handle and optionally
+              // attaches a diagnostic snapshot (technical info), then
+              // explicitly clicks Submit to POST the bundle to a
+              // developer-owned Cloudflare Worker that forwards it to
+              // the developer's personal Telegram. Per AMO data-
+              // collection schema, that maps to:
+              //   - required: ['none']         — nothing forced.
+              //   - optional: personal comms (the message itself) +
+              //               technicalAndInteraction (the diagnostic
+              //               snapshot, only sent if the user checks
+              //               the box). See PRIVACY.md.
+              data_collection_permissions: {
+                required: ['none'],
+                optional: ['personalCommunications', 'technicalAndInteraction'],
+              },
             },
           },
         }

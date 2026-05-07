@@ -4,6 +4,21 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.2.9] — 2026-05-07
+
+### Fixed
+- **AMO validator rejected the 0.2.8 manifest**:
+  `data_collection_permissions.required` was set to
+  `['technicalAndInteractionData']`, which is not a valid value in
+  the AMO schema. Corrected to:
+  - `required: ['none']` — the extension itself collects nothing
+    automatically.
+  - `optional: ['personalCommunications', 'technicalAndInteraction']`
+    — these cover the Send-feedback form, which is fully opt-in
+    (explicit Submit click + opt-in diagnostic checkbox).
+
+  PRIVACY.md updated to match the new declaration.
+
 ## [0.2.8] — 2026-05-06
 
 ### Changed
