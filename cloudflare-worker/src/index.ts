@@ -62,6 +62,26 @@ const CORS_HEADERS = {
   'Access-Control-Max-Age': '86400',
 };
 
+// Browsers send Origin: chrome-extension://<id> from extension HTML pages
+// (popup, options, opened tabs) and content-script fetches in MV3. Firefox
+// uses moz-extension://. Anything else is either a non-browser client or
+// a malicious page running in a normal web origin — both should be blocked
+// at this endpoint.
+//
+// This check is best-effort: a determined attacker can spoof Origin via
+// non-browser tooling. It does, however, kill drive-by abuse from random
+// pages on the open web (where browsers will not send a forged Origin).
+const ALLOWED_ORIGIN_PROTOCOLS = new Set(['chrome-extension:', 'moz-extension:']);
+
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return false;
+  try {
+    return ALLOWED_ORIGIN_PROTOCOLS.has(new URL(origin).protocol);
+  } catch {
+    return false;
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
@@ -76,6 +96,17 @@ export default {
 
     if (request.method !== 'POST' || url.pathname !== '/feedback') {
       return json({ error: 'not_found' }, 404);
+    }
+
+    // Origin allowlist: only accept POSTs from the two extensions that ship
+    // this Worker as a dependency. Real users hit the endpoint from the
+    // extension's feedback HTML page; everyone else (open-web pages, random
+    // bots) gets a hard 403 here before consuming any KV writes or Telegram
+    // quota.
+    const origin = request.headers.get('Origin');
+    if (!isAllowedOrigin(origin)) {
+      console.warn('Rejected origin:', origin ?? '<missing>');
+      return json({ error: 'forbidden_origin' }, 403);
     }
 
     // Rate limit by client IP. Cloudflare puts the real visitor IP in

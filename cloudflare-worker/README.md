@@ -85,11 +85,19 @@ https://speeds-feedback.<your-subdomain>.workers.dev
 
 ### 6. Smoke test
 
+The endpoint requires an `Origin` header from one of the two extension
+schemes (`chrome-extension://*` or `moz-extension://*`). Real browser
+fetches send this automatically; for `curl` you have to spoof it:
+
 ```bash
 curl -X POST https://speeds-feedback.<sub>.workers.dev/feedback \
   -H "Content-Type: application/json" \
+  -H "Origin: chrome-extension://smoke-test" \
   -d '{"app":"hdrezka","message":"hello from curl","rating":"positive"}'
 ```
+
+Without `-H "Origin: ..."` the Worker returns `403 forbidden_origin`
+(intended — that's the abuse gate).
 
 You should:
 - get `{"ok":true}` from curl
@@ -112,9 +120,17 @@ Body (JSON):
 | `userAgent` | string | no | UA string for context |
 | `url` | string | no | Page URL (origin only — content scripts strip the rest) |
 
+Required headers:
+- `Content-Type: application/json`
+- `Origin: chrome-extension://...` or `Origin: moz-extension://...`. Any
+  other origin (or missing header) gets `403 forbidden_origin`. Browsers
+  set this automatically from extension HTML pages and MV3 content-script
+  fetches; non-browser tooling has to spoof it.
+
 Response:
 - `200 {"ok": true}` on success
 - `400 {"error": "validation_failed", "fields": [...]}` on bad input
+- `403 {"error": "forbidden_origin"}` from a non-extension origin
 - `429 {"error": "rate_limited", "retry_after_minutes": 60}` after 5/hour per IP
 - `502 {"error": "send_failed"}` if Telegram returns 4xx/5xx
 - `404` for any other path / method
