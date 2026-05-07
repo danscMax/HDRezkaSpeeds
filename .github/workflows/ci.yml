@@ -75,6 +75,9 @@ jobs:
         with:
           name: hdrezka-speeds-${{ matrix.browser }}-${{ github.sha }}
           path: .output/*.zip
+          # `.output` starts with a dot — upload-artifact@v4 skips dot-prefixed
+          # paths by default and the upload would silently produce zero files.
+          include-hidden-files: true
           retention-days: 14
           if-no-files-found: error
 
