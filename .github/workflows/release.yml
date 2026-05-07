@@ -1,0 +1,131 @@
+name: Release
+
+# Triggered by pushing a semver tag (vX.Y.Z). Builds Chrome + Firefox zips
+# and the userscript, then creates a GitHub Release with the artifacts
+# attached.
+#
+# Optional store-publish steps are commented out -- enable when the
+# matching secrets exist (CWS_CLIENT_ID / CWS_CLIENT_SECRET /
+# CWS_REFRESH_TOKEN / CWS_EXTENSION_ID for Chrome Web Store, AMO_JWT_*
+# for Mozilla AMO).
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # required to create the GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Verify tag matches package.json version
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "package.json: $PKG_VERSION"
+          echo "git tag:      $TAG_VERSION"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::package.json version ($PKG_VERSION) does not match git tag ($TAG_VERSION)"
+            exit 1
+          fi
+
+      - name: Build Chrome MV3 zip
+        run: npx wxt zip -b chrome --mv3
+
+      - name: Build Firefox MV3 zip
+        run: npx wxt zip -b firefox --mv3
+
+      - name: Build userscript
+        run: npm run build:userscript
+
+      - name: Stage release assets
+        id: stage
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          # WXT writes zips into .output/ -- copy with stable names.
+          for zip in .output/*-chrome*.zip; do
+            cp "$zip" "release/hdrezka-speeds-chrome-${GITHUB_REF#refs/tags/v}.zip"
+          done
+          for zip in .output/*-firefox*.zip; do
+            cp "$zip" "release/hdrezka-speeds-firefox-${GITHUB_REF#refs/tags/v}.zip"
+          done
+          if [ -f dist-userscript/hdrezka-speeds.user.js ]; then
+            cp dist-userscript/hdrezka-speeds.user.js "release/hdrezka-speeds-${GITHUB_REF#refs/tags/v}.user.js"
+          fi
+          ls -la release/
+
+      - name: Generate SHA-256 checksums
+        run: |
+          cd release && sha256sum * > SHA256SUMS.txt
+          cat release/SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.zip
+            release/*.user.js
+            release/SHA256SUMS.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Install
+
+            - **Chrome / Edge / Brave**: download `hdrezka-speeds-chrome-*.zip`,
+              unzip, then load via `chrome://extensions` -> Developer mode
+              -> Load unpacked. (Or wait for the Chrome Web Store listing.)
+            - **Firefox**: download `hdrezka-speeds-firefox-*.zip`. For
+              permanent install, the AMO listing is the supported path.
+            - **Tampermonkey / Violentmonkey**: download
+              `hdrezka-speeds-*.user.js` (when present) and open it in your
+              browser; the userscript manager will offer to install.
+
+            Verify downloads against `SHA256SUMS.txt`.
+
+      # ----- OPTIONAL: Chrome Web Store auto-publish -----
+      # Uncomment + add the four secrets (CWS_CLIENT_ID, CWS_CLIENT_SECRET,
+      # CWS_REFRESH_TOKEN, CWS_EXTENSION_ID) to push the chrome zip
+      # straight to the store from the same tag push.
+      #
+      # - name: Publish to Chrome Web Store
+      #   if: ${{ secrets.CWS_EXTENSION_ID != '' }}
+      #   run: |
+      #     npx chrome-webstore-upload-cli@3 upload \
+      #       --source release/hdrezka-speeds-chrome-${GITHUB_REF#refs/tags/v}.zip \
+      #       --extension-id "${{ secrets.CWS_EXTENSION_ID }}" \
+      #       --client-id "${{ secrets.CWS_CLIENT_ID }}" \
+      #       --client-secret "${{ secrets.CWS_CLIENT_SECRET }}" \
+      #       --refresh-token "${{ secrets.CWS_REFRESH_TOKEN }}" \
+      #       --auto-publish
+
+      # ----- OPTIONAL: AMO auto-sign + publish -----
+      # Same gating, secrets AMO_JWT_ISSUER + AMO_JWT_SECRET. web-ext
+      # uploads the source dir + signs in place; the resulting .xpi can
+      # be added to the same release.
+      #
+      # - name: Publish to AMO
+      #   if: ${{ secrets.AMO_JWT_ISSUER != '' }}
+      #   run: |
+      #     npx web-ext sign \
+      #       --source-dir=.output/firefox-mv3 \
+      #       --api-key="${{ secrets.AMO_JWT_ISSUER }}" \
+      #       --api-secret="${{ secrets.AMO_JWT_SECRET }}" \
+      #       --channel=listed

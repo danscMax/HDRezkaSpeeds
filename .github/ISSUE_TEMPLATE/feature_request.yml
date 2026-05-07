@@ -1,0 +1,56 @@
+name: Feature request
+description: Suggest a new capability or an improvement to an existing one.
+title: "[feature] "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before writing: a feature this extension intentionally does NOT have
+        is just as important as one it does. Keep it focused on user value.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation in which today's UX falls short.
+      placeholder: |
+        When watching a long series, I want to skip credit/recap intros at
+        higher speed without changing my baseline rate. Today I have to
+        toggle between 1.0x (regular) and 2.5x (skip) manually.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      placeholder: |
+        Add a "boost" hotkey that temporarily raises rate to a configurable
+        value while held, then restores the previous rate on release.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: |
+        - Just remembering two recent rates and toggling between them.
+        - Per-host preset slots.
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - HDRezka only
+        - Should also exist in the YouTube/RuTube sibling (VideoSpeeds)
+        - Not sure
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Sanity checks
+      options:
+        - label: I checked existing issues for duplicates.
+          required: false
+        - label: I'm willing to test a beta build of this feature.
+          required: false

@@ -1,0 +1,106 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly in the extension.
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug.
+
+        Quick path: if you don't need to track this on GitHub, the
+        in-extension **Send feedback** form (gear menu → Поддержать,
+        or the popup's Support tab) attaches the diagnostic snapshot
+        for you and reaches the maintainer directly. Use this template
+        if you'd rather discuss publicly or attach screenshots.
+  - type: input
+    id: ext-version
+    attributes:
+      label: Extension version
+      description: Found in `chrome://extensions` or `about:addons`. Also visible in the gear menu footer.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome
+        - Edge
+        - Brave
+        - Vivaldi
+        - Opera
+        - Firefox
+        - LibreWolf
+        - Other (specify in "Repro steps")
+    validations:
+      required: true
+  - type: input
+    id: browser-version
+    attributes:
+      label: Browser version
+      placeholder: "e.g. 131.0.6778.86"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: Host page (URL pattern, NO personal info)
+      description: e.g. `rezka.ag/films/horror/...`. The first two segments are usually enough — please don't paste full URLs that identify what you were watching.
+      placeholder: "rezka.ag/films/..."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro steps
+      description: Numbered steps so the maintainer can reproduce.
+      placeholder: |
+        1. Open a film page on rezka.ag
+        2. Click the speed panel "1.5x" button
+        3. Click "Next episode"
+        4. Speed resets to 1.0x instead of staying at 1.5x
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+      placeholder: |
+        Expected: speed stays at 1.5x across episodes (Plyr persistence).
+        Actual: speed resets to 1.0x on every episode change.
+    validations:
+      required: true
+  - type: textarea
+    id: diag
+    attributes:
+      label: Diagnostic snapshot (optional)
+      description: |
+        Open the gear menu → **Диагностика** → **Скопировать отчёт**, then paste here.
+        The snapshot includes settings, browser, viewport, language. It does NOT include URLs or personal data.
+      render: text
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / video (optional)
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Sanity checks
+      options:
+        - label: I disabled other speed-control or HDRezka-modifying extensions/userscripts and reproduced the bug.
+          required: false
+        - label: I checked existing issues for duplicates.
+          required: false

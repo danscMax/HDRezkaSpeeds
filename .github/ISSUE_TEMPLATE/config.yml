@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Send feedback from inside the extension (no GitHub account needed)
+    url: https://github.com/danscMax/HDRezkaSpeeds#send-feedback
+    about: Open the extension's gear menu → Поддержать (or the popup's Support tab) → Send feedback. Goes straight to the maintainer's Telegram.
+  - name: Privacy policy
+    url: https://github.com/danscMax/HDRezkaSpeeds/blob/main/PRIVACY.md
+    about: How the extension handles data, permissions, and the optional feedback flow.

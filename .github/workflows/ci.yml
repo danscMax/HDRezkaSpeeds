@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# Cancel in-progress runs on the same ref when a new push lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # Per-browser build + typecheck + bundle-size budget + zip artifact.
+  # Matrix keeps Chrome and Firefox honest on every PR.
+  build:
+    name: build (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # --mv3 forces MV3 manifest for Firefox too (default is MV2 in WXT 0.19).
+      # No-op for Chrome (already MV3). Keeps output paths consistent: both
+      # browsers land at .output/<browser>-mv3/ which the budget check below
+      # and the zip step both rely on.
+      - name: Build extension
+        run: npx wxt build -b ${{ matrix.browser }} --mv3
+
+      # Hard-fail if any content-script bundle exceeds 500 KB.
+      - name: Bundle size budget (500 KB per content script)
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX_BYTES=$((500 * 1024))
+          OUT_DIR=".output/${{ matrix.browser }}-mv3"
+          if [ ! -d "$OUT_DIR/content-scripts" ]; then
+            echo "::warning::No content-scripts directory at $OUT_DIR"
+            exit 0
+          fi
+          fail=0
+          for f in "$OUT_DIR"/content-scripts/*.js; do
+            [ -f "$f" ] || continue
+            sz=$(stat -c%s "$f")
+            printf '%s: %s bytes\n' "$f" "$sz"
+            if [ "$sz" -gt "$MAX_BYTES" ]; then
+              echo "::error file=$f::Bundle exceeds 500 KB budget ($sz > $MAX_BYTES)"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      - name: Package zip
+        run: npx wxt zip -b ${{ matrix.browser }} --mv3
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hdrezka-speeds-${{ matrix.browser }}-${{ github.sha }}
+          path: .output/*.zip
+          retention-days: 14
+          if-no-files-found: error
+
+  # Firefox: web-ext lint catches manifest/policy regressions (missing
+  # data_collection_permissions, broad host_permissions, etc.).
+  lint-firefox:
+    name: lint (Firefox)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build firefox-mv3
+        run: npx wxt build -b firefox --mv3
+
+      # Warnings-as-errors stays OFF: web-ext warns about missing icons in dev
+      # builds. Errors still fail the job.
+      - name: web-ext lint
+        run: npx web-ext lint --source-dir=.output/firefox-mv3
+
+  # Cloudflare Worker is published manually (wrangler deploy), but its source
+  # ships from this repo — typecheck it on every PR so a broken deploy script
+  # never sneaks past review.
+  worker-typecheck:
+    name: worker-typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./cloudflare-worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: cloudflare-worker/package-lock.json
+
+      - name: Install worker deps
+        run: npm ci
+
+      - name: Typecheck worker
+        run: npx tsc --noEmit
