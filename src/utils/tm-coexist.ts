@@ -125,7 +125,14 @@ export function warnIfHdrezkaImprovementPresent(): void {
       hcImprovement?: unknown;
     };
     const flagSet = !!(w.HDrezkaImprovement || w.hcImprovement);
-    const domMatch = !!document.querySelector('[id^="hc-"], [class*="hc-"]');
+    // Token-boundary class selectors only — `[class*="hc-"]` would match
+    // `bg-hc-banner`, `theme-hc-mode`, third-party ad classes, etc., and
+    // emit a false-positive warning for users without HC-Improvement.
+    // Match `hc-` only at the start of an id, or at the start of a
+    // class token (whitespace-separated).
+    const domMatch = !!document.querySelector(
+      '[id^="hc-"], [class^="hc-"], [class*=" hc-"]',
+    );
     if (!flagSet && !domMatch) return;
     console.warn(
       '[HDREZKA-SPEEDS] HDrezka-Improvement userscript detected — speed controls may overlap with that script. If something looks broken, disable one of them.',

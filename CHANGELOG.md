@@ -4,6 +4,41 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.3] — 2026-05-07
+
+### Fixed
+- **`Diagnostics → Очистить кеш` no longer reports success when the
+  cache wipe fails.** The popup handler resolved with `ok: true` before
+  `cache.purgeAll()` actually finished. `await` added so the popup gets
+  the real result. (`src/index.ts`)
+- **First-install settings are now pinned to disk.** Without the
+  initial write, a future version that changes a default would silently
+  flip users who never opened the gear menu. One storage write per
+  fresh install, ever. (`src/storage/settings-store.ts`)
+- **HC-Improvement userscript detector no longer false-positives on
+  third-party class names.** `[class*="hc-"]` matched `bg-hc-banner`,
+  `theme-hc-mode`, and any unrelated class containing the substring.
+  Tightened to token-boundary selectors. (`src/utils/tm-coexist.ts`)
+- **`unhandledrejection` listener now ties to `ctx.signal`.** Without
+  it, dev HMR rebuilds accumulated one filter per reload. (`src/entrypoints/content.ts`)
+- **`clamp()` rounding comment now matches the code.** Comment claimed
+  1-decimal rounding while the implementation rounded to 0.01 — the
+  0.01 behaviour is correct (configurable speed step), only the
+  comment was misleading. (`src/speed/controller.ts`)
+
+### Changed
+- Worker (separate deploy): tighter input validation. Wrong-typed
+  `version` / `url` / `userAgent` / `contact` / `email` / `diagnostics`
+  values no longer surface as a generic 5xx — they get a clean
+  `400 validation_failed` with the offending field name. New length
+  caps (`version` ≤ 32, `url` ≤ 2048, `userAgent` ≤ 500) close a
+  parse-allocation gap where a 60 KB-of-slack body could be parsed
+  before being trimmed downstream.
+- Worker: KV write failure after a successful Telegram delivery is
+  now caught and logged instead of bubbling out as a 5xx. The user
+  sees the success they earned; the missed rate-limit bump only buys
+  one extra submission this hour.
+
 ## [0.3.2] — 2026-05-07
 
 ### Fixed

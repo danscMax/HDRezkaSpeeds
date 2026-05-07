@@ -402,7 +402,7 @@ export async function bootstrap(
   //     (which is us) to run the diagnostic and stream the result back.
   //     This lets the popup show a LIVE status instead of the static
   //     "Not checked yet" placeholder.
-  const onPopupMessage = (
+  const onPopupMessage = async (
     msg: unknown,
   ): Promise<{ ok: boolean; report?: DiagnosticReport; error?: string }> => {
     const m = msg as { type?: string } | null | undefined;
@@ -420,7 +420,10 @@ export async function bootstrap(
           return Promise.resolve({ ok: true, report });
         }
         case 'vs:purge-cache': {
-          void cache.purgeAll();
+          // Await: the popup shows success/failure based on this resolved
+          // value. Without await a real adapter failure would surface as
+          // ok=true and the user would think the purge succeeded.
+          await cache.purgeAll();
           return Promise.resolve({ ok: true });
         }
         default:

@@ -60,6 +60,21 @@ export function createSettingsStore(adapter: StorageAdapter): SettingsStoreImpl 
       // disk write (or a TM migration of a third-party tool) can't poison
       // the in-memory state with stray strings/numbers.
       state = mergeAndValidate(raw, fallback);
+
+      // First-install pin: when the disk has no prior value, write the
+      // defaults back immediately. Otherwise a future version that
+      // changes a default field would silently flip users who never
+      // opened the gear menu — `mergeAndValidate(null, NEW_DEFAULTS)`
+      // would just adopt the new defaults instead of preserving the
+      // user's training. This costs one storage write per fresh-install.
+      if (raw === null) {
+        try {
+          await adapter.set(storageKey, state);
+        } catch {
+          // Non-fatal: in-memory state is correct, the next update()
+          // will retry the persist.
+        }
+      }
     },
 
     get(): Settings {

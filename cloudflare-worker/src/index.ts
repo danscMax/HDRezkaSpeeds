@@ -160,8 +160,16 @@ export default {
     }
 
     // Bump the rate limit AFTER a successful send so a temporary
-    // Telegram outage doesn't burn the user's quota.
-    await env.RATE_LIMIT.put(rateKey, String(used + 1), { expirationTtl: 3600 });
+    // Telegram outage doesn't burn the user's quota. KV outages here
+    // must NOT mask the successful Telegram delivery — if they did, the
+    // user would re-submit and Telegram would receive duplicates. The
+    // rate-limit counter is best-effort; a missed bump only buys the
+    // user one extra submission this hour.
+    try {
+      await env.RATE_LIMIT.put(rateKey, String(used + 1), { expirationTtl: 3600 });
+    } catch (e) {
+      console.error('Rate-limit increment failed (Telegram already delivered):', e);
+    }
 
     return json({ ok: true }, 200);
   },
@@ -179,10 +187,35 @@ function validate(p: FeedbackPayload, env: Env): string[] {
     errors.push('message_too_long');
   }
 
+  // Optional string fields. Bound lengths so a payload that slips past
+  // the global 64 KB body cap can't smuggle 60 KB of slack through the
+  // Telegram-truncate path. Wrong-typed values (number, array, object)
+  // would crash `formatTelegramMessage` with a TypeError; reject with
+  // a clean 400 instead.
+  for (const [field, max] of [
+    ['version',   32],
+    ['url',       2048],
+    ['userAgent', 500],
+  ] as const) {
+    const v = p[field];
+    if (v !== undefined) {
+      if (typeof v !== 'string') errors.push(field);
+      else if (v.length > max) errors.push(`${field}_too_long`);
+    }
+  }
+
   // Contact is free-form text up to 200 chars (email, @telegram-handle,
   // Discord tag, anything the user wants to be reached at). Skip strict
   // email validation — it would reject perfectly valid Telegram/Discord
   // handles. Just bound the length so a Worker request can't be abused.
+  // Both `contact` and the legacy `email` field are accepted; reject if
+  // either one is wrong-typed.
+  for (const field of ['contact', 'email'] as const) {
+    const v = p[field];
+    if (v !== undefined && typeof v !== 'string') {
+      errors.push(field);
+    }
+  }
   const contactRaw = (p.contact ?? p.email ?? '').toString();
   if (contactRaw.length > 200) {
     errors.push('contact_too_long');
@@ -192,9 +225,9 @@ function validate(p: FeedbackPayload, env: Env): string[] {
     errors.push('rating');
   }
 
-  if (p.diagnostics !== undefined && typeof p.diagnostics === 'string' &&
-      p.diagnostics.length > MAX_DIAGNOSTICS) {
-    errors.push('diagnostics_too_long');
+  if (p.diagnostics !== undefined) {
+    if (typeof p.diagnostics !== 'string') errors.push('diagnostics');
+    else if (p.diagnostics.length > MAX_DIAGNOSTICS) errors.push('diagnostics_too_long');
   }
 
   return errors;

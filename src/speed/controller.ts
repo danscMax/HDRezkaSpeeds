@@ -62,10 +62,11 @@ function applyToVideo(ctx: AppContext, speed: number): boolean {
 function clamp(ctx: AppContext, speed: number): number {
   const bounds = speedBoundsFor(ctx.site);
   if (!Number.isFinite(speed)) return bounds.defaultSpeed;
-  // Round to 1 decimal so successive +0.1 / -0.1 hotkey presses don't
+  // Round to 0.01 so successive `±speedStep` hotkey presses don't
   // accumulate float drift (1 + 0.1 + 0.1 + ... -> 1.7000000000000002).
-  // Original userscript does Math.round(x*10)/10 in every speedUp/Down
-  // hotkey path (.user.js:5078,5088,5099,5108).
+  // Step granularity is configurable down to 0.01 in Settings, so we
+  // can't round to 1 decimal — that would collapse two adjacent presses
+  // at step=0.05 onto the same value.
   const rounded = Math.round(speed * 100) / 100;
   return Math.min(bounds.max, Math.max(bounds.min, rounded));
 }
