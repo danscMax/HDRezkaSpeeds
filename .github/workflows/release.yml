@@ -73,8 +73,9 @@ jobs:
 
       - name: Generate SHA-256 checksums
         run: |
-          cd release && sha256sum * > SHA256SUMS.txt
-          cat release/SHA256SUMS.txt
+          cd release
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
