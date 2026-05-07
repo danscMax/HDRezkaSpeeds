@@ -4,6 +4,61 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.4] — 2026-05-07
+
+### Accessibility & Usability (UI/UX audit pass)
+
+Five-expert audit (Visual / UX / A11y / Platform / Casual User) plus a
+Devil's Advocate validator. 31 confirmed findings; this release closes
+13 of them. Three more (in-fullscreen reparent, pinned-speed indicator,
+preset-pool grouping) need more careful work and ship in 0.3.5.
+
+### Added
+- **Brand marker** (`vs-brand`) — a tiny accent-coloured chevron at
+  the leading edge of the panel so users can tell at a glance that
+  this is our extension rather than native host UI. Host-theme
+  mirroring stays intact; this is only an identity cue. (`src/ui/panel.ts`)
+- **Hotkey hint in onboarding** — the welcome page's first annotation
+  now mentions the default `Alt+Shift+↑/↓` shortcut alongside the
+  click + double-click instructions. Earlier users had to scroll to
+  the configuration card to even know hotkeys existed.
+
+### Changed
+- **Slider value is now visible at rest** (`opacity: 0.92` instead of
+  `0`). Earlier the floating tooltip only appeared on container hover
+  / thumb drag — at rest you couldn't read the slider's current
+  value. Reveals at full opacity + scale on interaction.
+- **Active settings tab** now reads with bold + underline + colour
+  instead of underline-and-colour-only. Strong non-colour cue for
+  deuteranopia / monochrome.
+- **Active "Speed buttons" subtitle (`vs-help-text`)** lifted from
+  `opacity 0.7` to `0.85`, with comfortable line-height and bottom
+  margin. The hint "Pick which speeds appear on the in-player panel"
+  was technically there but visually swallowed.
+- **Pill-button row now has a subtle backdrop** so the buttons read
+  as a coherent group rather than as isolated capsules floating on
+  the host's near-black background.
+- **Light-theme contrast tokens** (`--vs-text-dim`, `--vs-text-secondary`)
+  raised so caption-style text passes WCAG AA at small sizes. Dark
+  theme also bumped a notch.
+- **Section captions** (`КНОПКИ СКОРОСТИ`, `ПОЛОЖЕНИЕ ПОЛЗУНКА`) gain
+  a `font-weight: 600` and higher opacity for readability at 10px.
+
+### Fixed
+- **Diagnostics gear icon now has `aria-label` and `aria-haspopup`**.
+  Previously only `title=` was set, which is screen-reader-implementation
+  dependent. Now the gear announces correctly.
+- **"Закрепить навсегда" wording softened** to "сделать скоростью по
+  умолчанию для новых видео". The old phrasing (in onboarding only)
+  read like a permanent commitment users were afraid to make.
+
+### Stale screenshots note
+- The "v0.2.0" version label visible in the in-extension settings
+  header on stored screenshots is NOT a code bug — `__VS_VERSION__`
+  is wired correctly and now shows `0.3.4`. The store-listing
+  screenshots were captured at v0.2.0 and need to be re-rendered
+  before the next AMO/CWS submission.
+
 ## [0.3.3] — 2026-05-07
 
 ### Fixed

@@ -11,7 +11,7 @@
  */
 
 import { handleSpeedButtonClick, setSpeed } from '../speed/controller';
-import { vsFilledGearIcon } from './icons';
+import { vsFilledGearIcon, vsIcon } from './icons';
 import {
   refreshActiveButton,
   renderButtonsRow,
@@ -112,6 +112,11 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   const gearBtn = document.createElement('button');
   gearBtn.type = 'button';
   gearBtn.className = 'vs-gear-button';
+  // aria-label for screen readers; title gives the same affordance to
+  // sighted hover users.
+  gearBtn.setAttribute('aria-label', ctx.i18n.t('menu.title'));
+  gearBtn.setAttribute('aria-haspopup', 'menu');
+  gearBtn.setAttribute('aria-expanded', 'false');
   gearBtn.title = ctx.i18n.t('menu.title');
   gearBtn.appendChild(vsFilledGearIcon(16));
 
@@ -122,6 +127,16 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   gearWrapper.appendChild(gearBtn);
   gearWrapper.appendChild(settingsMenu);
 
+  // Brand marker — a tiny icon at the leading edge so users can tell at
+  // a glance this is our extension rather than native host UI (audit
+  // MAJ-10). Host-theme mirroring stays intact; this is just identity.
+  const brand = document.createElement('span');
+  brand.className = 'vs-brand';
+  brand.setAttribute('aria-label', 'HDRezka Speeds');
+  brand.title = 'HDRezka Speeds';
+  brand.appendChild(vsIcon('chevrons-up', 12));
+
+  root.appendChild(brand);
   root.appendChild(buttonsRow);
   root.appendChild(sliderContainer);
   root.appendChild(gearWrapper);
