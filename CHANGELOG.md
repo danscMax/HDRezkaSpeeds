@@ -4,6 +4,29 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.0] — 2026-05-07
+
+### Added
+- **`prefers-reduced-motion` support** — when the OS-level Reduce
+  Motion preference is on, all our fades/slides/pulses become
+  effectively instant (0.01ms). The active accent gradient and
+  slider fill stay; only motion-sickness triggers go.
+- **Confirmation dialog on Diagnostics → "Очистить кеш"** — was
+  destructive and silent before. Now matches the existing
+  full-reset gate.
+- **`aria-live="polite"` on the diagnostic status block** so screen
+  readers announce status updates when the watchdog or a manual
+  recheck completes.
+- **HDrezka-Improvement userscript detector** — emits a single
+  `console.warn` when that userscript is detected on the same page,
+  to help triage UI-overlap reports. Does NOT block our bootstrap.
+
+### Changed
+- Worker (separate deploy): IP addresses are now hashed (HMAC-SHA256)
+  before being used as a rate-limit key in KV, and are no longer
+  included in the Telegram message that arrives in the developer's
+  inbox. See `cloudflare-worker/CHANGELOG` for details.
+
 ## [0.2.9] — 2026-05-07
 
 ### Fixed

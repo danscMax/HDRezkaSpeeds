@@ -101,3 +101,36 @@ export function __resetForTests(): void {
     .querySelectorAll(LEGACY_TM_DOM_SELECTORS)
     .forEach((el) => el.remove());
 }
+
+/**
+ * Soft-detect the popular HDrezka-Improvement userscript and emit a
+ * one-line console warning if it is present. Unlike the TM-userscript
+ * coexistence above, we do NOT block our bootstrap — the two scripts
+ * touch different things (HC-Improvement is layout/theme tweaks,
+ * we are speed control). They CAN overlap on the player area though,
+ * and a heads-up in DevTools makes triage faster when a user reports
+ * weirdness.
+ *
+ * Probes (in order):
+ *   1. window.HDrezkaImprovement (or window.hcImprovement) is truthy.
+ *   2. Any element on the page carries an `id="hc-..."` or
+ *      `class="...hc-..."` token — HC-Improvement applies that prefix
+ *      to its toggle classes (hc-content-size-..., hc-style-..., etc.,
+ *      seen in the HDRezka console output the user shared 2026-05-06).
+ */
+export function warnIfHdrezkaImprovementPresent(): void {
+  try {
+    const w = window as unknown as {
+      HDrezkaImprovement?: unknown;
+      hcImprovement?: unknown;
+    };
+    const flagSet = !!(w.HDrezkaImprovement || w.hcImprovement);
+    const domMatch = !!document.querySelector('[id^="hc-"], [class*="hc-"]');
+    if (!flagSet && !domMatch) return;
+    console.warn(
+      '[HDREZKA-SPEEDS] HDrezka-Improvement userscript detected — speed controls may overlap with that script. If something looks broken, disable one of them.',
+    );
+  } catch {
+    /* swallow — diagnostic-only */
+  }
+}

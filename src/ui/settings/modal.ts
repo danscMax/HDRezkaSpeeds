@@ -321,7 +321,16 @@ function diagTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
     },
     h(
       'div',
-      { class: 'vs-status', 'data-state': 'idle', 'data-vs-diag-status': '' },
+      {
+        class: 'vs-status',
+        'data-state': 'idle',
+        'data-vs-diag-status': '',
+        // Polite live region so screen readers announce status updates
+        // (refreshDiagnosticStatus mutates the headline + detail children
+        // when the watchdog or a manual recheck completes).
+        'aria-live': 'polite',
+        'aria-atomic': 'true',
+      },
       h('div', { class: 'vs-status-dot' }),
       h(
         'div',

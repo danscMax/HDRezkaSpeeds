@@ -1650,4 +1650,19 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
     font-size: 10px !important;
   }
 }
+
+/* Honour the user's OS-level "reduce motion" preference (Windows
+   Settings > Accessibility > Visual effects, macOS System Settings >
+   Accessibility > Display > Reduce motion). Strips animations and
+   transitions inside our scoped UI roots only — the active accent
+   gradient, slider fill etc. stay; only fades/slides/pulses go. */
+@media (prefers-reduced-motion: reduce) {
+  .vs-panel *, .vs-panel,
+  .settings-menu *, .settings-menu {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 `;

@@ -157,6 +157,7 @@ export const I18N_DICT = {
     'feedback.error.fallback': 'If the form keeps failing, write directly to {email}.',
     'feedback.retry': 'Try again',
     'diag.full_reset_confirm': 'Erase ALL settings and selector cache?\n\nThis cannot be undone -- you will lose your shortcuts, language preference, default speed, and discovery cache. Reload the page after the reset.',
+    'diag.purge_cache_confirm': 'Clear the selector cache? The page will re-discover the player after the next reload.',
     'diag.privacy': 'Reports do not include search queries or URL fragments -- only the domain and the page path.',
 
     // diag.status.*
@@ -379,6 +380,7 @@ export const I18N_DICT = {
     'feedback.error.fallback': 'Если форма всё равно не работает — напишите напрямую на {email}.',
     'feedback.retry': 'Попробовать снова',
     'diag.full_reset_confirm': 'Удалить ВСЕ настройки и кеш селекторов?\n\nЭто действие нельзя отменить -- вы потеряете горячие клавиши, выбор языка, скорость по умолчанию и кеш discovery. После сброса перезагрузите страницу.',
+    'diag.purge_cache_confirm': 'Очистить кеш селекторов? Плеер будет заново обнаружен после следующей перезагрузки страницы.',
     'diag.privacy': 'Отчёты не содержат поисковых запросов и фрагментов URL -- только домен и путь страницы.',
 
     // diag.status.*

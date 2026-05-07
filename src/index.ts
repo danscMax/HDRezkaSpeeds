@@ -55,7 +55,11 @@ import { SPEED_STEP, speedBoundsFor } from './config';
 import { createTranslator } from './i18n/translator';
 import { detectBrowserLang } from './i18n/detect';
 import { createLogger } from './utils/logger';
-import { detectAndClaim, release as releaseCoexistMarker } from './utils/tm-coexist';
+import {
+  detectAndClaim,
+  release as releaseCoexistMarker,
+  warnIfHdrezkaImprovementPresent,
+} from './utils/tm-coexist';
 import { detectSite, isHDRezkaVideoPath } from './sites/detect';
 import { bootstrapHDRezkaSite } from './sites/hdrezka';
 import {
@@ -118,6 +122,11 @@ export async function bootstrap(
     console.info('[HDREZKA-SPEEDS] coexistence:', decision.reason);
     return;
   }
+
+  // 1a. Soft-detect HDrezka-Improvement userscript. Doesn't block us —
+  //     it touches layout/theme rather than speed control — but a
+  //     console.warn helps triage when a user reports a weird overlap.
+  warnIfHdrezkaImprovementPresent();
 
   const cleanup = new CleanupRegistry();
   wxtCtx.onInvalidated(() => {
@@ -231,6 +240,9 @@ export async function bootstrap(
         }
       },
       purgeCache: async () => {
+        const confirmText = ctx.i18n.t('diag.purge_cache_confirm');
+        const ok = typeof window.confirm === 'function' ? window.confirm(confirmText) : true;
+        if (!ok) return;
         await cache.purgeAll();
         logger.info('diag: selector cache purged');
       },
