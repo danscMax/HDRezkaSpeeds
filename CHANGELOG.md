@@ -4,6 +4,37 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.2] — 2026-05-07
+
+### Fixed
+- **HealthChecker watchdog now actually watches.** Earlier behaviour
+  ran exactly one check 5 s after bootstrap; if the page was healthy
+  at that moment, polling never started and any later degradation
+  (HLS revert storm, episode-change layout flip, host JS swapping the
+  player container) went undetected. The gear's red warning dot now
+  lights up whenever the page actually breaks. (`src/health/checker.ts`)
+- **Ratechange-revert timer escaped the per-attach cleanup registry.**
+  The 50 ms counter-revert used a raw `setTimeout`; on episode change
+  the disposed timer could still fire and write the previous video's
+  rate onto the freshly-attached one. Now routed through
+  `cleanup.setTimeout` so it dies with its attach. (`src/index.ts`)
+- **Language toggle round-trip silently failed.** Switching `EN → RU
+  → EN` left the UI stuck in Russian because the subscriber compared
+  against the bootstrap-time language, never updating. Each fired
+  comparison now updates the tracking variable. (`src/index.ts`)
+- **Plyr localStorage patch installed before attachToVideo.** Earlier
+  ordering put the patch a few orchestration steps later, so any
+  Plyr write during initial player init poisoned its persisted blob
+  and forced a flicker-fight on the next page load. Patch now runs
+  immediately before the first attach. (HDRezka only)
+- **HDRezka video-detection observer no longer scans on every
+  mutation.** The previous broad `subtree:true` watch on
+  `documentElement` ran `node.querySelectorAll('video')` per addedNodes
+  Element — hundreds of times per minute on ad/comment-heavy pages.
+  All mutations within an animation frame now coalesce into a single
+  full-document scan; `seenVideos` keeps announcements idempotent.
+  (HDRezka only)
+
 ## [0.3.1] — 2026-05-07
 
 ### Added

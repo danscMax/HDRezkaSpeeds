@@ -23,8 +23,6 @@ export interface HDRezkaSiteHandle {
 export function bootstrapHDRezkaSite(ctx: AppContext): HDRezkaSiteHandle {
   const subscribers = new Set<() => void>();
 
-  patchPlyrLocalStorage(ctx);
-
   // Track which <video> elements we've already announced so we don't spam
   // subscribers on every unrelated DOM mutation.
   const seenVideos = new WeakSet<HTMLVideoElement>();
@@ -37,24 +35,29 @@ export function bootstrapHDRezkaSite(ctx: AppContext): HDRezkaSiteHandle {
     }
   };
 
-  // Initial scan + observer for future <video> mounts (episode switching,
-  // ad rolls, fullscreen mode reattach).
+  // Initial scan.
   for (const v of document.querySelectorAll('video')) {
     announceIfNew(v as HTMLVideoElement);
   }
 
-  const observer = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      for (const node of m.addedNodes) {
-        if (node instanceof HTMLVideoElement) {
-          announceIfNew(node);
-        } else if (node instanceof Element) {
-          for (const v of node.querySelectorAll('video')) {
-            announceIfNew(v as HTMLVideoElement);
-          }
-        }
-      }
+  // Observer for future <video> mounts (episode switching, ad rolls,
+  // fullscreen reattach). HDRezka pages are mutation-heavy (comments, ad
+  // blocks, lazy-loaded modules); the previous per-mutation
+  // `node.querySelectorAll('video')` scan ran hundreds of times per
+  // minute. We coalesce all mutations within a single animation frame
+  // into one full-doc scan — `seenVideos` dedupes announcements, so a
+  // re-scan of an already-known video is free.
+  let scanQueued = false;
+  const scanForVideos = (): void => {
+    scanQueued = false;
+    for (const v of document.querySelectorAll('video')) {
+      announceIfNew(v as HTMLVideoElement);
     }
+  };
+  const observer = new MutationObserver(() => {
+    if (scanQueued) return;
+    scanQueued = true;
+    requestAnimationFrame(scanForVideos);
   });
   observer.observe(document.documentElement, {
     childList: true,
@@ -76,8 +79,14 @@ export function bootstrapHDRezkaSite(ctx: AppContext): HDRezkaSiteHandle {
  *
  * Idempotent: if the patch is already installed (e.g. from a previous
  * content-script load that the WXT runtime is replacing), we skip.
+ *
+ * IMPORTANT: must be installed BEFORE attachToVideo. Plyr writes its full
+ * settings blob during initial player init at `document_idle`, which can
+ * happen between bootstrap orchestration steps; if the patch lands later,
+ * those early writes poison Plyr's persisted blob and the next page-load
+ * restore fights ours via the cascade retries.
  */
-function patchPlyrLocalStorage(ctx: AppContext): void {
+export function patchPlyrLocalStorage(ctx: AppContext): void {
   type Patched = Storage & { __vsPlyrPatched?: boolean };
   const ls = window.localStorage as Patched;
   if (ls.__vsPlyrPatched) return;

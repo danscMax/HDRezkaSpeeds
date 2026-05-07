@@ -3,10 +3,17 @@
  * fires a one-shot recovery attempt when the page goes from healthy to
  * unhealthy.
  *
- * Schedule (mirrors .user.js:5256-5335 behavior):
- *   - First run 5s after start()
- *   - If healthy: stop until the next start() call
- *   - If unhealthy: poll every 30s until it recovers, then stop
+ * Schedule:
+ *   - First run 5s after start() (warmup window so we don't catch a
+ *     half-bootstrapped page).
+ *   - Then poll every 30s for the rest of the page lifetime.
+ *   - Auto-recovery fires on the healthy → unhealthy transition; the
+ *     reverse transition is logged but doesn't stop the watchdog.
+ *
+ * Earlier behaviour stopped the poll the moment the first check passed,
+ * which left the watchdog blind to any degradation that happened after
+ * the warmup. Now we keep watching so the gear's red dot lights up
+ * whenever the page actually breaks, not just at the 5s mark.
  *
  * All timers go through ctx.cleanup so the registry tears them down on
  * dispose (audit C3).
@@ -83,6 +90,8 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
     if (!report.healthy && lastHealthy) {
       ctx.logger.warn('HealthChecker: unhealthy state detected, attempting auto-recovery');
       tryAutoRecovery(report.checks);
+    } else if (report.healthy && !lastHealthy) {
+      ctx.logger.info('HealthChecker: recovered to healthy');
     }
     lastHealthy = report.healthy;
 
@@ -106,12 +115,11 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
     if (started || !deps.isHealthCheckEnabled()) return;
     started = true;
 
+    // First check runs after the warmup window; polling is unconditional
+    // afterwards so we keep catching late-onset degradation.
     ctx.cleanup.setTimeout(() => {
-      const r = run();
-      if (!r.healthy) {
-        // Already unhealthy after first check; start polling.
-        startPolling();
-      }
+      run();
+      startPolling();
     }, FIRST_RUN_MS);
   }
 
@@ -122,11 +130,7 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
         stopPolling();
         return;
       }
-      const r = run();
-      if (r.healthy) {
-        stopPolling();
-        ctx.logger.info('HealthChecker: recovered to healthy');
-      }
+      run();
     }, POLL_MS);
   }
 

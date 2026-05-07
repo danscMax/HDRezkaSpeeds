@@ -61,7 +61,7 @@ import {
   warnIfHdrezkaImprovementPresent,
 } from './utils/tm-coexist';
 import { detectSite, isHDRezkaVideoPath } from './sites/detect';
-import { bootstrapHDRezkaSite } from './sites/hdrezka';
+import { bootstrapHDRezkaSite, patchPlyrLocalStorage } from './sites/hdrezka';
 import {
   createPanel,
   createUiPort,
@@ -169,7 +169,11 @@ export async function bootstrap(
 
   // 4. Cross-cutting.
   const meter = createRatechangeMeter();
-  const lang = settingsStore.getKey('language');
+  // `lang` is mutable so the settings subscriber below can compare against
+  // the LAST observed value, not the bootstrap-time value. With const, a
+  // round-trip EN → RU → EN silently failed to switch back because the
+  // baseline `lang` never updated.
+  let lang = settingsStore.getKey('language');
   const i18n: Translator = createTranslator(lang);
 
   // 5. Stubs for the chicken-and-egg with UiPort + DiagnosticsPort.
@@ -267,6 +271,7 @@ export async function bootstrap(
 
   const offSettingsSub = settingsStore.subscribe((next) => {
     if (next.language !== lang) {
+      lang = next.language;
       ctx.i18n = createTranslator(next.language);
     }
   });
@@ -300,6 +305,13 @@ export async function bootstrap(
     attributeFilter: ['data-vs-theme'],
   });
   ctx.cleanup.addObserver(themePersistObserver);
+
+  // 9.5 Plyr localStorage patch — MUST run before attachToVideo. Plyr
+  //      writes its full settings blob (including `speed`) during initial
+  //      player init at document_idle; if the patch lands afterwards,
+  //      those early writes poison Plyr's persisted blob and fight our
+  //      restore on the next page load.
+  patchPlyrLocalStorage(ctx);
 
   // 10. Attach to <video>. Nested CleanupRegistry per attach so we can
   //     dispose the ratechange/loadstart listeners cleanly when HDRezka
@@ -589,8 +601,11 @@ function attachToVideo(
     if (Math.abs(next - target) <= 0.005) return;
 
     // HDRezka / Plyr is reverting; counter-revert after a microtask so we
-    // break out of the ratechange callback's current task.
-    setTimeout(() => apply('ratechange-revert'), 50);
+    // break out of the ratechange callback's current task. Routed through
+    // the per-attach cleanup registry so an episode change that disposes
+    // the attach also kills any in-flight revert before it can fire on
+    // the next episode's video element.
+    cleanup.setTimeout(() => apply('ratechange-revert'), 50);
   });
 
   cleanup.addEventListener(v, 'playing', () => {
