@@ -62,6 +62,11 @@ npx wrangler secret put TELEGRAM_BOT_TOKEN
 
 npx wrangler secret put TELEGRAM_CHAT_ID
 # paste the chat id, press Enter
+
+# Random 32-byte hex key. The Worker HMACs each incoming IP with this
+# secret before using it as a KV rate-limit key, so the rate-limit
+# table can never be reverse-mapped to a real IP.
+openssl rand -hex 32 | npx wrangler secret put IP_HASH_SECRET
 ```
 
 ### 5. Deploy
@@ -131,6 +136,7 @@ Local dev needs the same secrets — put them in `.dev.vars` (gitignored):
 ```
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_CHAT_ID=...
+IP_HASH_SECRET=...
 ```
 
 ## Operations
@@ -141,8 +147,15 @@ TELEGRAM_CHAT_ID=...
   errors with HTTP status + body so you can debug delivery problems.
 - **Bump rate limit**: change `RATE_LIMIT_PER_HOUR` in `src/index.ts`
   and re-deploy. Existing limits in KV expire on their own.
-- **Block an abusive IP**: `npx wrangler kv key put --binding=RATE_LIMIT
-  "rl:<ip>" "999"` (sets used to 999 → all further requests get 429).
+- **Block an abusive IP**: keys are `rl:<HMAC-SHA256 hex>` rather than
+  `rl:<dotted-quad>` since the IP-hashing change. To pre-seed a block
+  for a known IP without writing the secret to disk, run a one-shot
+  Worker that computes the hash for you, or temporarily lower
+  `RATE_LIMIT_PER_HOUR` and let the natural counter trip.
+- **Rotate `IP_HASH_SECRET`**: `npx wrangler secret put IP_HASH_SECRET`
+  with a fresh random value and re-deploy. The existing
+  `rl:<old-hash>` entries in KV will expire on their own (1-hour TTL),
+  so the rate-limit window resets at most one hour after rotation.
 
 ## License
 

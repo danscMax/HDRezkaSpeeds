@@ -12,9 +12,13 @@
  * Secrets (set via `wrangler secret put`):
  *   TELEGRAM_BOT_TOKEN   — token from @BotFather
  *   TELEGRAM_CHAT_ID     — your personal chat ID (get from getUpdates)
+ *   IP_HASH_SECRET       — random 32+ byte secret used to HMAC raw IPs
+ *                          before they're written to KV as rate-limit
+ *                          keys. The Worker never stores or forwards
+ *                          plaintext IPs.
  *
  * KV bindings (declared in wrangler.toml):
- *   RATE_LIMIT           — per-IP submission counter, 1-hour TTL
+ *   RATE_LIMIT           — per-IP-hash submission counter, 1-hour TTL
  *
  * Hard limits:
  *   - 5 submissions per IP per hour
@@ -26,6 +30,7 @@
 export interface Env {
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_CHAT_ID: string;
+  IP_HASH_SECRET: string;
   RATE_LIMIT: KVNamespace;
   ALLOWED_APPS: string; // comma-separated, e.g. "hdrezka,videospeeds"
 }
@@ -75,9 +80,12 @@ export default {
 
     // Rate limit by client IP. Cloudflare puts the real visitor IP in
     // CF-Connecting-IP; in worker.dev preview it falls back to a debug
-    // value, which is fine for local testing.
-    const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
-    const rateKey = `rl:${ip}`;
+    // value, which is fine for local testing. The IP itself is never
+    // persisted — we HMAC it with IP_HASH_SECRET and use the hash as the
+    // KV key, so the rate-limit table is unlinkable to a real address.
+    const rawIp = (request.headers.get('CF-Connecting-IP') ?? '').trim() || 'unknown-ip';
+    const ipHash = await hmacSha256Hex(rawIp, env.IP_HASH_SECRET);
+    const rateKey = `rl:${ipHash}`;
     const used = Number((await env.RATE_LIMIT.get(rateKey)) ?? '0');
     if (used >= RATE_LIMIT_PER_HOUR) {
       return json({ error: 'rate_limited', retry_after_minutes: 60 }, 429);
@@ -99,7 +107,7 @@ export default {
 
     // Build a Telegram-friendly Markdown message. Keep it under 4096 chars
     // (Telegram's hard limit) by truncating diagnostics first, then message.
-    const formatted = formatTelegramMessage(payload, ip);
+    const formatted = formatTelegramMessage(payload);
 
     const tgUrl = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
     const tgRes = await fetch(tgUrl, {
@@ -161,7 +169,7 @@ function validate(p: FeedbackPayload, env: Env): string[] {
   return errors;
 }
 
-function formatTelegramMessage(p: FeedbackPayload, ip: string): string {
+function formatTelegramMessage(p: FeedbackPayload): string {
   const ratingEmoji =
     p.rating === 'positive' ? '😊' :
     p.rating === 'negative' ? '😞' :
@@ -189,10 +197,6 @@ function formatTelegramMessage(p: FeedbackPayload, ip: string): string {
   if (p.userAgent) {
     lines.push(`<b>UA:</b> <code>${escapeHtml(p.userAgent.slice(0, 200))}</code>`);
   }
-
-  // IP at the bottom for moderation; don't escape HTML — IPs are safe.
-  lines.push('');
-  lines.push(`<i>IP: ${ip}</i>`);
 
   let body = lines.join('\n');
 
@@ -223,6 +227,26 @@ function escapeHtml(s: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+// HMAC-SHA256 over `input` keyed by `secret`, returned as lowercase hex.
+// Used to make rate-limit KV keys unlinkable to plaintext IPs.
+async function hmacSha256Hex(input: string, secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(input));
+  const bytes = new Uint8Array(sig);
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    hex += (bytes[i] ?? 0).toString(16).padStart(2, '0');
+  }
+  return hex;
 }
 
 function json(payload: unknown, status: number): Response {
