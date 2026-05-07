@@ -50,7 +50,20 @@ export function renderSlider(opts: SliderOptions): HTMLElement {
       step,
       value: opts.current,
     }),
-    h('span', { class: VALUE_CLASS }, speedText),
+    // role=status + aria-live=polite makes screen readers announce the new
+    // value when it changes via hotkey or a preset button click. The native
+    // <input type=range> only announces while focused; the live region
+    // covers non-focus paths.
+    h(
+      'span',
+      {
+        class: VALUE_CLASS,
+        role: 'status',
+        'aria-live': 'polite',
+        'aria-atomic': 'true',
+      },
+      speedText,
+    ),
   );
   // Initial paint of the gradient fill + floating tooltip position.
   const input = container.querySelector<HTMLInputElement>(`.${INPUT_CLASS}`);

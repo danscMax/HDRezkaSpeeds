@@ -4,6 +4,22 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.1] — 2026-05-07
+
+### Added
+- **`role="status"` + `aria-live="polite"` on the speed value**, so
+  screen readers announce the new playback rate when it changes via
+  hotkey or a preset button click. The native `<input type=range>`
+  only announces while focused; the live region covers the
+  not-focused paths.
+
+### Changed
+- Worker (separate deploy): now enforces an `Origin` allowlist
+  (`chrome-extension://*`, `moz-extension://*`). Submissions from
+  open-web pages or non-browser tooling get a hard 403 before they
+  consume any KV writes or Telegram quota. Real users from inside
+  the extension are unaffected. See `cloudflare-worker/CHANGELOG`.
+
 ## [0.3.0] — 2026-05-07
 
 ### Added
