@@ -303,6 +303,11 @@ async function submit(state: FormState): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      // Hard-cap at 15s so a stalled connection (Worker cold-start, transit
+      // hang, Telegram outage upstream) doesn't leave the submit button in
+      // a permanent "Sending…" state. AbortSignal.timeout has been Baseline
+      // since 2023; fetch maps the abort to a TypeError -> catch -> network.
+      signal: AbortSignal.timeout(15000),
     });
   } catch {
     throw new FeedbackError('network');
