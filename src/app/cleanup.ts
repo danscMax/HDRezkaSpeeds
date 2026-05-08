@@ -34,7 +34,13 @@ export class CleanupRegistry {
   /** Diagnostic snapshot of the registry size. Useful for spotting
    *  listener leaks (e.g. menu rerenders adding to `custom` without
    *  ever disposing). */
-  get sizes(): { aborters: number; intervals: number; timeouts: number; observers: number; custom: number } {
+  get sizes(): {
+    aborters: number;
+    intervals: number;
+    timeouts: number;
+    observers: number;
+    custom: number;
+  } {
     return {
       aborters: this.aborters.size,
       intervals: this.intervals.size,
@@ -133,19 +139,39 @@ export class CleanupRegistry {
     this.disposed = true;
 
     for (const ac of this.aborters) {
-      try { ac.abort(); } catch { /* swallow */ }
+      try {
+        ac.abort();
+      } catch {
+        /* swallow */
+      }
     }
     for (const id of this.intervals) {
-      try { clearInterval(id); } catch { /* swallow */ }
+      try {
+        clearInterval(id);
+      } catch {
+        /* swallow */
+      }
     }
     for (const id of this.timeouts) {
-      try { clearTimeout(id); } catch { /* swallow */ }
+      try {
+        clearTimeout(id);
+      } catch {
+        /* swallow */
+      }
     }
     for (const o of this.observers) {
-      try { o.disconnect(); } catch { /* swallow */ }
+      try {
+        o.disconnect();
+      } catch {
+        /* swallow */
+      }
     }
     for (const fn of this.custom) {
-      try { fn(); } catch { /* swallow */ }
+      try {
+        fn();
+      } catch {
+        /* swallow */
+      }
     }
 
     this.aborters.clear();

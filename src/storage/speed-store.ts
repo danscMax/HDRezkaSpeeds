@@ -7,8 +7,8 @@
  * without awaiting; persistence is fire-and-forget.
  */
 
-import { speedBoundsFor, storageKeysFor } from '../config';
 import type { Site } from '../app/ports';
+import { speedBoundsFor, storageKeysFor } from '../config';
 import type { StorageAdapter } from './adapter';
 
 export interface SpeedStoreImpl {

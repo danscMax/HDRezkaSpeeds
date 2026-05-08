@@ -1,4 +1,4 @@
-import { SUPPORTED_LANGS, type Lang } from './dict';
+import { type Lang, SUPPORTED_LANGS } from './dict';
 
 /**
  * Pick a UI language from the browser's preferences.
@@ -17,10 +17,7 @@ export function detectBrowserLang(): Lang {
       Array.isArray(navigator.languages) &&
       navigator.languages.length > 0
         ? navigator.languages
-        : [
-            (typeof navigator !== 'undefined' && navigator.language) ||
-              'en',
-          ];
+        : [(typeof navigator !== 'undefined' && navigator.language) || 'en'];
 
     for (const raw of list) {
       const code = String(raw ?? '').toLowerCase();

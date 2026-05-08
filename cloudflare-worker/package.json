@@ -10,6 +10,7 @@
     "logs": "wrangler tail"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.14",
     "@cloudflare/workers-types": "^4.20260101.0",
     "typescript": "^5.7.0",
     "wrangler": "^4.0.0"

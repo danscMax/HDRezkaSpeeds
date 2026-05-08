@@ -11,8 +11,8 @@
  */
 
 import type { AppContext } from '../../app/context';
-import { safeJsonParse } from '../../utils/safe-json';
 import type { Settings } from '../../storage/types';
+import { safeJsonParse } from '../../utils/safe-json';
 
 const FILENAME_PREFIX = 'hdrezka-speeds-settings';
 
@@ -87,7 +87,7 @@ export async function importSettingsFromText(ctx: AppContext, text: string): Pro
     typeof parsed === 'object' &&
     parsed !== null &&
     ((parsed as { type?: unknown }).type === 'hdrezka-speeds-settings' ||
-     (parsed as { type?: unknown }).type === 'video-speeds-settings') &&
+      (parsed as { type?: unknown }).type === 'video-speeds-settings') &&
     typeof (parsed as { settings?: unknown }).settings === 'object'
   ) {
     patch = (parsed as ExportEnvelope).settings;

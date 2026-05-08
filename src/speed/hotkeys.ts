@@ -95,7 +95,10 @@ export function matchesSingleHotkey(event: KeyboardEvent, hotkey: Hotkey): boole
 }
 
 /** True if any hotkey in the array matches the live event. */
-export function matchesHotkeyArray(event: KeyboardEvent, hotkeys: readonly Hotkey[] | undefined): boolean {
+export function matchesHotkeyArray(
+  event: KeyboardEvent,
+  hotkeys: readonly Hotkey[] | undefined,
+): boolean {
   if (!Array.isArray(hotkeys)) return false;
   for (const h of hotkeys) {
     if (matchesSingleHotkey(event, h)) return true;

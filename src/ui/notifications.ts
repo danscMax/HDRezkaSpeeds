@@ -13,16 +13,16 @@
  * Pointer-events:none on the stack so clicks pass through to the player.
  */
 
-import { h } from './dom-h';
 import type { NotificationKind } from '../app/ports';
+import { h } from './dom-h';
 
 const STACK_ID = 'speed-notifications';
 
 const DOT_COLORS: Record<NotificationKind, string> = {
-  info:    '#2196F3',
+  info: '#2196F3',
   success: '#4CAF50',
-  warn:    '#ff9800',
-  error:   '#f44336',
+  warn: '#ff9800',
+  error: '#f44336',
 };
 
 export interface NotificationOptions {
@@ -147,4 +147,3 @@ function ensureStack(playerContainer: Element | null): HTMLElement {
 
   return stack;
 }
-

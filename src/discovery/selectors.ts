@@ -19,33 +19,16 @@ export type SelectorMap = Partial<Record<SelectorKey, readonly string[]>>;
 const SELECTORS: Record<Site, SelectorMap> = {
   hdrezka: {
     infoElem: [
-      '.b-content__inline_items',  // Series — episode list
-      '.b-post__info',               // Movie — info block
-      '.b-post__description',        // Description
-      '.b-content__main',            // Main content fallback
+      '.b-content__inline_items', // Series — episode list
+      '.b-post__info', // Movie — info block
+      '.b-post__description', // Description
+      '.b-content__main', // Main content fallback
     ],
-    video: [
-      '#oframecdnplayer video',
-      '.b-player video',
-      'video',
-    ],
-    playerContainer: [
-      '.b-player',
-      '#player',
-      '#oframecdnplayer',
-      '.b-content__main .player',
-    ],
-    controlsContainer: [
-      '.plyr__controls',
-      '.pjsdiv',
-      '.player-controls',
-    ],
-    leftControls: [
-      '.plyr__controls__item--left',
-    ],
-    rightControls: [
-      '.plyr__controls__item--right',
-    ],
+    video: ['#oframecdnplayer video', '.b-player video', 'video'],
+    playerContainer: ['.b-player', '#player', '#oframecdnplayer', '.b-content__main .player'],
+    controlsContainer: ['.plyr__controls', '.pjsdiv', '.player-controls'],
+    leftControls: ['.plyr__controls__item--left'],
+    rightControls: ['.plyr__controls__item--right'],
   },
 };
 

@@ -15,11 +15,16 @@
     "build:userscript": "vite build --config vite.userscript.config.ts",
     "compile": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "lint:ci": "biome ci .",
+    "format": "biome format --write .",
+    "check": "biome check --write .",
     "test": "vitest run",
     "test:watch": "vitest",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.14",
     "@playwright/test": "^1.59.1",
     "@vitest/ui": "^2.1.9",
     "happy-dom": "^15.11.7",

@@ -10,21 +10,16 @@
  * and the orchestrator (Wave 1.10) wires the UiPort hook afterwards.
  */
 
-import { applyTransient, handleSpeedButtonClick, setSpeed } from '../speed/controller';
-import { vsFilledGearIcon, vsIcon } from './icons';
-import {
-  refreshActiveButton,
-  refreshPinnedButton,
-  renderButtonsRow,
-} from './buttons';
-import { defaultPresetsFor } from '../config';
-import { renderSlider, setSliderValue, updateSliderFill } from './slider';
-import { renderSettingsMenu, type ActiveTab } from './settings/modal';
-import { attachSettingsHandlers } from './settings/handlers';
-import { refreshDiagnosticStatus } from './settings/diag-status';
-import type { AppContext } from '../app/context';
 import { CleanupRegistry } from '../app/cleanup';
-import { speedBoundsFor } from '../config';
+import type { AppContext } from '../app/context';
+import { defaultPresetsFor, speedBoundsFor } from '../config';
+import { applyTransient, handleSpeedButtonClick, setSpeed } from '../speed/controller';
+import { refreshActiveButton, refreshPinnedButton, renderButtonsRow } from './buttons';
+import { vsFilledGearIcon, vsIcon } from './icons';
+import { refreshDiagnosticStatus } from './settings/diag-status';
+import { attachSettingsHandlers } from './settings/handlers';
+import { type ActiveTab, renderSettingsMenu } from './settings/modal';
+import { renderSlider, setSliderValue, updateSliderFill } from './slider';
 
 /** Diag-action sink. The orchestrator passes a real implementation that
  *  can purge cache, copy report, or trip the KillSwitch. */
@@ -101,9 +96,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   // to decorate that button with a small dot so the user sees which
   // speed will be applied to fresh videos.
   const computePinnedSpeed = (): number | null => {
-    return ctx.settingsStore.getKey('rememberSpeed') === true
-      ? ctx.speedStore.current()
-      : null;
+    return ctx.settingsStore.getKey('rememberSpeed') === true ? ctx.speedStore.current() : null;
   };
 
   const buttonsRow = renderButtonsRow({
@@ -216,7 +209,9 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     ctx.cleanup.addEventListener(
       sliderInput,
       'touchmove',
-      (e) => { e.preventDefault(); },
+      (e) => {
+        e.preventDefault();
+      },
       { passive: false },
     );
   }
@@ -228,7 +223,11 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   let menuRegistry: CleanupRegistry | null = null;
   ctx.cleanup.add(() => {
     if (menuRegistry) {
-      try { menuRegistry.dispose(); } catch { /* swallow */ }
+      try {
+        menuRegistry.dispose();
+      } catch {
+        /* swallow */
+      }
       menuRegistry = null;
     }
   });
@@ -394,7 +393,9 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     );
 
     attachSettingsHandlers(settingsMenu, menuCtx, {
-      setActiveTab: (t) => { activeTab = t; },
+      setActiveTab: (t) => {
+        activeTab = t;
+      },
       rerender: rerenderSettings,
       onDiag: (action) => {
         ctx.logger.info('diagnostics action', action);
@@ -438,10 +439,14 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       // injected (the popup uses no-op stubs since it can't trip a
       // foreign content script's discovery anyway).
       setDiscoveryEnabled: killSwitch
-        ? (on) => { void killSwitch.setDiscoveryEnabled(on); }
+        ? (on) => {
+            void killSwitch.setDiscoveryEnabled(on);
+          }
         : undefined,
       setHealthCheckEnabled: killSwitch
-        ? (on) => { void killSwitch.setHealthCheckEnabled(on); }
+        ? (on) => {
+            void killSwitch.setHealthCheckEnabled(on);
+          }
         : undefined,
     });
 
@@ -460,8 +465,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     root.dataset.vsSliderPosition = pos;
 
     const chrome =
-      ctx.discovery.resolve('rightControls') ||
-      ctx.discovery.resolve('controlsContainer');
+      ctx.discovery.resolve('rightControls') || ctx.discovery.resolve('controlsContainer');
 
     ctx.logger.info(
       `panel.applyLayout: pos=${pos} chrome=${chrome ? chrome.className : 'null'} sliderParent=${sliderContainer.parentElement?.className ?? '(orphan)'}`,
@@ -469,23 +473,23 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
 
     if (pos === 'video' && chrome) {
       sliderContainer.classList.add('vs-slider-in-chrome');
-      if (sliderContainer.parentElement !== chrome
-          || sliderContainer !== chrome.firstChild) {
+      if (sliderContainer.parentElement !== chrome || sliderContainer !== chrome.firstChild) {
         try {
           chrome.insertBefore(sliderContainer, chrome.firstChild);
           ctx.logger.info('panel.applyLayout: slider moved into chrome');
+        } catch (e) {
+          ctx.logger.warn('panel.applyLayout: chrome insert failed', e);
         }
-        catch (e) { ctx.logger.warn('panel.applyLayout: chrome insert failed', e); }
       }
     } else {
       sliderContainer.classList.remove('vs-slider-in-chrome');
-      if (sliderContainer.parentElement !== root
-          || sliderContainer.nextSibling !== gearWrapper) {
+      if (sliderContainer.parentElement !== root || sliderContainer.nextSibling !== gearWrapper) {
         try {
           root.insertBefore(sliderContainer, gearWrapper);
           ctx.logger.info('panel.applyLayout: slider restored into panel');
+        } catch (e) {
+          ctx.logger.warn('panel.applyLayout: root insert failed', e);
         }
-        catch (e) { ctx.logger.warn('panel.applyLayout: root insert failed', e); }
       }
     }
   }

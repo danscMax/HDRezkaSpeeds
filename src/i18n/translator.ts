@@ -1,5 +1,5 @@
 import type { Translator } from '../app/ports';
-import { I18N_DICT, type DictKey, type Lang } from './dict';
+import { type DictKey, I18N_DICT, type Lang } from './dict';
 
 /**
  * HTML escaper. Use at the point of insertion into a backtick template,
@@ -11,12 +11,18 @@ export function escHtml(s: unknown): string {
   if (s == null) return '';
   return String(s).replace(/[&<>"']/g, (c) => {
     switch (c) {
-      case '&': return '&amp;';
-      case '<': return '&lt;';
-      case '>': return '&gt;';
-      case '"': return '&quot;';
-      case "'": return '&#39;';
-      default:  return c;
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case "'":
+        return '&#39;';
+      default:
+        return c;
     }
   });
 }
@@ -37,10 +43,7 @@ export function createTranslator(lang: Lang): Translator {
   const dict = I18N_DICT[lang] as Readonly<Record<string, string>>;
   const fallback = I18N_DICT.en as Readonly<Record<string, string>>;
 
-  const t = (
-    key: string,
-    vars?: Record<string, string | number>,
-  ): string => {
+  const t = (key: string, vars?: Record<string, string | number>): string => {
     let s: string | undefined = dict[key];
     if (s == null) s = fallback[key];
     if (s == null) return key;

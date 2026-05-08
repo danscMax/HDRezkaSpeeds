@@ -1,47 +1,47 @@
-export { h, svgEl, fragment, type HAttrs, type HChild } from './dom-h';
-export { vsIcon, ICON_NAMES, type IconName } from './icons';
-export { showNotification, type NotificationOptions } from './notifications';
-export { showSpeedPopup } from './popup';
 export {
+  type ButtonsRowOptions,
   DEFAULT_PRESETS,
   refreshActiveButton,
   renderButtonsRow,
-  type ButtonsRowOptions,
 } from './buttons';
+export { fragment, type HAttrs, type HChild, h, svgEl } from './dom-h';
+export { ICON_NAMES, type IconName, vsIcon } from './icons';
+export { detachPanel, type InsertionResult, insertPanel } from './insertion';
+export { type NotificationOptions, showNotification } from './notifications';
+export { type CreatePanelOptions, createPanel, type PanelHandle } from './panel';
+export { showSpeedPopup } from './popup';
+export { refreshDiagnosticStatus } from './settings/diag-status';
 export {
-  renderSlider,
-  setSliderValue,
-  updateSliderFill,
-  type SliderOptions,
-} from './slider';
+  buildExportEnvelope,
+  type ExportEnvelope,
+  exportSettingsToFile,
+  type ImportResult,
+  importSettingsFromText,
+  openImportPicker,
+} from './settings/export-import';
 export {
-  injectStyles,
-  removeStyles,
-  detectAndApplyTheme,
-  installThemeWatcher,
-} from './styles';
-export {
-  renderSettingsMenu,
-  type ActiveTab,
-  type ModalRenderOptions,
-} from './settings/modal';
+  attachSettingsHandlers,
+  type SettingsHandlersDeps,
+} from './settings/handlers';
 export {
   generateHotkeyBlock,
   type HotkeyAction,
 } from './settings/hotkey-block';
 export {
-  attachSettingsHandlers,
-  type SettingsHandlersDeps,
-} from './settings/handlers';
-export { refreshDiagnosticStatus } from './settings/diag-status';
+  type ActiveTab,
+  type ModalRenderOptions,
+  renderSettingsMenu,
+} from './settings/modal';
 export {
-  buildExportEnvelope,
-  exportSettingsToFile,
-  importSettingsFromText,
-  openImportPicker,
-  type ExportEnvelope,
-  type ImportResult,
-} from './settings/export-import';
-export { createPanel, type CreatePanelOptions, type PanelHandle } from './panel';
-export { detachPanel, insertPanel, type InsertionResult } from './insertion';
-export { createUiPort, type CreateUiPortOptions } from './ui-port';
+  renderSlider,
+  type SliderOptions,
+  setSliderValue,
+  updateSliderFill,
+} from './slider';
+export {
+  detectAndApplyTheme,
+  injectStyles,
+  installThemeWatcher,
+  removeStyles,
+} from './styles';
+export { type CreateUiPortOptions, createUiPort } from './ui-port';

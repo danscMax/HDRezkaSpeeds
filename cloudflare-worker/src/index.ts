@@ -211,7 +211,10 @@ function sleep(ms: number): Promise<void> {
 function validate(p: FeedbackPayload, env: Env): string[] {
   const errors: string[] = [];
 
-  const allowed = (env.ALLOWED_APPS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const allowed = (env.ALLOWED_APPS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (!p.app || !allowed.includes(p.app)) errors.push('app');
 
   if (typeof p.message !== 'string' || p.message.trim().length === 0) {
@@ -226,8 +229,8 @@ function validate(p: FeedbackPayload, env: Env): string[] {
   // would crash `formatTelegramMessage` with a TypeError; reject with
   // a clean 400 instead.
   for (const [field, max] of [
-    ['version',   32],
-    ['url',       2048],
+    ['version', 32],
+    ['url', 2048],
     ['userAgent', 500],
   ] as const) {
     const v = p[field];
@@ -268,9 +271,13 @@ function validate(p: FeedbackPayload, env: Env): string[] {
 
 function formatTelegramMessage(p: FeedbackPayload): string {
   const ratingEmoji =
-    p.rating === 'positive' ? '😊' :
-    p.rating === 'negative' ? '😞' :
-    p.rating === 'neutral'  ? '😐' : '';
+    p.rating === 'positive'
+      ? '😊'
+      : p.rating === 'negative'
+        ? '😞'
+        : p.rating === 'neutral'
+          ? '😐'
+          : '';
 
   const appLabel = p.app === 'videospeeds' ? 'VideoSpeeds' : 'HDRezkaSpeeds';
   const headerLine = `🔔 <b>${escapeHtml(appLabel)}</b>${p.version ? ` v${escapeHtml(p.version)}` : ''} ${ratingEmoji}`;
@@ -333,20 +340,31 @@ function safeTruncateHtml(s: string, limit: number): string {
   const max = Math.min(s.length, limit - 1);
   for (let i = 0; i < max; i++) {
     const c = s.charCodeAt(i);
-    if (c === 0x3c /* < */) { inTag = true; continue; }
-    if (c === 0x3e /* > */ && inTag) { inTag = false; safeAt = i + 1; continue; }
-    if (c === 0x26 /* & */) { inEntity = true; continue; }
-    if (c === 0x3b /* ; */ && inEntity) { inEntity = false; safeAt = i + 1; continue; }
+    if (c === 0x3c /* < */) {
+      inTag = true;
+      continue;
+    }
+    if (c === 0x3e /* > */ && inTag) {
+      inTag = false;
+      safeAt = i + 1;
+      continue;
+    }
+    if (c === 0x26 /* & */) {
+      inEntity = true;
+      continue;
+    }
+    if (c === 0x3b /* ; */ && inEntity) {
+      inEntity = false;
+      safeAt = i + 1;
+      continue;
+    }
     if (!inTag && !inEntity) safeAt = i + 1;
   }
-  return s.slice(0, safeAt) + '…';
+  return `${s.slice(0, safeAt)}…`;
 }
 
 function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // HMAC-SHA256 over `input` keyed by `secret`, returned as lowercase hex.

@@ -80,10 +80,7 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   ...args: [HAttrs | HChild, ...HChild[]] | HChild[]
 ): HTMLElementTagNameMap[K];
-export function h(
-  tag: string,
-  ...args: [HAttrs | HChild, ...HChild[]] | HChild[]
-): HTMLElement;
+export function h(tag: string, ...args: [HAttrs | HChild, ...HChild[]] | HChild[]): HTMLElement;
 export function h(tag: string, ...args: unknown[]): HTMLElement {
   const el = document.createElement(tag);
   let attrs: HAttrs | undefined;
@@ -115,10 +112,7 @@ export function svgEl<K extends keyof SVGElementTagNameMap>(
   tag: K,
   ...args: [HAttrs | HChild, ...HChild[]] | HChild[]
 ): SVGElementTagNameMap[K];
-export function svgEl(
-  tag: string,
-  ...args: [HAttrs | HChild, ...HChild[]] | HChild[]
-): SVGElement;
+export function svgEl(tag: string, ...args: [HAttrs | HChild, ...HChild[]] | HChild[]): SVGElement;
 export function svgEl(tag: string, ...args: unknown[]): SVGElement {
   const el = document.createElementNS(SVG_NS, tag) as SVGElement;
   let attrs: HAttrs | undefined;

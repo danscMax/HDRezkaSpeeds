@@ -7,9 +7,9 @@
  * Run via `npm run build:userscript` -> `dist-userscript/hdrezka-speeds.user.js`.
  */
 
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import monkey, { cdn } from 'vite-plugin-monkey';
-import { fileURLToPath } from 'node:url';
 import pkg from './package.json' with { type: 'json' };
 
 void cdn; // imported for type guidance; we don't use any @require CDNs (keep bundle self-contained)
@@ -17,7 +17,9 @@ void cdn; // imported for type guidance; we don't use any @require CDNs (keep bu
 export default defineConfig({
   resolve: {
     alias: {
-      'wxt/browser': fileURLToPath(new URL('./src/userscript-shims/wxt-browser.ts', import.meta.url)),
+      'wxt/browser': fileURLToPath(
+        new URL('./src/userscript-shims/wxt-browser.ts', import.meta.url),
+      ),
     },
   },
   build: {
@@ -58,12 +60,7 @@ export default defineConfig({
           '*://*.kinopub.me/*',
           '*://kinopub.me/*',
         ],
-        grant: [
-          'GM_setValue',
-          'GM_getValue',
-          'GM_deleteValue',
-          'GM_listValues',
-        ],
+        grant: ['GM_setValue', 'GM_getValue', 'GM_deleteValue', 'GM_listValues'],
         'run-at': 'document-idle',
       },
       build: {

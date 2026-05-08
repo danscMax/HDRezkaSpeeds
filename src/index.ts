@@ -33,53 +33,42 @@ import type {
   Translator,
   UiPort,
 } from './app/ports';
-import {
-  createBrowserStorageAdapter,
-  type StorageAdapter,
-} from './storage/adapter';
-import { createSettingsStore } from './storage/settings-store';
-import { createSpeedStore } from './storage/speed-store';
-import { runTmMigration } from './storage/migration-tm';
+import { SPEED_STEP, speedBoundsFor } from './config';
 import { createSelectorCache } from './discovery/cache';
 import { createDiscoveryEngine } from './discovery/engine';
 import { Validators } from './discovery/validators';
-import { createRatechangeMeter } from './speed/meter';
-import { matchesHotkeyArray } from './speed/hotkeys';
+import { createHealthChecker } from './health/checker';
+import { createKillSwitch } from './health/kill-switch';
+import { reportToClipboardText } from './health/report';
+import type { DiagnosticReport } from './health/types';
+import { detectBrowserLang } from './i18n/detect';
+import { createTranslator } from './i18n/translator';
+import { detectSite, isHDRezkaVideoPath } from './sites/detect';
+import { bootstrapHDRezkaSite, patchPlyrLocalStorage } from './sites/hdrezka';
 import {
   applyTransient,
   pickInitialSpeed,
-  setSpeed,
-  setTemporary,
   SELF_WRITE_GRACE_MS,
+  setTemporary,
 } from './speed/controller';
-import { SPEED_STEP, speedBoundsFor } from './config';
-import { createTranslator } from './i18n/translator';
-import { detectBrowserLang } from './i18n/detect';
+import { matchesHotkeyArray } from './speed/hotkeys';
+import { createRatechangeMeter } from './speed/meter';
+import { createBrowserStorageAdapter, type StorageAdapter } from './storage/adapter';
+import { runTmMigration } from './storage/migration-tm';
+import { createSettingsStore } from './storage/settings-store';
+import { createSpeedStore } from './storage/speed-store';
+import { createPanel, createUiPort, injectStyles, insertPanel, installThemeWatcher } from './ui';
+import { showNotification } from './ui/notifications';
+import { installFullscreenReparent } from './ui/popup';
 import { createLogger } from './utils/logger';
 import {
   detectAndClaim,
   release as releaseCoexistMarker,
   warnIfHdrezkaImprovementPresent,
 } from './utils/tm-coexist';
-import { detectSite, isHDRezkaVideoPath } from './sites/detect';
-import { bootstrapHDRezkaSite, patchPlyrLocalStorage } from './sites/hdrezka';
-import {
-  createPanel,
-  createUiPort,
-  insertPanel,
-  injectStyles,
-  installThemeWatcher,
-} from './ui';
-import { showNotification } from './ui/notifications';
-import { installFullscreenReparent } from './ui/popup';
-import { createKillSwitch } from './health/kill-switch';
-import { createHealthChecker } from './health/checker';
-import { reportToClipboardText } from './health/report';
-import type { DiagnosticReport } from './health/types';
 
 declare const __VS_VERSION__: string | undefined;
-const SCRIPT_VERSION =
-  typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.1.0';
+const SCRIPT_VERSION = typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.1.0';
 
 export interface BootstrapOptions {
   /** Storage adapter override. Defaults to the wxt/browser-backed one;
@@ -107,10 +96,7 @@ export async function bootstrap(
   //     to "playerContainer" and drop the speed panel into the page.
   //     Bail early so the panel never appears off-context.
   if (!isHDRezkaVideoPath(location.pathname)) {
-    console.info(
-      '[HDREZKA-SPEEDS] non-video path, bootstrap aborted:',
-      location.pathname,
-    );
+    console.info('[HDREZKA-SPEEDS] non-video path, bootstrap aborted:', location.pathname);
     return;
   }
 
@@ -185,7 +171,7 @@ export async function bootstrap(
     applyLayout: () => {},
   };
   const stubDiagnostics: DiagnosticsPort = {
-    report: () => ({} as DiagnosticReport),
+    report: () => ({}) as DiagnosticReport,
     isHealthy: () => true,
     killSwitchEngaged: () => false,
     trip: () => {},
@@ -218,7 +204,9 @@ export async function bootstrap(
     // the cache. The gear's red dot stays lit (panel.setGearWarning is
     // wired below), so the user gets a visible signal to investigate.
     onConsecutiveFailures: (count) => {
-      logger.warn(`auto-trip: kill-switch health-check disabled after ${count} consecutive failures`);
+      logger.warn(
+        `auto-trip: kill-switch health-check disabled after ${count} consecutive failures`,
+      );
       void killSwitch.setHealthCheckEnabled(false);
     },
   });
@@ -241,7 +229,9 @@ export async function bootstrap(
       setHealthCheckEnabled: (on) => killSwitch.setHealthCheckEnabled(on),
     },
     diagActions: {
-      recheck: () => { void healthChecker.runOnce(); },
+      recheck: () => {
+        void healthChecker.runOnce();
+      },
       copyReport: async () => {
         const report = healthChecker.getLastReport() ?? healthChecker.runOnce();
         const text = reportToClipboardText(report);
@@ -305,7 +295,9 @@ export async function bootstrap(
     const theme = document.documentElement.dataset.vsTheme;
     if (theme !== 'dark' && theme !== 'light') return;
     if (settingsStore.getKey('lastSeenTheme') === theme) return;
-    void settingsStore.update({ lastSeenTheme: theme }).catch(() => { /* fire-and-forget */ });
+    void settingsStore.update({ lastSeenTheme: theme }).catch(() => {
+      /* fire-and-forget */
+    });
   };
   persistTheme();
   const themePersistObserver = new MutationObserver(persistTheme);
@@ -383,9 +375,7 @@ export async function bootstrap(
 
   // 12b. Re-parent the speed-popup into the fullscreen element so it
   //      stays visible during fullscreen playback.
-  cleanup.add(
-    installFullscreenReparent(() => discoveryPort.resolve('playerContainer')),
-  );
+  cleanup.add(installFullscreenReparent(() => discoveryPort.resolve('playerContainer')));
 
   // 12c. Re-integrate the slider into player chrome on fullscreen
   //      transitions, AND reparent the entire panel root into the
@@ -409,8 +399,11 @@ export async function bootstrap(
         panelOrigParent = panelEl.parentElement;
         panelOrigNext = panelEl.nextSibling;
       }
-      try { fs.appendChild(panelEl); }
-      catch (e) { ctx.logger.warn('fullscreen: panel reparent failed', e); }
+      try {
+        fs.appendChild(panelEl);
+      } catch (e) {
+        ctx.logger.warn('fullscreen: panel reparent failed', e);
+      }
     } else if (!fs && panelOrigParent) {
       // Exiting fullscreen. Restore the panel to its original spot.
       try {
@@ -494,8 +487,11 @@ export async function bootstrap(
     try {
       br.runtime.onMessage.addListener(onPopupMessage);
       cleanup.add(() => {
-        try { br.runtime.onMessage.removeListener(onPopupMessage); }
-        catch { /* swallow */ }
+        try {
+          br.runtime.onMessage.removeListener(onPopupMessage);
+        } catch {
+          /* swallow */
+        }
       });
     } catch (e) {
       logger.warn('popup message listener install failed', e);
@@ -519,7 +515,7 @@ function scheduleInsertWithRetry(panelEl: HTMLElement, ctx: AppContext): void {
 
   function tryOnce(): void {
     attempts += 1;
-    let result;
+    let result: ReturnType<typeof insertPanel>;
     try {
       result = insertPanel(panelEl, ctx);
     } catch (e) {
@@ -554,7 +550,9 @@ function scheduleInsertWithRetry(panelEl: HTMLElement, ctx: AppContext): void {
           observerInstalled = true;
         }
       } else {
-        ctx.logger.warn(`panel insertion failed after ${attempts} attempts; giving up until next reattach`);
+        ctx.logger.warn(
+          `panel insertion failed after ${attempts} attempts; giving up until next reattach`,
+        );
         // Surface this to the user. Silent failure left the page with no
         // gear, no notification, no explanation. Now they get a hint to
         // try a reload (which kicks the retry cycle from scratch). The
@@ -706,7 +704,15 @@ function shouldSkipHotkey(ev: KeyboardEvent): boolean {
   const target = ev.target as Element | null;
   if (target instanceof HTMLInputElement) {
     const t = target.type.toLowerCase();
-    if (t === 'text' || t === 'search' || t === 'url' || t === 'email' || t === 'password' || t === 'number' || t === 'tel') {
+    if (
+      t === 'text' ||
+      t === 'search' ||
+      t === 'url' ||
+      t === 'email' ||
+      t === 'password' ||
+      t === 'number' ||
+      t === 'tel'
+    ) {
       return true;
     }
   }

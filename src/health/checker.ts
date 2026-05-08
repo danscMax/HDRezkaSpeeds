@@ -19,7 +19,6 @@
  * dispose (audit C3).
  */
 
-import type { AppContext } from '../app/context';
 import type { SelectorCacheImpl } from '../discovery/cache';
 import { buildReport, type ReportDeps } from './report';
 import type { DiagnosticReport, HealthChecks } from './types';
@@ -197,7 +196,9 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
     subscribe: (fn) => {
       subscribers.add(fn);
       if (lastReport) fn(lastReport);
-      return () => { subscribers.delete(fn); };
+      return () => {
+        subscribers.delete(fn);
+      };
     },
   };
 }

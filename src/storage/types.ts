@@ -7,8 +7,8 @@
  * never imports this file directly outside storage/, migration, and tests.
  */
 
-import { defaultPresetsFor } from '../config';
 import type { Site } from '../app/ports';
+import { defaultPresetsFor } from '../config';
 import type { Lang } from '../i18n/dict';
 
 /**

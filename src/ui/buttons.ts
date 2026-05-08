@@ -102,7 +102,7 @@ export function refreshPinnedButton(row: Element, pinned: number | null): void {
  */
 export const DEFAULT_PRESETS: Readonly<Record<string, readonly number[]>> = {
   youtube: [1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5],
-  rutube:  [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3],
+  rutube: [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3],
 };
 
 function isSameSpeed(a: number, b: number): boolean {
@@ -119,5 +119,5 @@ function isSameSpeed(a: number, b: number): boolean {
  */
 function formatSpeedLabel(s: number): string {
   if (Number.isInteger(s)) return `${s}x`;
-  return s.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') + 'x';
+  return `${s.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}x`;
 }

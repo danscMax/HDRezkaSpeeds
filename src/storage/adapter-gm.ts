@@ -72,12 +72,19 @@ export function createGmStorageAdapter(): StorageAdapter {
     },
     async set(key: string, value: unknown): Promise<void> {
       try {
-        const stored = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+        const stored =
+          typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
         localStorage.setItem(key, stored);
-      } catch { /* swallow quota / private-mode errors */ }
+      } catch {
+        /* swallow quota / private-mode errors */
+      }
     },
     async remove(key: string): Promise<void> {
-      try { localStorage.removeItem(key); } catch { /* swallow */ }
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        /* swallow */
+      }
     },
   };
 }

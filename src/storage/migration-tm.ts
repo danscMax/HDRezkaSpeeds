@@ -30,8 +30,8 @@
  *     guesses across a project boundary.
  */
 
-import { storageKeysFor, TM_MIGRATION_FLAG } from '../config';
 import type { Site } from '../app/ports';
+import { storageKeysFor, TM_MIGRATION_FLAG } from '../config';
 import type { SettingsStoreImpl } from './settings-store';
 import type { SpeedStoreImpl } from './speed-store';
 import type { Settings } from './types';
@@ -121,10 +121,7 @@ export async function runTmMigration(
   return result;
 }
 
-function readLocalStorageSafely(
-  key: string,
-  errors: string[],
-): string | null {
+function readLocalStorageSafely(key: string, errors: string[]): string | null {
   try {
     if (typeof localStorage === 'undefined') return null;
     return localStorage.getItem(key);

@@ -8,7 +8,7 @@
  * (out of product scope). Otherwise behaviorally identical.
  */
 
-import type { SelectorKey, Validator, ValidationResult } from './types';
+import type { SelectorKey, ValidationResult, Validator } from './types';
 
 const ok: ValidationResult = { ok: true, reasons: [] };
 function fail(reason: string): ValidationResult {

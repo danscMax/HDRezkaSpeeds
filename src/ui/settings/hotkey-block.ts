@@ -6,11 +6,11 @@
  * HTML strings reach a parser).
  */
 
-import { vsIcon, type IconName } from '../icons';
-import { h } from '../dom-h';
+import type { Translator } from '../../app/ports';
 import { formatHotkey } from '../../speed/hotkeys';
 import type { Hotkey } from '../../storage/types';
-import type { Translator } from '../../app/ports';
+import { h } from '../dom-h';
+import { type IconName, vsIcon } from '../icons';
 
 export type HotkeyAction = 'speedUp' | 'speedDown';
 

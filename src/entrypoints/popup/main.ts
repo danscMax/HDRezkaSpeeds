@@ -19,33 +19,27 @@
 import { browser } from 'wxt/browser';
 import { CleanupRegistry } from '../../app/cleanup';
 import type { AppContext } from '../../app/context';
+import type { DiagnosticsPort, DiscoveryPort, Site, UiPort } from '../../app/ports';
+import { storageKeysFor } from '../../config';
+import type { DiagnosticReport } from '../../health/types';
+import { detectBrowserLang } from '../../i18n/detect';
+import { createTranslator } from '../../i18n/translator';
+import { detectSite } from '../../sites/detect';
 import { createBrowserStorageAdapter } from '../../storage/adapter';
 import { createSettingsStore } from '../../storage/settings-store';
 import { createSpeedStore } from '../../storage/speed-store';
-import { storageKeysFor } from '../../config';
-import { detectSite } from '../../sites/detect';
 import {
+  type ActiveTab,
   attachSettingsHandlers,
   injectStyles,
   renderSettingsMenu,
   showNotification,
-  type ActiveTab,
 } from '../../ui';
 import { h } from '../../ui/dom-h';
-import { createTranslator } from '../../i18n/translator';
-import { detectBrowserLang } from '../../i18n/detect';
 import { createLogger } from '../../utils/logger';
-import type {
-  DiagnosticsPort,
-  DiscoveryPort,
-  Site,
-  UiPort,
-} from '../../app/ports';
-import type { DiagnosticReport } from '../../health/types';
 
 declare const __VS_VERSION__: string | undefined;
-const SCRIPT_VERSION =
-  typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.1.0';
+const SCRIPT_VERSION = typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.1.0';
 
 console.info('[HDREZKA-SPEEDS] popup loaded');
 
@@ -82,11 +76,7 @@ function renderInitialShell(host: HTMLElement): void {
     h(
       'div',
       { class: 'settings-menu vs-popup-skeleton' },
-      h(
-        'div',
-        { class: 'vs-skel-header' },
-        h('div', { class: 'vs-skel-line vs-skel-w-60' }),
-      ),
+      h('div', { class: 'vs-skel-header' }, h('div', { class: 'vs-skel-line vs-skel-w-60' })),
       h(
         'div',
         { class: 'vs-skel-tabs' },
@@ -134,7 +124,6 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
   await settingsStore.init(site);
   await speedStore.init(site);
 
-
   const logger = createLogger({ scriptName: 'HDREZKA-POPUP' });
   const cleanup = new CleanupRegistry();
   const i18n = createTranslator(settingsStore.getKey('language'));
@@ -142,8 +131,7 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
   const ui: UiPort = {
     refreshButtons: () => {},
     refreshSlider: () => {},
-    showNotification: (text, kind) =>
-      showNotification(text, { kind, playerContainer: null }),
+    showNotification: (text, kind) => showNotification(text, { kind, playerContainer: null }),
     applyLayout: () => {},
   };
 
@@ -155,7 +143,7 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
   };
 
   const diagnostics: DiagnosticsPort = {
-    report: () => ({} as DiagnosticReport),
+    report: () => ({}) as DiagnosticReport,
     isHealthy: () => true,
     killSwitchEngaged: () => false,
     trip: () => {},
@@ -224,7 +212,9 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
     children.push(menu);
     host.replaceChildren(...children);
     attachSettingsHandlers(menu, ctx, {
-      setActiveTab: (t) => { activeTab = t; },
+      setActiveTab: (t) => {
+        activeTab = t;
+      },
       rerender,
       onDiag: async (action) => {
         if (action === 'recheck') {
@@ -232,9 +222,7 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
           if (report) {
             applyReportToMenu(menu, ctx.i18n, report);
             ui.showNotification(
-              report.healthy
-                ? ctx.i18n.t('toast.diag_ok')
-                : ctx.i18n.t('toast.diag_issues'),
+              report.healthy ? ctx.i18n.t('toast.diag_ok') : ctx.i18n.t('toast.diag_issues'),
               report.healthy ? 'info' : 'warn',
             );
           } else {
@@ -309,7 +297,7 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
   ]);
   let pendingRerender: ReturnType<typeof setTimeout> | null = null;
   const storageListener = (changes: Record<string, unknown>): void => {
-    if (changes['__vs_skip__']) return;
+    if (changes.__vs_skip__) return;
     const changedKeys = Object.keys(changes);
     if (!changedKeys.some((k) => settingsKeys.has(k))) return;
     // Coalesce bursts from a single user action (settings update + speed
@@ -375,9 +363,10 @@ function renderNoSitePlaceholder(host: HTMLElement): void {
   // without knowing the site (settings are per-site).
   const lang = detectBrowserLang();
   const t = createTranslator(lang).t;
-  const subline = lang === 'ru'
-    ? 'Откройте HDRezka, чтобы открыть настройки.'
-    : 'Open HDRezka to access settings.';
+  const subline =
+    lang === 'ru'
+      ? 'Откройте HDRezka, чтобы открыть настройки.'
+      : 'Open HDRezka to access settings.';
   host.replaceChildren(
     h(
       'div',
@@ -398,23 +387,21 @@ function renderNoSitePlaceholder(host: HTMLElement): void {
  * `{ ok, report? }` or `{ ok, error? }`; we collapse that to either the
  * report (for query-style commands) or a boolean ok flag.
  */
-async function sendToActiveTab(
-  message: { type: 'vs:recheck' | 'vs:get-status' },
-): Promise<DiagnosticReport | null>;
-async function sendToActiveTab(
-  message: { type: 'vs:purge-cache' },
-): Promise<boolean>;
-async function sendToActiveTab(
-  message: { type: string },
-): Promise<DiagnosticReport | boolean | null> {
+async function sendToActiveTab(message: {
+  type: 'vs:recheck' | 'vs:get-status';
+}): Promise<DiagnosticReport | null>;
+async function sendToActiveTab(message: { type: 'vs:purge-cache' }): Promise<boolean>;
+async function sendToActiveTab(message: {
+  type: string;
+}): Promise<DiagnosticReport | boolean | null> {
   try {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     const tabId = tabs[0]?.id;
     if (typeof tabId !== 'number') return null;
-    const res = await browser.tabs.sendMessage(tabId, message) as
+    const res = (await browser.tabs.sendMessage(tabId, message)) as
       | { ok: boolean; report?: DiagnosticReport; error?: string }
       | undefined;
-    if (!res || !res.ok) return null;
+    if (!res?.ok) return null;
     if (message.type === 'vs:purge-cache') return true;
     return res.report ?? null;
   } catch {
@@ -466,8 +453,7 @@ function applyReportToMenu(
     detailEl.textContent = i18n.t('diag.status.try_again');
   } else {
     headlineEl.textContent = i18n.t('diag.status.issues_count', { count: issues.length });
-    detailEl.textContent = issues.length > 0
-      ? issues.map((s) => '• ' + s).join('\n')
-      : i18n.t('diag.status.try_again');
+    detailEl.textContent =
+      issues.length > 0 ? issues.map((s) => `• ${s}`).join('\n') : i18n.t('diag.status.try_again');
   }
 }

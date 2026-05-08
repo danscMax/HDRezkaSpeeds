@@ -19,10 +19,10 @@
  * + listeners are dropped atomically — no leak, no CleanupRegistry hookup.
  */
 
+import type { Translator } from '../../app/ports';
 import { h } from '../dom-h';
 import { vsIcon } from '../icons';
 import { showNotification } from '../notifications';
-import type { Translator } from '../../app/ports';
 
 const CLOUDTIPS_URL = 'https://pay.cloudtips.ru/p/9b14d4f1';
 

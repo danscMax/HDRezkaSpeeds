@@ -1,8 +1,10 @@
 export {
-  createRatechangeMeter,
-  type RatechangeEvent,
-  type RatechangeMeter,
-} from './meter';
+  handleSpeedButtonClick,
+  pickInitialSpeed,
+  setGlobal,
+  setSpeed,
+  setTemporary,
+} from './controller';
 export {
   captureHotkey,
   formatHotkey,
@@ -11,9 +13,7 @@ export {
   normalizeKeyName,
 } from './hotkeys';
 export {
-  handleSpeedButtonClick,
-  pickInitialSpeed,
-  setGlobal,
-  setSpeed,
-  setTemporary,
-} from './controller';
+  createRatechangeMeter,
+  type RatechangeEvent,
+  type RatechangeMeter,
+} from './meter';

@@ -11,8 +11,8 @@
  * SPA re-attach.
  */
 
-import type { Site } from '../app/ports';
 import type { AppContext } from '../app/context';
+import type { Site } from '../app/ports';
 
 const STYLE_ID = 'vs-styles';
 
@@ -50,10 +50,10 @@ export function detectAndApplyTheme(
   void site;
   const root = container.documentElement;
   const theme: 'dark' | 'light' =
-    detectFromAttributes(root, container.body)
-      ?? detectByLuminance(referenceEl ?? container.body, container)
-      ?? preferredColorScheme(container)
-      ?? 'dark';
+    detectFromAttributes(root, container.body) ??
+    detectByLuminance(referenceEl ?? container.body, container) ??
+    preferredColorScheme(container) ??
+    'dark';
   root.dataset.vsTheme = theme;
 }
 
@@ -64,10 +64,7 @@ export function detectAndApplyTheme(
  * to be present (HDRezka transitions sometimes leave both classes for
  * a frame). Returns null when nothing recognisable is set.
  */
-function detectFromAttributes(
-  root: Element,
-  body: HTMLElement | null,
-): 'dark' | 'light' | null {
+function detectFromAttributes(root: Element, body: HTMLElement | null): 'dark' | 'light' | null {
   const probes = body ? [root, body] : [root];
   // Explicit data-* attributes first.
   for (const el of probes) {
@@ -102,11 +99,18 @@ function preferredColorScheme(container: Document): 'dark' | 'light' | null {
   try {
     const mql = container.defaultView?.matchMedia?.('(prefers-color-scheme: dark)');
     if (mql) return mql.matches ? 'dark' : 'light';
-  } catch { /* swallow */ }
+  } catch {
+    /* swallow */
+  }
   return null;
 }
 
-interface RGBA { r: number; g: number; b: number; a: number }
+interface RGBA {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
 
 function parseRgb(s: string | null | undefined): RGBA | null {
   if (!s) return null;
@@ -138,9 +142,16 @@ function detectByLuminance(start: Element | null, container: Document): 'dark' |
   const startFrom = start?.parentElement ?? container.body;
   for (let el: Element | null = startFrom; el; el = el.parentElement) {
     let cs: CSSStyleDeclaration;
-    try { cs = win.getComputedStyle(el); } catch { continue; }
+    try {
+      cs = win.getComputedStyle(el);
+    } catch {
+      continue;
+    }
     const parsed = parseRgb(cs.backgroundColor);
-    if (parsed && parsed.a >= 0.1) { bg = parsed; break; }
+    if (parsed && parsed.a >= 0.1) {
+      bg = parsed;
+      break;
+    }
   }
   if (!bg && container.body) {
     const bodyBg = parseRgb(win.getComputedStyle(container.body).backgroundColor);
@@ -172,7 +183,9 @@ function detectByLuminance(start: Element | null, container: Document): 'dark' |
         const textLum = 0.299 * bodyText.r + 0.587 * bodyText.g + 0.114 * bodyText.b;
         if (textLum < 120) theme = 'light';
       }
-    } catch { /* swallow */ }
+    } catch {
+      /* swallow */
+    }
   }
   return theme;
 }
@@ -221,9 +234,15 @@ export function installThemeWatcher(
       const handler = (): void => scheduleRecheck(100);
       mql.addEventListener('change', handler);
       ctx.cleanup.add(() => {
-        try { mql.removeEventListener('change', handler); } catch { /* swallow */ }
+        try {
+          mql.removeEventListener('change', handler);
+        } catch {
+          /* swallow */
+        }
       });
-    } catch { /* swallow -- ancient browser */ }
+    } catch {
+      /* swallow -- ancient browser */
+    }
   }
 
   // MutationObserver — watches the most common theme-toggle mechanisms:
@@ -244,12 +263,7 @@ export function installThemeWatcher(
   // class on a non-watched node — and the MutationObserver above misses
   // it. After ANY click we re-check after ~250 ms so a CSS-transition
   // has time to settle. Mirrors .user.js:1719-1722.
-  ctx.cleanup.addEventListener(
-    document,
-    'click',
-    () => scheduleRecheck(250),
-    { capture: true },
-  );
+  ctx.cleanup.addEventListener(document, 'click', () => scheduleRecheck(250), { capture: true });
 
   // Cold-load race fix. HDRezka applies its theme via JS that runs AFTER
   // our content script's first `injectStyles()` call — at document_idle
@@ -266,7 +280,11 @@ export function installThemeWatcher(
     const onLoad = (): void => scheduleRecheck(100);
     window.addEventListener('load', onLoad, { once: true });
     ctx.cleanup.add(() => {
-      try { window.removeEventListener('load', onLoad); } catch { /* swallow */ }
+      try {
+        window.removeEventListener('load', onLoad);
+      } catch {
+        /* swallow */
+      }
     });
   }
 

@@ -13,7 +13,7 @@ let hideTimer: number | null = null;
 
 export function showSpeedPopup(speed: number, container: Element | null = null): void {
   const popup = ensurePopup(container);
-  popup.textContent = speed.toFixed(2) + 'x';
+  popup.textContent = `${speed.toFixed(2)}x`;
   popup.classList.add('show');
 
   if (hideTimer !== null) clearTimeout(hideTimer);
@@ -54,16 +54,18 @@ function ensurePopup(container: Element | null): HTMLElement {
  * coordinates and renders off-screen during fullscreen playback. Mirrors
  * .user.js:2599-2622. Returns a cleanup function.
  */
-export function installFullscreenReparent(
-  resolveAnchor: () => Element | null,
-): () => void {
+export function installFullscreenReparent(resolveAnchor: () => Element | null): () => void {
   function repositionPopup(): void {
     const popup = document.getElementById(POPUP_ID);
     if (!popup) return;
     const fs = document.fullscreenElement;
     const target = fs ?? resolveAnchor() ?? document.body;
     if (popup.parentElement !== target) {
-      try { target.appendChild(popup); } catch { /* swallow */ }
+      try {
+        target.appendChild(popup);
+      } catch {
+        /* swallow */
+      }
     }
   }
   const handler = (): void => repositionPopup();

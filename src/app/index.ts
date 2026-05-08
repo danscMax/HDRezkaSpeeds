@@ -1,4 +1,4 @@
-export { CleanupRegistry, type CleanupFn } from './cleanup';
+export { type CleanupFn, CleanupRegistry } from './cleanup';
 export type { AppContext } from './context';
 export type {
   DiagnosticReport,

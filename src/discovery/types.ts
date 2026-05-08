@@ -13,12 +13,7 @@ export const SELECTOR_KEYS = [
 
 export type SelectorKey = (typeof SELECTOR_KEYS)[number];
 
-export type DiscoverySource =
-  | 'cache'
-  | 'exact'
-  | 'substring'
-  | 'ancestor'
-  | 'heuristic';
+export type DiscoverySource = 'cache' | 'exact' | 'substring' | 'ancestor' | 'heuristic';
 
 export interface ValidationResult {
   ok: boolean;

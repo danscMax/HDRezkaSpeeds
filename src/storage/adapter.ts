@@ -95,12 +95,8 @@ export function createBrowserStorageAdapter(): StorageAdapter {
   };
 }
 
-export function createMemoryStorageAdapter(
-  initial?: Record<string, unknown>,
-): StorageAdapter {
-  const map = new Map<string, unknown>(
-    initial ? Object.entries(initial) : undefined,
-  );
+export function createMemoryStorageAdapter(initial?: Record<string, unknown>): StorageAdapter {
+  const map = new Map<string, unknown>(initial ? Object.entries(initial) : undefined);
   return {
     async get<T>(key: string, defaultValue: T): Promise<T> {
       return map.has(key) ? (map.get(key) as T) : defaultValue;

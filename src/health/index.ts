@@ -1,10 +1,10 @@
-export { createKillSwitch, type KillSwitch } from './kill-switch';
-export { buildReport, reportToClipboardText, type ReportDeps } from './report';
 export {
+  type CreateHealthCheckerDeps,
   createHealthChecker,
   type HealthChecker,
-  type CreateHealthCheckerDeps,
 } from './checker';
+export { createKillSwitch, type KillSwitch } from './kill-switch';
+export { buildReport, type ReportDeps, reportToClipboardText } from './report';
 export type {
   DiagnosticReport,
   HealthChecks,

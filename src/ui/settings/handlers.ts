@@ -12,15 +12,12 @@
 
 import { browser } from 'wxt/browser';
 import type { AppContext } from '../../app/context';
+import { defaultPresetsFor } from '../../config';
+import type { Lang } from '../../i18n/dict';
 import { captureHotkey, formatHotkey } from '../../speed/hotkeys';
 import { defaultSettings, type Hotkey, type SliderPosition } from '../../storage/types';
-import { defaultPresetsFor } from '../../config';
-import {
-  exportSettingsToFile,
-  openImportPicker,
-} from './export-import';
 import { refreshDiagnosticStatus } from './diag-status';
-import type { Lang } from '../../i18n/dict';
+import { exportSettingsToFile, openImportPicker } from './export-import';
 import type { ActiveTab } from './modal';
 
 /**
@@ -281,7 +278,9 @@ export function attachSettingsHandlers(
   }
 
   // ----- Hotkey add / remove / reset -----
-  for (const btn of Array.from(menuRoot.querySelectorAll<HTMLButtonElement>('[data-vs-hotkey-add]'))) {
+  for (const btn of Array.from(
+    menuRoot.querySelectorAll<HTMLButtonElement>('[data-vs-hotkey-add]'),
+  )) {
     ctx.cleanup.addEventListener(btn, 'click', async () => {
       const action = btn.dataset.vsHotkeyAdd as 'speedUp' | 'speedDown' | undefined;
       if (!action) return;
@@ -314,7 +313,9 @@ export function attachSettingsHandlers(
     });
   }
 
-  for (const btn of Array.from(menuRoot.querySelectorAll<HTMLButtonElement>('[data-vs-hotkey-remove]'))) {
+  for (const btn of Array.from(
+    menuRoot.querySelectorAll<HTMLButtonElement>('[data-vs-hotkey-remove]'),
+  )) {
     ctx.cleanup.addEventListener(btn, 'click', async () => {
       const row = btn.closest<HTMLElement>('.vs-hotkey-row');
       if (!row) return;
@@ -333,7 +334,9 @@ export function attachSettingsHandlers(
     });
   }
 
-  for (const btn of Array.from(menuRoot.querySelectorAll<HTMLButtonElement>('[data-vs-hotkey-reset]'))) {
+  for (const btn of Array.from(
+    menuRoot.querySelectorAll<HTMLButtonElement>('[data-vs-hotkey-reset]'),
+  )) {
     ctx.cleanup.addEventListener(btn, 'click', async () => {
       const action = btn.dataset.vsHotkeyReset as 'speedUp' | 'speedDown' | undefined;
       if (!action) return;

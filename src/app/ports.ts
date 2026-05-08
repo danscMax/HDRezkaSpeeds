@@ -36,6 +36,7 @@ export type Site = 'hdrezka';
 // ---------------------------------------------------------------------------
 
 export type { Hotkey, Settings, SliderPosition } from '../storage/types';
+
 import type { Settings } from '../storage/types';
 
 export interface SettingsStore {
@@ -102,6 +103,7 @@ export interface DiscoveryPort {
 // ---------------------------------------------------------------------------
 
 export type { DiagnosticReport } from '../health/types';
+
 import type { DiagnosticReport } from '../health/types';
 
 export interface DiagnosticsPort {

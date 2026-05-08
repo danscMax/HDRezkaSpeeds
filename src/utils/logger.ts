@@ -49,12 +49,13 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
   error: 3,
 };
 
-const STYLE: Record<LogLevel, { glyph: string; color: string; method: 'log' | 'warn' | 'error' }> = {
-  debug: { glyph: '🔍', color: '#9b59b6', method: 'log' },
-  info:  { glyph: 'ℹ',  color: '#3498db', method: 'log' },
-  warn:  { glyph: '⚠', color: '#f39c12', method: 'warn' },
-  error: { glyph: '✖', color: '#e74c3c', method: 'error' },
-};
+const STYLE: Record<LogLevel, { glyph: string; color: string; method: 'log' | 'warn' | 'error' }> =
+  {
+    debug: { glyph: '🔍', color: '#9b59b6', method: 'log' },
+    info: { glyph: 'ℹ', color: '#3498db', method: 'log' },
+    warn: { glyph: '⚠', color: '#f39c12', method: 'warn' },
+    error: { glyph: '✖', color: '#e74c3c', method: 'error' },
+  };
 
 /**
  * Build the default min-level from Vite's DEV flag. WXT injects
@@ -109,8 +110,8 @@ export function createLogger(opts: LoggerOptions = {}): ExtendedLogger {
 
   return {
     debug: (...args) => emit('debug', args),
-    info:  (...args) => emit('info', args),
-    warn:  (...args) => emit('warn', args),
+    info: (...args) => emit('info', args),
+    warn: (...args) => emit('warn', args),
     error: (...args) => emit('error', args),
     history: () => history,
     setLevel: (level) => {

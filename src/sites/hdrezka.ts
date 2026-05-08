@@ -31,7 +31,11 @@ export function bootstrapHDRezkaSite(ctx: AppContext): HDRezkaSiteHandle {
     seenVideos.add(v);
     ctx.logger.debug('site:hdrezka new video element detected');
     for (const fn of subscribers) {
-      try { fn(); } catch (e) { ctx.logger.error('site:hdrezka nav handler', e); }
+      try {
+        fn();
+      } catch (e) {
+        ctx.logger.error('site:hdrezka nav handler', e);
+      }
     }
   };
 
@@ -66,7 +70,9 @@ export function bootstrapHDRezkaSite(ctx: AppContext): HDRezkaSiteHandle {
   ctx.cleanup.addObserver(observer);
 
   return {
-    onNavigation(fn) { subscribers.add(fn); },
+    onNavigation(fn) {
+      subscribers.add(fn);
+    },
   };
 }
 
@@ -100,20 +106,23 @@ export function patchPlyrLocalStorage(ctx: AppContext): void {
           if (data && typeof data === 'object' && 'speed' in data) {
             ctx.logger.debug(`Plyr write blocked: speed=${data.speed}`);
             delete data.speed;
-            return original(key, JSON.stringify(data));
+            original(key, JSON.stringify(data));
+            return;
           }
         } catch {
           // Not JSON — pass through.
         }
       }
-      return original(key, value);
+      original(key, value);
     };
     ls.__vsPlyrPatched = true;
     ctx.cleanup.add(() => {
       try {
         ls.setItem = original;
         delete ls.__vsPlyrPatched;
-      } catch { /* swallow */ }
+      } catch {
+        /* swallow */
+      }
     });
   } catch (e) {
     ctx.logger.warn('Failed to patch Plyr localStorage', e);

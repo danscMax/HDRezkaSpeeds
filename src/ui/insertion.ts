@@ -17,10 +17,10 @@ import type { AppContext } from '../app/context';
 import type { SliderPosition } from '../storage/types';
 
 export type InsertionAnchor =
-  | 'before-info'    // sibling of infoElem
-  | 'after-player'   // sibling right after player container (preferred for HDRezka)
-  | 'video-overlay'  // inside player chrome ('video' position only)
-  | 'no-anchor';     // could not find a valid spot; defer
+  | 'before-info' // sibling of infoElem
+  | 'after-player' // sibling right after player container (preferred for HDRezka)
+  | 'video-overlay' // inside player chrome ('video' position only)
+  | 'no-anchor'; // could not find a valid spot; defer
 
 export interface InsertionResult {
   parent: Element | null;
@@ -33,10 +33,15 @@ export function insertPanel(panel: HTMLElement, ctx: AppContext): InsertionResul
   const choice = chooseAnchor(pos, ctx);
 
   if (choice.parent) {
-    const alreadyThere = panel.parentElement === choice.parent &&
+    const alreadyThere =
+      panel.parentElement === choice.parent &&
       (choice.before == null || panel.nextSibling === choice.before);
     if (!alreadyThere) {
-      try { panel.parentElement?.removeChild(panel); } catch { /* moved by host */ }
+      try {
+        panel.parentElement?.removeChild(panel);
+      } catch {
+        /* moved by host */
+      }
 
       try {
         if (choice.before && choice.parent.contains(choice.before)) {
@@ -51,7 +56,11 @@ export function insertPanel(panel: HTMLElement, ctx: AppContext): InsertionResul
       }
     }
   } else {
-    try { panel.parentElement?.removeChild(panel); } catch { /* swallow */ }
+    try {
+      panel.parentElement?.removeChild(panel);
+    } catch {
+      /* swallow */
+    }
   }
 
   return { parent: choice.parent, anchor: choice.anchor, tentative: choice.tentative };

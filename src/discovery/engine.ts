@@ -20,16 +20,10 @@
  * Ported from .user.js:1273-1452 with HDRezka selectors / metrics dropped.
  */
 
-import type { Site } from '../app/ports';
-import type { Logger } from '../app/ports';
+import type { Logger, Site } from '../app/ports';
 import type { SelectorCacheImpl } from './cache';
-import type {
-  DiscoveryMetrics,
-  ResolveResult,
-  SelectorKey,
-  Validator,
-} from './types';
 import { selectorsFor, substringFragmentsFor } from './selectors';
+import type { DiscoveryMetrics, ResolveResult, SelectorKey, Validator } from './types';
 
 export interface DiscoveryEngineDeps {
   site: Site;
@@ -67,7 +61,11 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
   };
 
   function trySelector(sel: string): Element | null {
-    try { return doc.querySelector(sel); } catch { return null; }
+    try {
+      return doc.querySelector(sel);
+    } catch {
+      return null;
+    }
   }
 
   function ok(key: SelectorKey, el: Element | null): boolean {
@@ -90,7 +88,8 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
 
   function pickStableClassFragment(cls: string): string | null {
     if (!cls) return null;
-    const parts = cls.split(/\s+/)
+    const parts = cls
+      .split(/\s+/)
       .map((c) => c.replace(/_{2,}[\w-]+$/, '')) // strip CSS-Modules hash tail
       .filter((c) => c.length >= 5 && !/^\d/.test(c))
       .sort((a, b) => b.length - a.length);
@@ -100,12 +99,11 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
   function buildStableSelector(el: Element): string | null {
     try {
       if (el.id && !/^(react-|ember|generated-|:r)/.test(el.id)) {
-        const escape = (globalThis as { CSS?: { escape?: (s: string) => string } }).CSS?.escape;
-        return '#' + (escape ? escape(el.id) : el.id);
+        const cssEscape = (globalThis as { CSS?: { escape?: (s: string) => string } }).CSS?.escape;
+        return `#${cssEscape ? cssEscape(el.id) : el.id}`;
       }
-      const cls = typeof (el as HTMLElement).className === 'string'
-        ? (el as HTMLElement).className
-        : '';
+      const cls =
+        typeof (el as HTMLElement).className === 'string' ? (el as HTMLElement).className : '';
       const frag = pickStableClassFragment(cls);
       if (frag) return `[class*="${frag}"]`;
       return el.tagName.toLowerCase();
@@ -134,7 +132,9 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
       }
 
       if (key === 'playerContainer') {
-        const candidates = (Array.from(doc.querySelectorAll('div, section, article')) as HTMLElement[])
+        const candidates = (
+          Array.from(doc.querySelectorAll('div, section, article')) as HTMLElement[]
+        )
           .filter((el) => el.querySelector('video'))
           .map((el) => ({ el, area: el.clientWidth * el.clientHeight }))
           .filter((x) => x.area > 0 && x.el.clientWidth > 200 && x.el.clientHeight > 100)
@@ -151,8 +151,7 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
         }
         let probe: Element | null = player;
         for (let i = 0; i < 4; i++) {
-          probe = probe?.nextElementSibling
-            ?? (probe?.parentElement?.nextElementSibling ?? null);
+          probe = probe?.nextElementSibling ?? probe?.parentElement?.nextElementSibling ?? null;
           if (!probe) break;
           if (
             (probe as HTMLElement).clientHeight > 60 &&
@@ -200,7 +199,13 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
             cache.bumpSuccess(key);
             metrics.cacheHits += 1;
             record(key, 'cache');
-            return { element: el, source: 'cache', selector: hit.selector, signature: sigNow, confidence: 1 };
+            return {
+              element: el,
+              source: 'cache',
+              selector: hit.selector,
+              signature: sigNow,
+              confidence: 1,
+            };
           }
         }
         if (cache.bumpFailure(key)) metrics.cachePurges += 1;
@@ -228,7 +233,13 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
             confidence: Math.max(0.5, backup.confidence * 0.8),
             signature: cache.buildSignature(el),
           });
-          return build(key, el, backup.source, backup.selector, Math.max(0.5, backup.confidence * 0.8));
+          return build(
+            key,
+            el,
+            backup.source,
+            backup.selector,
+            Math.max(0.5, backup.confidence * 0.8),
+          );
         }
       }
     }

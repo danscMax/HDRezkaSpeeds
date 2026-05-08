@@ -1,5 +1,3 @@
-export { Validators } from './validators';
-export { selectorsFor, substringFragmentsFor, type SelectorMap } from './selectors';
 export {
   createSelectorCache,
   type SelectorCacheImpl,
@@ -12,13 +10,15 @@ export {
   type DiscoveryEngineImpl,
   type ResolveOptions,
 } from './engine';
+export { type SelectorMap, selectorsFor, substringFragmentsFor } from './selectors';
 export {
-  SELECTOR_KEYS,
   type CacheEntry,
   type DiscoveryMetrics,
   type DiscoverySource,
   type ResolveResult,
+  SELECTOR_KEYS,
   type SelectorKey,
-  type Validator,
   type ValidationResult,
+  type Validator,
 } from './types';
+export { Validators } from './validators';

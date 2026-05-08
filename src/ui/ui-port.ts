@@ -15,10 +15,10 @@
  * ports -> ui.
  */
 
-import { showNotification } from './notifications';
-import { showSpeedPopup } from './popup';
-import type { PanelHandle } from './panel';
 import type { NotificationKind, RefreshOptions, UiPort } from '../app/ports';
+import { showNotification } from './notifications';
+import type { PanelHandle } from './panel';
+import { showSpeedPopup } from './popup';
 
 export interface CreateUiPortOptions {
   panel: PanelHandle;

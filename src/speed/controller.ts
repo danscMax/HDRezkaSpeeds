@@ -119,11 +119,7 @@ export async function setSpeed(
  * Self-write timestamp is still stamped (via applyToVideo) so the
  * ratechange watchdog in src/index.ts treats this as ours.
  */
-export function applyTransient(
-  ctx: AppContext,
-  speed: number,
-  opts: ApplyOptions = {},
-): void {
+export function applyTransient(ctx: AppContext, speed: number, opts: ApplyOptions = {}): void {
   const validSpeed = clamp(ctx, speed);
   applyToVideo(ctx, validSpeed);
   ctx.ui.refreshButtons(validSpeed, opts);
@@ -184,10 +180,7 @@ export async function setGlobal(
   applyToVideo(ctx, validSpeed);
   ctx.ui.refreshButtons(validSpeed, opts);
   ctx.ui.refreshSlider(validSpeed);
-  ctx.ui.showNotification(
-    ctx.i18n.t('toast.speed_global', { speed: validSpeed }),
-    'success',
-  );
+  ctx.ui.showNotification(ctx.i18n.t('toast.speed_global', { speed: validSpeed }), 'success');
   ctx.logger.debug('controller.setGlobal', validSpeed);
 }
 

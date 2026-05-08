@@ -9,9 +9,9 @@
  * Replaces the placeholder in src/app/ports.ts with a concrete shape.
  */
 
+import type { Site } from '../app/ports';
 import type { DiscoveryMetrics } from '../discovery/types';
 import type { RatechangeEvent } from '../speed/meter';
-import type { Site } from '../app/ports';
 
 export interface HealthChecks {
   video_found: boolean;

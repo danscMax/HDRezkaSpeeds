@@ -9,13 +9,13 @@
  *   mirror updated synchronously inside `update()`.
  */
 
-import { storageKeysFor } from '../config';
 import type { Site } from '../app/ports';
+import { storageKeysFor } from '../config';
+import { detectBrowserLang } from '../i18n/detect';
+import { type Lang, SUPPORTED_LANGS } from '../i18n/dict';
 import type { StorageAdapter } from './adapter';
 import { normalizeHotkeys } from './hotkey-migrate';
 import { defaultSettings, type Settings } from './types';
-import { detectBrowserLang } from '../i18n/detect';
-import { SUPPORTED_LANGS, type Lang } from '../i18n/dict';
 
 export interface SettingsStoreImpl {
   init(site: Site): Promise<void>;
@@ -126,10 +126,7 @@ export function createSettingsStore(adapter: StorageAdapter): SettingsStoreImpl 
   };
 }
 
-function mergeAndValidate(
-  raw: Partial<Settings> | null,
-  defaults: Settings,
-): Settings {
+function mergeAndValidate(raw: Partial<Settings> | null, defaults: Settings): Settings {
   return { ...defaults, ...sanitizePatch(raw, defaults) };
 }
 
@@ -171,17 +168,24 @@ function sanitizePatch(
 
   const out: Partial<Settings> = {};
 
-  if (safe.sliderPosition === 'right' || safe.sliderPosition === 'bottom' || safe.sliderPosition === 'video') {
+  if (
+    safe.sliderPosition === 'right' ||
+    safe.sliderPosition === 'bottom' ||
+    safe.sliderPosition === 'video'
+  ) {
     out.sliderPosition = safe.sliderPosition;
   }
   if (typeof safe.rememberSpeed === 'boolean') out.rememberSpeed = safe.rememberSpeed;
-  if (typeof safe.language === 'string' && (SUPPORTED_LANGS as readonly string[]).includes(safe.language)) {
+  if (
+    typeof safe.language === 'string' &&
+    (SUPPORTED_LANGS as readonly string[]).includes(safe.language)
+  ) {
     out.language = safe.language as Lang;
   }
   if (safe.hotkeys && typeof safe.hotkeys === 'object' && !Array.isArray(safe.hotkeys)) {
     const hk = safe.hotkeys as { speedUp?: unknown; speedDown?: unknown };
     out.hotkeys = {
-      speedUp:   normalizeHotkeys(hk.speedUp,   defaults.hotkeys.speedUp),
+      speedUp: normalizeHotkeys(hk.speedUp, defaults.hotkeys.speedUp),
       speedDown: normalizeHotkeys(hk.speedDown, defaults.hotkeys.speedDown),
     };
   }
@@ -200,8 +204,12 @@ function sanitizePatch(
   // speedStep — finite number in [0.01, 1.0]. 1.0 keeps the upper bound
   // useful (jump 0.5x→1.5x in two presses) while preventing absurd
   // values from a corrupt write.
-  if (typeof safe.speedStep === 'number' && Number.isFinite(safe.speedStep)
-      && safe.speedStep >= 0.01 && safe.speedStep <= 1.0) {
+  if (
+    typeof safe.speedStep === 'number' &&
+    Number.isFinite(safe.speedStep) &&
+    safe.speedStep >= 0.01 &&
+    safe.speedStep <= 1.0
+  ) {
     out.speedStep = Math.round(safe.speedStep * 100) / 100;
   }
   // lastSeenTheme — only accept the two valid string values; anything
@@ -223,7 +231,7 @@ const ARRAY_FALLBACK_DEFAULTS: Settings = {
   rememberSpeed: true,
   language: 'en' as Lang,
   hotkeys: {
-    speedUp:   [{ ctrl: true, shift: false, alt: false, meta: false, key: 'KeyC' }],
+    speedUp: [{ ctrl: true, shift: false, alt: false, meta: false, key: 'KeyC' }],
     speedDown: [{ ctrl: true, shift: false, alt: false, meta: false, key: 'KeyV' }],
   },
   speedPresets: [1, 1.5, 2],

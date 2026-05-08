@@ -48,9 +48,7 @@ export function speedBoundsFor(site: Site): SpeedBounds {
  * above 2.0 so the picker doesn't get overwhelming.
  */
 export const SPEED_POOL: readonly number[] = [
-  0.5, 0.75,
-  1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2,
-  2.5, 3, 4,
+  0.5, 0.75, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.5, 3, 4,
 ] as const;
 
 /**
@@ -80,7 +78,7 @@ export interface StorageKeys {
 const STORAGE_KEYS: Record<Site, StorageKeys> = {
   hdrezka: {
     settings: 'hdrezka-speed-settings',
-    speed:    'hdrezka-selected-speed',
+    speed: 'hdrezka-selected-speed',
   },
 };
 
@@ -112,8 +110,7 @@ export const TM_MIGRATION_FLAG = '__migrated_from_tm';
  * feedback form to the live Worker. Until then the form falls back
  * to the mailto: link displayed below the submit button.
  */
-export const FEEDBACK_WORKER_URL =
-  'https://speeds-feedback.matsiyak.workers.dev/feedback';
+export const FEEDBACK_WORKER_URL = 'https://speeds-feedback.matsiyak.workers.dev/feedback';
 
 /**
  * Plain-text contact, shown as a fallback when the Worker call fails

@@ -103,9 +103,10 @@ export function createSelectorCache(
       schema_version: schemaVersion,
       script_version: scriptVersion,
       entries: Object.fromEntries(memCache.entries()) as Partial<Record<SelectorKey, CacheEntry>>,
-      backups: memBackups.size > 0
-        ? Object.fromEntries(memBackups.entries()) as Partial<Record<SelectorKey, CacheEntry>>
-        : undefined,
+      backups:
+        memBackups.size > 0
+          ? (Object.fromEntries(memBackups.entries()) as Partial<Record<SelectorKey, CacheEntry>>)
+          : undefined,
     };
     const next = (pendingWrite ?? Promise.resolve()).then(() =>
       adapter.set(storageKey, snapshot).catch(() => {
@@ -230,7 +231,11 @@ export function createSelectorCache(
       // Drain any in-flight write so we don't race a stale snapshot back
       // over the removal we're about to commit.
       if (pendingWrite) {
-        try { await pendingWrite; } catch { /* swallow */ }
+        try {
+          await pendingWrite;
+        } catch {
+          /* swallow */
+        }
         pendingWrite = null;
       }
       await adapter.remove(storageKey).catch(() => {});
@@ -242,9 +247,10 @@ export function createSelectorCache(
 
     buildSignature(el: Element): string {
       try {
-        const cls = typeof (el as HTMLElement).className === 'string'
-          ? (el as HTMLElement).className.slice(0, 60)
-          : '';
+        const cls =
+          typeof (el as HTMLElement).className === 'string'
+            ? (el as HTMLElement).className.slice(0, 60)
+            : '';
         const parentTag = el.parentElement?.tagName ?? '-';
         const role = el.getAttribute('role') ?? '';
         let depth = 0;

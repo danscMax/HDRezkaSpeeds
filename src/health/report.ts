@@ -11,15 +11,11 @@
  */
 
 import type { AppContext } from '../app/context';
-import type { DiscoveryMetrics, SelectorKey } from '../discovery/types';
 import type { DiscoveryEngineImpl } from '../discovery/engine';
-import type { RatechangeMeter } from '../speed/meter';
+import type { DiscoveryMetrics, SelectorKey } from '../discovery/types';
 import { Validators } from '../discovery/validators';
-import type {
-  DiagnosticReport,
-  HealthChecks,
-  KillSwitchSnapshot,
-} from './types';
+import type { RatechangeMeter } from '../speed/meter';
+import type { DiagnosticReport, HealthChecks, KillSwitchSnapshot } from './types';
 
 export interface ReportDeps {
   ctx: AppContext;
@@ -77,13 +73,13 @@ function buildChecks(deps: ReportDeps): HealthChecks {
   const panel = document.querySelector(panelSel);
 
   const expected = ctx.speedStore.smart() ?? ctx.speedStore.current();
-  const playbackStarted = !!(videoEl && videoEl.played && videoEl.played.length > 0);
+  const playbackStarted = !!(videoEl?.played && videoEl.played.length > 0);
 
   const metrics = discovery.metrics();
 
   return {
     video_found: !!videoEl,
-    video_ready: videoEl ? (videoEl.readyState >= 1 || !!videoEl.currentSrc) : false,
+    video_ready: videoEl ? videoEl.readyState >= 1 || !!videoEl.currentSrc : false,
     playback_started: playbackStarted,
     playerContainer_found: !!playerR?.element,
     playerContainer_valid: !!(playerR?.element && Validators.playerContainer(playerR.element).ok),
@@ -111,11 +107,7 @@ function structuralOk(checks: HealthChecks): boolean {
 
 function computeHealthy(checks: HealthChecks, isWaiting: boolean): boolean {
   if (isWaiting) return true; // neutral, not unhealthy
-  return (
-    structuralOk(checks) &&
-    checks.speed_applied &&
-    checks.ratechange_revert_per_minute < 6
-  );
+  return structuralOk(checks) && checks.speed_applied && checks.ratechange_revert_per_minute < 6;
 }
 
 /**
@@ -128,8 +120,10 @@ function enumerateIssues(checks: HealthChecks, ctx: AppContext): string[] {
   if (!checks.video_found) list.push(t('diag.issue.video_not_found'));
   if (!checks.playerContainer_found) list.push(t('diag.issue.player_not_found'));
   if (!checks.infoElem_found) list.push(t('diag.issue.layout_unrecognised'));
-  if (checks.video_found && !checks.container_inserted) list.push(t('diag.issue.panel_not_inserted'));
-  if (checks.playback_started && !checks.speed_applied) list.push(t('diag.issue.speed_not_applied'));
+  if (checks.video_found && !checks.container_inserted)
+    list.push(t('diag.issue.panel_not_inserted'));
+  if (checks.playback_started && !checks.speed_applied)
+    list.push(t('diag.issue.speed_not_applied'));
   if (checks.ratechange_revert_per_minute >= 6) list.push(t('diag.issue.rate_resets'));
   return list;
 }

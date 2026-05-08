@@ -84,9 +84,8 @@ function projectReport(ctx: AppContext): DiagViewModel {
   // have to click "Copy report" to learn what specifically broke. CSS
   // .vs-status-detail uses `white-space: pre-line` so \n renders as
   // visible line break (audit B3.1).
-  const detail = issues.length > 0
-    ? issues.map((s) => '• ' + s).join('\n')
-    : t('diag.status.try_again');
+  const detail =
+    issues.length > 0 ? issues.map((s) => `• ${s}`).join('\n') : t('diag.status.try_again');
   return {
     state: 'warn',
     headline: t('diag.status.issues_count', { count: issues.length }),

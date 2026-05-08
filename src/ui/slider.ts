@@ -96,7 +96,7 @@ export function updateSliderFill(input: HTMLInputElement): void {
 }
 
 function formatSliderLabel(value: number): string {
-  return value.toFixed(2).replace(/\.?0+$/, '') + 'x';
+  return `${value.toFixed(2).replace(/\.?0+$/, '')}x`;
 }
 
 /**

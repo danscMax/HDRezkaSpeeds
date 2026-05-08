@@ -4,6 +4,7 @@ export {
   type StorageAdapter,
 } from './adapter';
 export { normalizeHotkeys } from './hotkey-migrate';
+export { runTmMigration, type TmMigrationResult } from './migration-tm';
 export {
   createSettingsStore,
   type SettingsStoreImpl,
@@ -12,7 +13,6 @@ export {
   createSpeedStore,
   type SpeedStoreImpl,
 } from './speed-store';
-export { runTmMigration, type TmMigrationResult } from './migration-tm';
 export {
   defaultSettings,
   type Hotkey,
