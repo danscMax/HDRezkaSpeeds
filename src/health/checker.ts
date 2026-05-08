@@ -171,6 +171,11 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
         stopPolling();
         return;
       }
+      // Skip the tick when the tab is hidden. Background tabs don't need
+      // a fresh diagnostic — the user can't see the gear-warning dot, and
+      // the next visible tick (Chrome resumes intervals on tab show) will
+      // catch any degradation that happened while invisible.
+      if (typeof document !== 'undefined' && document.hidden) return;
       run();
     }, POLL_MS);
   }
