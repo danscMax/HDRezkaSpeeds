@@ -10,12 +10,36 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Default permission set for the workflow's GITHUB_TOKEN. Individual jobs
+# can widen via `permissions:` if needed (none currently do).
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: '22'
 
 jobs:
-  # Per-browser build + typecheck + bundle-size budget + zip artifact.
-  # Matrix keeps Chrome and Firefox honest on every PR.
+  # Lint + format check via Biome. Fast (Rust binary), runs in parallel
+  # with build matrix on every PR.
+  lint:
+    name: lint (biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Biome ci
+        run: npm run lint:ci
+
+  # Per-browser build + typecheck + unit tests + bundle-size budget + zip
+  # artifact. Matrix keeps Chrome and Firefox honest on every PR.
   build:
     name: build (${{ matrix.browser }})
     runs-on: ubuntu-latest
@@ -36,6 +60,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
 
       # --mv3 forces MV3 manifest for Firefox too (default is MV2 in WXT 0.19).
       # No-op for Chrome (already MV3). Keeps output paths consistent: both
