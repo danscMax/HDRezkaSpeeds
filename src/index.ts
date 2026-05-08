@@ -554,6 +554,16 @@ function scheduleInsertWithRetry(panelEl: HTMLElement, ctx: AppContext): void {
         }
       } else {
         ctx.logger.warn(`panel insertion failed after ${attempts} attempts; giving up until next reattach`);
+        // Surface this to the user. Silent failure left the page with no
+        // gear, no notification, no explanation. Now they get a hint to
+        // try a reload (which kicks the retry cycle from scratch). The
+        // toast lives in the page's body, so it appears even when the
+        // panel itself never landed.
+        try {
+          ctx.ui.showNotification(ctx.i18n.t('panel.insertion_failed'), 'warn');
+        } catch (e) {
+          ctx.logger.warn('panel.insertion_failed notification failed', e);
+        }
       }
       return;
     }

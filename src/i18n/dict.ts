@@ -219,6 +219,12 @@ export const I18N_DICT = {
     // migration.* -- audit C5, fired once after first-run TM data import succeeds.
     'migration.tm_imported': 'Imported settings from the previous Tampermonkey installation.',
 
+    // panel.insertion_failed -- shown after the panel-insertion retry budget is
+    // exhausted. The page kept the player container under wraps for ~30s
+    // (slow CDN, unusual layout, kill-switch tripped); user gets a hint
+    // instead of a silently broken extension.
+    'panel.insertion_failed': 'Could not insert the speed panel — try reloading the page.',
+
     // settings.export / import -- Wave 1.8b, manual fallback for the
     // GM-storage data the extension cannot read directly.
     'settings.export': 'Export settings',
@@ -444,6 +450,9 @@ export const I18N_DICT = {
 
     // migration.*
     'migration.tm_imported': 'Настройки из предыдущей установки Tampermonkey успешно импортированы.',
+
+    // panel.insertion_failed
+    'panel.insertion_failed': 'Не удалось вставить панель скоростей — попробуйте перезагрузить страницу.',
 
     // settings.export / import
     'settings.export': 'Экспортировать настройки',
