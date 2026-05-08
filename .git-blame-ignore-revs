@@ -1,0 +1,9 @@
+# Mass-formatting / non-semantic commits that git blame should skip.
+#
+# Configure once locally:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub honours this file automatically in the blame UI.
+
+# Biome 2 setup + formatter applied + per-rule lint fixes (2026-05-08).
+d9a295e07e720236785cd7b8629a12d816a4c722
