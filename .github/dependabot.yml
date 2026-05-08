@@ -1,0 +1,50 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Etc/UTC
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    groups:
+      vitest:
+        patterns:
+          - vitest
+          - '@vitest/*'
+      wxt:
+        patterns:
+          - wxt
+          - '@wxt-dev/*'
+      typescript:
+        patterns:
+          - typescript
+      vite-stack:
+        patterns:
+          - vite
+          - vite-plugin-*
+
+  - package-ecosystem: npm
+    directory: /cloudflare-worker
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    groups:
+      cloudflare:
+        patterns:
+          - wrangler
+          - '@cloudflare/*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
