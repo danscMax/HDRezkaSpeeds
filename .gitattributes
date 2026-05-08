@@ -1,0 +1,11 @@
+# Force LF line endings across platforms so Biome formatter output is
+# stable in git, regardless of `core.autocrlf` (Windows default = true).
+* text=auto eol=lf
+
+# Binary assets — never touched.
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.crx binary
