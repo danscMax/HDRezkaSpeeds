@@ -27,6 +27,15 @@ import type { DiagnosticReport, HealthChecks } from './types';
 const FIRST_RUN_MS = 5_000;
 const POLL_MS = 30_000;
 
+/**
+ * Auto-trip threshold. After this many consecutive unhealthy reports
+ * (≈ AUTO_TRIP × POLL_MS = 150s of continuous failure), the checker fires
+ * the `onConsecutiveFailures` callback once. The bootstrap typically uses
+ * that callback to flip the kill-switch, halting the runaway purge ↔
+ * re-add ↔ purge loop that occurred before this guard existed.
+ */
+const AUTO_TRIP_AFTER_N_FAILURES = 5;
+
 export interface HealthChecker {
   start(): void;
   stop(): void;
@@ -41,12 +50,22 @@ export interface CreateHealthCheckerDeps extends ReportDeps {
   selectorCache: SelectorCacheImpl;
   /** Lets the checker silence itself when KillSwitch flips. */
   isHealthCheckEnabled: () => boolean;
+  /**
+   * Optional auto-trip callback. Fires exactly once per HealthChecker
+   * lifetime, after AUTO_TRIP_AFTER_N_FAILURES consecutive unhealthy
+   * reports. Bootstrap wires this to KillSwitch.setHealthCheckEnabled(false)
+   * so a chronically broken page stops the purge-storm and surfaces the
+   * gear's red dot for the user to act on manually.
+   */
+  onConsecutiveFailures?: (count: number) => void;
 }
 
 export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecker {
   const { ctx, selectorCache } = deps;
   let lastReport: DiagnosticReport | null = null;
   let lastHealthy = true;
+  let consecutiveFailures = 0;
+  let autoTripped = false;
   const subscribers = new Set<(r: DiagnosticReport) => void>();
   let pollIntervalId: ReturnType<typeof setInterval> | null = null;
   let started = false;
@@ -94,6 +113,23 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
       ctx.logger.info('HealthChecker: recovered to healthy');
     }
     lastHealthy = report.healthy;
+
+    if (report.healthy) {
+      consecutiveFailures = 0;
+    } else {
+      consecutiveFailures++;
+      if (consecutiveFailures >= AUTO_TRIP_AFTER_N_FAILURES && !autoTripped) {
+        autoTripped = true;
+        ctx.logger.warn(
+          `HealthChecker: ${consecutiveFailures} consecutive unhealthy reports, auto-tripping`,
+        );
+        try {
+          deps.onConsecutiveFailures?.(consecutiveFailures);
+        } catch (e) {
+          ctx.logger.error('HealthChecker onConsecutiveFailures threw', e);
+        }
+      }
+    }
 
     notify(report);
     return report;

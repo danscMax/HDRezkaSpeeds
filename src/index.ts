@@ -212,6 +212,14 @@ export async function bootstrap(
     killSwitch: killSwitch.snapshot,
     selectorCache: cache,
     isHealthCheckEnabled: killSwitch.isHealthCheckEnabled,
+    // After N consecutive unhealthy reports, flip the kill-switch's
+    // health-check flag so the watchdog stops re-running and re-purging
+    // the cache. The gear's red dot stays lit (panel.setGearWarning is
+    // wired below), so the user gets a visible signal to investigate.
+    onConsecutiveFailures: (count) => {
+      logger.warn(`auto-trip: kill-switch health-check disabled after ${count} consecutive failures`);
+      void killSwitch.setHealthCheckEnabled(false);
+    },
   });
   ctx.diagnostics = {
     report: () => healthChecker.runOnce(),
