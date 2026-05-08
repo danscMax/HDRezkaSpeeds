@@ -138,25 +138,43 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
   const visiblePool = SPEED_POOL.filter((s) => s >= bounds.min && s <= bounds.max);
   const visibleSet = new Set<number>([...visiblePool, ...presetSet]);
   const visibleSorted = Array.from(visibleSet).sort((a, b) => a - b);
+  // v0.3.5 audit MAJ-11: split the flat 14-18 pill grid into three
+  // ranges with subheaders. Casual users were overwhelmed by the wall;
+  // grouping by speed range makes the choice scannable.
+  const groups: { label: string; filter: (s: number) => boolean }[] = [
+    { label: t('general.speed_presets.group.below'),  filter: (s) => s < 1 },
+    { label: t('general.speed_presets.group.normal'), filter: (s) => s >= 1 && s <= 2 },
+    { label: t('general.speed_presets.group.above'),  filter: (s) => s > 2 },
+  ];
+  const renderPill = (s: number): HTMLElement =>
+    h(
+      'button',
+      {
+        type: 'button',
+        class: presetSet.has(s) ? 'vs-preset-pill active' : 'vs-preset-pill',
+        'data-vs-preset': s,
+        'aria-pressed': presetSet.has(s) ? 'true' : 'false',
+      },
+      formatPresetLabel(s),
+    );
+  const groupRows: HTMLElement[] = [];
+  for (const g of groups) {
+    const items = visibleSorted.filter(g.filter);
+    if (items.length === 0) continue;
+    groupRows.push(
+      h(
+        'div',
+        { class: 'vs-preset-group' },
+        h('div', { class: 'vs-preset-group-label' }, g.label),
+        h('div', { class: 'vs-preset-grid' }, ...items.map(renderPill)),
+      ),
+    );
+  }
+
   const presetSection = vsSection(
     t('general.speed_presets'),
     h('p', { class: 'vs-help-text' }, t('general.speed_presets.hint')),
-    h(
-      'div',
-      { class: 'vs-preset-grid' },
-      ...visibleSorted.map((s) =>
-        h(
-          'button',
-          {
-            type: 'button',
-            class: presetSet.has(s) ? 'vs-preset-pill active' : 'vs-preset-pill',
-            'data-vs-preset': s,
-            'aria-pressed': presetSet.has(s) ? 'true' : 'false',
-          },
-          formatPresetLabel(s),
-        ),
-      ),
-    ),
+    ...groupRows,
     h(
       'div',
       { class: 'vs-preset-custom-row' },
@@ -463,6 +481,10 @@ export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
     helpIcon,
   );
 
+  // v0.3.5: version label removed from the header so the screenshot
+  // doesn't go stale on every release. The same value is still
+  // available in the diagnostic report (which the "Скопировать отчёт"
+  // button generates) for support purposes.
   const header = h(
     'div',
     { class: 'vs-menu-header' },
@@ -474,12 +496,8 @@ export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
       t('menu.title'),
     ),
     helpLink,
-    h(
-      'span',
-      { class: 'vs-menu-version', title: t('menu.version_tip') },
-      `v${scriptVersion}`,
-    ),
   );
+  void scriptVersion;
 
   const tabs = h(
     'div',

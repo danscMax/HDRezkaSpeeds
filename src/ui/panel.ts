@@ -14,6 +14,7 @@ import { handleSpeedButtonClick, setSpeed } from '../speed/controller';
 import { vsFilledGearIcon, vsIcon } from './icons';
 import {
   refreshActiveButton,
+  refreshPinnedButton,
   renderButtonsRow,
 } from './buttons';
 import { defaultPresetsFor } from '../config';
@@ -96,9 +97,19 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   root.className = 'vs-panel';
   root.dataset.vsSite = ctx.site;
 
+  // Pinned = the saved/default speed when rememberSpeed is on. Used
+  // to decorate that button with a small dot so the user sees which
+  // speed will be applied to fresh videos.
+  const computePinnedSpeed = (): number | null => {
+    return ctx.settingsStore.getKey('rememberSpeed') === true
+      ? ctx.speedStore.current()
+      : null;
+  };
+
   const buttonsRow = renderButtonsRow({
     speeds: resolvePresets(),
     current: ctx.speedStore.current(),
+    pinned: computePinnedSpeed(),
     buttonTitle: ctx.i18n.t('panel.button.tooltip'),
   });
   const sliderContainer = renderSlider({
@@ -478,10 +489,14 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       const fresh = renderButtonsRow({
         speeds: resolvePresets(),
         current: ctx.speedStore.current(),
+        pinned: computePinnedSpeed(),
         buttonTitle: ctx.i18n.t('panel.button.tooltip'),
       });
       buttonsRow.replaceChildren(...Array.from(fresh.childNodes));
     }
+    // Pinned dot is gated on rememberSpeed; refresh whenever the
+    // settings change so the user sees the toggle take effect live.
+    refreshPinnedButton(buttonsRow, computePinnedSpeed());
     if (isMenuOpen()) {
       rerenderSettings();
     }
@@ -492,6 +507,10 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     element: root,
     refreshButtons(speed) {
       refreshActiveButton(buttonsRow, speed);
+      // Pin tracks the saved/default speed; refresh it on every speed
+      // change so a fresh setGlobal() (double-click) lights up the
+      // matching pill within the same frame.
+      refreshPinnedButton(buttonsRow, computePinnedSpeed());
     },
     refreshSlider(speed) {
       setSliderValue(sliderContainer, speed);

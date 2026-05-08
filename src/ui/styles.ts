@@ -592,6 +592,27 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
 html[data-vs-theme="light"] .speed-buttons-row {
   background: rgba(255, 255, 255, 0.55);
 }
+.speed-button.pinned::after {
+  /* Tiny accent-coloured dot in the top-right corner of the saved/
+     default speed (audit MAJ-3 visual indicator). Visible regardless
+     of active/inactive state, so the user sees both "what's playing
+     right now" (active fill) and "what'll be applied to new videos"
+     (this dot). White ring around the dot keeps it readable on both
+     active and inactive button backgrounds. */
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--vs-accent);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+html[data-vs-theme="light"] .speed-button.pinned::after {
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.55);
+}
 .speed-button {
   position: relative;
   min-width: 56px;
@@ -1149,13 +1170,25 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
 .vs-segmented-option[aria-pressed="true"] svg { color: var(--vs-accent, #ff0000); }
 
 /* Speed-preset toggle grid in the General tab. Each pill represents one
-   value from SPEED_POOL filtered to the site's bounds. Active pills
-   have the same accent treatment as segmented options. */
+   value from SPEED_POOL filtered to the site's bounds. v0.3.5 audit
+   MAJ-11 split the flat 14-18 pill grid into three labelled groups
+   ("Slower than 1×", "1× – 2×", "Faster than 2×") so the wall isn't
+   intimidating to casual users. */
+.vs-preset-group { margin: 6px 0 10px; }
+.vs-preset-group:last-of-type { margin-bottom: 4px; }
+.vs-preset-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.65;
+  letter-spacing: 0.02em;
+  margin-bottom: 5px;
+  color: var(--vs-text-secondary);
+}
 .vs-preset-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 8px 0;
+  margin: 0;
 }
 .vs-preset-pill {
   flex: 0 0 auto;

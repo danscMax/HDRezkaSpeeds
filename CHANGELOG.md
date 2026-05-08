@@ -4,6 +4,42 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.5] — 2026-05-08
+
+Closes the three remaining items from the v0.3.4 audit pass plus a
+maintainer-flagged design issue: the hardcoded version label in the
+settings header forced a screenshot rebuild on every release.
+
+### Added
+- **Pinned-speed indicator on preset buttons.** When `rememberSpeed`
+  is on, the button matching the saved/default speed gains a tiny
+  accent dot in the top-right corner. Active state ("currently
+  playing") and pinned state ("default for new videos") are now
+  visually distinct — earlier they were inseparable.
+- **Speed-preset chips grouped by range** in the Settings → "Кнопки
+  скорости" section. Three subheaders ("Медленнее 1×", "1× – 2×",
+  "Быстрее 2×"). Casual users were overwhelmed by the flat 14-18 pill
+  wall; the wall is now scannable.
+- **Panel auto-reparents into `fullscreenElement`** when entering
+  fullscreen with `sliderPosition='right'` or `'bottom'`. Earlier the
+  panel disappeared from view entirely because the OS-level
+  fullscreen renders only the `fullscreenElement` subtree. On exit
+  the panel is restored to its original parent.
+
+### Changed
+- **Default hotkeys reset to `Alt+Period` / `Alt+Comma`** (a.k.a.
+  `Alt+.` / `Alt+,`). The old `Alt+Shift+ArrowUp/Down` collided with
+  the Windows `Alt+Shift` Ru/En layout switcher and was a 3-key
+  chord. New default is one modifier + the universal `>`/`<` speed
+  convention from VLC / mpv. **Existing users keep their hotkeys** —
+  the change applies only to fresh installs and Diagnostics → Full
+  Reset.
+- **Version label removed from the settings header.** Earlier it
+  read `v0.3.X` and forced re-rendering the store-listing screenshots
+  on every release. Version stays available via the diagnostic
+  report (Diagnostics → "Скопировать отчёт"), where it actually
+  matters for support.
+
 ## [0.3.4] — 2026-05-07
 
 ### Accessibility & Usability (UI/UX audit pass)

@@ -379,8 +379,49 @@ export async function bootstrap(
   );
 
   // 12c. Re-integrate the slider into player chrome on fullscreen
-  //      transitions.
+  //      transitions, AND reparent the entire panel root into the
+  //      fullscreenElement when it lives outside the player wrapper.
+  //
+  //      Browser fullscreen (`Element.requestFullscreen()`) renders ONLY
+  //      the fullscreenElement's subtree. With sliderPosition='right' or
+  //      'bottom', the panel lives next-to / below the player wrapper —
+  //      i.e., outside the wrapper — so it disappears from view in
+  //      fullscreen unless we move it in. v0.3.5 audit MAJ-9.
+  let panelOrigParent: Element | null = null;
+  let panelOrigNext: Node | null = null;
   ctx.cleanup.addEventListener(document, 'fullscreenchange', () => {
+    const fs = document.fullscreenElement;
+    const panelEl = panel.element;
+
+    if (fs && !fs.contains(panelEl)) {
+      // Entering fullscreen. Remember where the panel was so we can
+      // put it back on exit.
+      if (panelEl.parentElement) {
+        panelOrigParent = panelEl.parentElement;
+        panelOrigNext = panelEl.nextSibling;
+      }
+      try { fs.appendChild(panelEl); }
+      catch (e) { ctx.logger.warn('fullscreen: panel reparent failed', e); }
+    } else if (!fs && panelOrigParent) {
+      // Exiting fullscreen. Restore the panel to its original spot.
+      try {
+        if (panelOrigNext && panelOrigNext.parentNode === panelOrigParent) {
+          panelOrigParent.insertBefore(panelEl, panelOrigNext);
+        } else {
+          panelOrigParent.appendChild(panelEl);
+        }
+      } catch (e) {
+        ctx.logger.warn('fullscreen: panel restore failed', e);
+      }
+      panelOrigParent = null;
+      panelOrigNext = null;
+    }
+
+    // The slider-in-chrome integration ('video' position) is unaffected
+    // by the reparent above (the slider lives inside the player wrapper
+    // when this position is active, so it's already in the fullscreen
+    // subtree). applyLayout still fires to recompute slider geometry
+    // after the chrome resizes.
     if (ctx.settingsStore.getKey('sliderPosition') === 'video') {
       ctx.cleanup.setTimeout(() => panel.applyLayout(), 500);
     }

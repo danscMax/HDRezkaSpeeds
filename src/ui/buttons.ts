@@ -15,6 +15,13 @@ export interface ButtonsRowOptions {
   /** Currently applied speed -- gets the `.speed-button.active` class. */
   current: number;
   /**
+   * Saved/default speed (the value persisted via setCurrent + rememberSpeed
+   * = true). Gets the `.speed-button.pinned` class — visually decorated
+   * with a small dot in the corner. `null` means no pin (rememberSpeed
+   * off, or stored speed not in the visible preset row).
+   */
+  pinned?: number | null;
+  /**
    * Optional `title` attribute applied to every speed button. Surfaces
    * the click semantics ("Click — temporary, double-click — save as
    * default") on hover so a user who didn't read the welcome page can
@@ -28,6 +35,14 @@ export interface ButtonsRowOptions {
 const ROW_CLASS = 'speed-buttons-row';
 const BTN_CLASS = 'speed-button';
 const ACTIVE_CLASS = 'active';
+const PINNED_CLASS = 'pinned';
+
+function classFor(s: number, current: number, pinned: number | null | undefined): string {
+  const cls = [BTN_CLASS];
+  if (isSameSpeed(s, current)) cls.push(ACTIVE_CLASS);
+  if (pinned != null && isSameSpeed(s, pinned)) cls.push(PINNED_CLASS);
+  return cls.join(' ');
+}
 
 export function renderButtonsRow(opts: ButtonsRowOptions): HTMLElement {
   return h(
@@ -38,7 +53,7 @@ export function renderButtonsRow(opts: ButtonsRowOptions): HTMLElement {
         'button',
         {
           type: 'button',
-          class: isSameSpeed(s, opts.current) ? `${BTN_CLASS} ${ACTIVE_CLASS}` : BTN_CLASS,
+          class: classFor(s, opts.current, opts.pinned ?? null),
           'data-vs-speed': s,
           title: opts.buttonTitle,
         },
@@ -58,6 +73,19 @@ export function refreshActiveButton(row: Element, current: number): void {
     const speedAttr = btn.getAttribute('data-vs-speed');
     const speed = speedAttr ? parseFloat(speedAttr) : NaN;
     btn.classList.toggle(ACTIVE_CLASS, isSameSpeed(speed, current));
+  }
+}
+
+/**
+ * Toggle the `.pinned` class to the button matching `pinned`. Pass
+ * `null` to clear all pin markers (e.g. rememberSpeed got turned off).
+ */
+export function refreshPinnedButton(row: Element, pinned: number | null): void {
+  const buttons = row.querySelectorAll<HTMLButtonElement>(`.${BTN_CLASS}`);
+  for (const btn of Array.from(buttons)) {
+    const speedAttr = btn.getAttribute('data-vs-speed');
+    const speed = speedAttr ? parseFloat(speedAttr) : NaN;
+    btn.classList.toggle(PINNED_CLASS, pinned != null && isSameSpeed(speed, pinned));
   }
 }
 

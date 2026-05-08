@@ -37,6 +37,9 @@ export const I18N_DICT = {
     // general.*
     'general.speed_presets': 'Speed buttons',
     'general.speed_presets.hint': 'Pick which speeds appear on the in-player panel.',
+    'general.speed_presets.group.below': 'Slower than 1×',
+    'general.speed_presets.group.normal': '1× – 2×',
+    'general.speed_presets.group.above': 'Faster than 2×',
     'general.speed_presets.reset': 'Reset to defaults',
     'general.speed_presets.custom_placeholder': 'e.g. 1.1',
     'general.speed_presets.custom_add': 'Add',
@@ -265,6 +268,9 @@ export const I18N_DICT = {
     // general.*
     'general.speed_presets': 'Кнопки скорости',
     'general.speed_presets.hint': 'Выберите какие скорости показывать на панели плеера.',
+    'general.speed_presets.group.below': 'Медленнее 1×',
+    'general.speed_presets.group.normal': '1× – 2×',
+    'general.speed_presets.group.above': 'Быстрее 2×',
     'general.speed_presets.reset': 'Вернуть по умолчанию',
     'general.speed_presets.custom_placeholder': 'Например, 1.1',
     'general.speed_presets.custom_add': 'Добавить',

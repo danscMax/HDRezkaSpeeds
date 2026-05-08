@@ -76,19 +76,21 @@ export function defaultSettings(language: Lang, site?: Site): Settings {
     rememberSpeed: true,
     language,
     hotkeys: {
-      // Default switched away from Ctrl+C / Ctrl+V (audit 0.2.8) —
-      // they collide with the system copy/paste shortcut. Active
-      // selection guards mostly catch the conflict, but the moment a
-      // user mouse-selects something on the page and hits Ctrl+C the
-      // browser's copy fires AND speed jumps; Alt+Shift+Arrow has no
-      // such collision in any mainstream site or OS-level shortcut.
-      // Insert keys kept as the secondary slot for HTPC remotes.
+      // v0.3.5: Alt+Period / Alt+Comma (a.k.a. Alt+. / Alt+,). One
+      // modifier instead of two, matches the >/< speed convention from
+      // VLC / mpv, doesn't conflict with YouTube's native > / < (which
+      // requires Shift), and avoids the Alt+Shift collision with the
+      // Windows Ru/En layout switcher that the previous Alt+Shift+Arrow
+      // default had. Existing users keep their stored hotkeys via
+      // mergeAndValidate; only fresh installs and Full-Reset users see
+      // the new default. Insert keys kept as a secondary slot for HTPC
+      // remotes (uncommon, harmless).
       speedUp: [
-        { ctrl: false, shift: true, alt: true, meta: false, key: 'ArrowUp' },
+        { ctrl: false, shift: false, alt: true, meta: false, key: 'Period' },
         { ctrl: true, shift: false, alt: false, meta: false, key: 'Insert' },
       ],
       speedDown: [
-        { ctrl: false, shift: true, alt: true, meta: false, key: 'ArrowDown' },
+        { ctrl: false, shift: false, alt: true, meta: false, key: 'Comma' },
         { ctrl: false, shift: true, alt: false, meta: false, key: 'Insert' },
       ],
     },
