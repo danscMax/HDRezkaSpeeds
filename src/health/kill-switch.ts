@@ -49,13 +49,24 @@ export function createKillSwitch(ctx: AppContext): KillSwitch {
   };
 
   async function persist(patch: Partial<KillSwitchSnapshot>): Promise<void> {
+    // Optimistic in-memory update so isHealthCheckEnabled() reads the new
+    // value immediately. Reverted below if the disk write rejects, so
+    // memory and disk stay in sync — the previous code left memory ahead
+    // of disk, which silently undid user toggles on the next page load.
+    const prev = state;
     state = { ...state, ...patch };
     const live = (ctx.settingsStore.get() as unknown as Record<string, unknown>).healing;
     const merged = { ...(typeof live === 'object' && live ? live : {}), ...patch };
     // Use the store's update so subscribers get notified, even though
     // `healing` isn't a declared field. The validator in Wave 1.4 ignores
     // unknown fields on init, but update() merges them as-is.
-    await ctx.settingsStore.update({ healing: merged } as never);
+    try {
+      await ctx.settingsStore.update({ healing: merged } as never);
+    } catch (e) {
+      state = prev;
+      ctx.logger.warn('KillSwitch: persist rejected, reverting in-memory state', e);
+      throw e;
+    }
   }
 
   return {
