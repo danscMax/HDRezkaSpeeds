@@ -46,6 +46,7 @@ import { Validators } from './discovery/validators';
 import { createRatechangeMeter } from './speed/meter';
 import { matchesHotkeyArray } from './speed/hotkeys';
 import {
+  applyTransient,
   pickInitialSpeed,
   setSpeed,
   setTemporary,
@@ -634,8 +635,19 @@ function attachToVideo(
   const apply = (reason: string): void => {
     const target = pickInitialSpeed(ctx);
     if (Math.abs(v.playbackRate - target) < 0.005) return;
+    // Use applyTransient (no storage write) — storage already holds the
+    // value we're applying; pickInitialSpeed READS it. Before this change
+    // each retry tick called setSpeed, which wrote to storage twice. With
+    // 4 retries per attach × 2 writes = 8 storage writes per video attach,
+    // and src-change events fired the cascade again. ratechange-revert
+    // protection still works via __vsSelfWriteAt timestamp set inside
+    // applyToVideo + isFreshSelfWrite() check.
     isSelfWrite = true;
-    void setSpeed(ctx, target, { silent: true }).finally(() => { isSelfWrite = false; });
+    try {
+      applyTransient(ctx, target, { silent: true });
+    } finally {
+      isSelfWrite = false;
+    }
     ctx.logger.debug(`attachToVideo: re-applying ${target}x (${reason})`);
   };
 
