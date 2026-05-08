@@ -15,11 +15,11 @@ import type { AppContext } from '../app/context';
 import { defaultPresetsFor, speedBoundsFor } from '../config';
 import { applyTransient, handleSpeedButtonClick, setSpeed } from '../speed/controller';
 import { refreshActiveButton, refreshPinnedButton, renderButtonsRow } from './buttons';
-import { vsFilledGearIcon, vsIcon } from './icons';
+import { vsFilledGearIcon } from './icons';
 import { refreshDiagnosticStatus } from './settings/diag-status';
 import { attachSettingsHandlers } from './settings/handlers';
 import { type ActiveTab, renderSettingsMenu } from './settings/modal';
-import { renderSlider, setSliderValue, updateSliderFill } from './slider';
+import { renderSlider, setSliderRange, setSliderValue, updateSliderFill } from './slider';
 
 /** Diag-action sink. The orchestrator passes a real implementation that
  *  can purge cache, copy report, or trip the KillSwitch. */
@@ -105,10 +105,30 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     pinned: computePinnedSpeed(),
     buttonTitle: ctx.i18n.t('panel.button.tooltip'),
   });
+  /**
+   * Resolve the user's slider range. Falls back to site bounds when the
+   * user hasn't set a custom value or the stored value is incoherent
+   * relative to the site (e.g. a TM-imported sliderMin that's below
+   * what the site supports).
+   */
+  const resolveSliderRange = (): { min: number; max: number } => {
+    const storedMin = ctx.settingsStore.getKey('sliderMin');
+    const storedMax = ctx.settingsStore.getKey('sliderMax');
+    const min =
+      typeof storedMin === 'number' && storedMin >= bounds.min && storedMin < bounds.max
+        ? storedMin
+        : bounds.min;
+    const max =
+      typeof storedMax === 'number' && storedMax > min && storedMax <= bounds.max
+        ? storedMax
+        : bounds.max;
+    return { min, max };
+  };
+  const initialRange = resolveSliderRange();
   const sliderContainer = renderSlider({
     current: ctx.speedStore.current(),
-    min: bounds.min,
-    max: bounds.max,
+    min: initialRange.min,
+    max: initialRange.max,
   });
 
   const gearWrapper = document.createElement('div');
@@ -131,16 +151,12 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   gearWrapper.appendChild(gearBtn);
   gearWrapper.appendChild(settingsMenu);
 
-  // Brand marker — a tiny icon at the leading edge so users can tell at
-  // a glance this is our extension rather than native host UI (audit
-  // MAJ-10). Host-theme mirroring stays intact; this is just identity.
-  const brand = document.createElement('span');
-  brand.className = 'vs-brand';
-  brand.setAttribute('aria-label', 'HDRezka Speeds');
-  brand.title = 'HDRezka Speeds';
-  brand.appendChild(vsIcon('chevrons-up', 12));
-
-  root.appendChild(brand);
+  // Brand marker removed in 0.3.7 — the chevrons-up icon was a purely
+  // decorative "this is the extension" identity hint that users found
+  // confusing and inert (no click target, no meaning). The gear button
+  // is identity enough; users who want to verify which extension drew
+  // the panel can hover the gear (its title attribute names the
+  // extension).
   root.appendChild(buttonsRow);
   root.appendChild(sliderContainer);
   root.appendChild(gearWrapper);
@@ -503,6 +519,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   // setting toggle (rememberSpeed, language, hotkeys, ...).
   let lastPos = ctx.settingsStore.getKey('sliderPosition');
   let lastPresetsKey = JSON.stringify(ctx.settingsStore.getKey('speedPresets') ?? []);
+  let lastRange = initialRange;
   const offSubscribe = ctx.settingsStore.subscribe((next) => {
     if (next.sliderPosition !== lastPos) {
       lastPos = next.sliderPosition;
@@ -523,6 +540,15 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
         buttonTitle: ctx.i18n.t('panel.button.tooltip'),
       });
       buttonsRow.replaceChildren(...Array.from(fresh.childNodes));
+    }
+    // Slider range reactive on sliderMin/sliderMax — re-resolve and
+    // patch the live <input> in-place. Cheap (no rebuild) and preserves
+    // the input's bound listeners. Same `resolveSliderRange` as the
+    // initial render so fallback to site defaults stays consistent.
+    const nextRange = resolveSliderRange();
+    if (nextRange.min !== lastRange.min || nextRange.max !== lastRange.max) {
+      lastRange = nextRange;
+      setSliderRange(sliderContainer, nextRange.min, nextRange.max);
     }
     // Pinned dot is gated on rememberSpeed; refresh whenever the
     // settings change so the user sees the toggle take effect live.

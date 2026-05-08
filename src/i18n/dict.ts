@@ -37,6 +37,13 @@ export const I18N_DICT = {
     // general.*
     'general.speed_presets': 'Speed buttons',
     'general.speed_presets.hint': 'Pick which speeds appear on the in-player panel.',
+    'general.slider_range': 'Slider range',
+    'general.slider_range.hint':
+      'Minimum and maximum values for the in-player speed slider. Leave empty to use the site default.',
+    'general.slider_range.min': 'Min',
+    'general.slider_range.max': 'Max',
+    'general.slider_range.reset': 'Reset to site defaults',
+    'toast.slider_range_invalid': 'Slider Min must be less than Max',
     'general.speed_presets.group.below': 'Slower than 1×',
     'general.speed_presets.group.normal': '1× – 2×',
     'general.speed_presets.group.above': 'Faster than 2×',
@@ -302,6 +309,13 @@ export const I18N_DICT = {
     // general.*
     'general.speed_presets': 'Кнопки скорости',
     'general.speed_presets.hint': 'Выберите какие скорости показывать на панели плеера.',
+    'general.slider_range': 'Диапазон слайдера',
+    'general.slider_range.hint':
+      'Минимум и максимум для ползунка скорости. Оставьте пустым, чтобы использовать значения по умолчанию для сайта.',
+    'general.slider_range.min': 'Мин',
+    'general.slider_range.max': 'Макс',
+    'general.slider_range.reset': 'Сбросить к значениям по умолчанию',
+    'toast.slider_range_invalid': 'Минимум слайдера должен быть меньше максимума',
     'general.speed_presets.group.below': 'Медленнее 1×',
     'general.speed_presets.group.normal': '1× – 2×',
     'general.speed_presets.group.above': 'Быстрее 2×',

@@ -55,6 +55,18 @@ export interface Settings {
    */
   speedStep: number;
   /**
+   * User-configured slider lower bound. Undefined means "use the site
+   * default" (speedBoundsFor(site).min). Validated to fall within
+   * (0, sliderMax) and within the site's hard min/max range.
+   */
+  sliderMin?: number;
+  /**
+   * User-configured slider upper bound. Undefined means "use the site
+   * default" (speedBoundsFor(site).max). Validated to fall within
+   * (sliderMin, site.max].
+   */
+  sliderMax?: number;
+  /**
    * Last theme detected on the host page. Written by the content script's
    * theme watcher; read by the toolbar popup so it can match the host
    * page's theme instead of guessing from OS prefers-color-scheme.

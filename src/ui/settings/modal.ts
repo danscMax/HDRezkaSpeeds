@@ -218,6 +218,61 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
     ),
   );
 
+  // Slider-range section: lets the user narrow or widen the range of the
+  // in-player speed slider beyond the per-site defaults. Empty input ⇒
+  // site default; the panel re-resolves on every settings change.
+  const userMin = settings.sliderMin;
+  const userMax = settings.sliderMax;
+  const sliderRangeSection = vsSection(
+    t('general.slider_range'),
+    h('p', { class: 'vs-help-text' }, t('general.slider_range.hint')),
+    h(
+      'div',
+      { class: 'vs-slider-range-row' },
+      h(
+        'label',
+        { class: 'vs-slider-range-field' },
+        h('span', { class: 'vs-slider-range-label' }, t('general.slider_range.min')),
+        h('input', {
+          type: 'number',
+          class: 'vs-slider-range-input',
+          'data-vs-slider-min': '',
+          min: 0.05,
+          max: bounds.max,
+          step: 0.05,
+          placeholder: String(bounds.min),
+          value: typeof userMin === 'number' ? String(userMin) : '',
+          'aria-label': t('general.slider_range.min'),
+        }),
+      ),
+      h(
+        'label',
+        { class: 'vs-slider-range-field' },
+        h('span', { class: 'vs-slider-range-label' }, t('general.slider_range.max')),
+        h('input', {
+          type: 'number',
+          class: 'vs-slider-range-input',
+          'data-vs-slider-max': '',
+          min: 0.1,
+          max: bounds.max,
+          step: 0.05,
+          placeholder: String(bounds.max),
+          value: typeof userMax === 'number' ? String(userMax) : '',
+          'aria-label': t('general.slider_range.max'),
+        }),
+      ),
+    ),
+    h(
+      'button',
+      {
+        type: 'button',
+        class: 'vs-reset-link',
+        'data-vs-slider-range-reset': '',
+      },
+      t('general.slider_range.reset'),
+    ),
+  );
+
   const langSection = vsSection(
     t('lang.section_label'),
     h(
@@ -280,6 +335,7 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
     },
     sliderPosSection,
     presetSection,
+    sliderRangeSection,
     langSection,
     behaviorSection,
     advancedSection,

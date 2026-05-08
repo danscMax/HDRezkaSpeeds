@@ -110,3 +110,20 @@ export function setSliderValue(container: Element, speed: number): void {
   input.value = String(speed);
   updateSliderFill(input);
 }
+
+/**
+ * Imperative range update — used when the user changes Settings →
+ * sliderMin/sliderMax. Clamps the current value into the new range so a
+ * narrowed range that would orphan the thumb instead snaps to the
+ * nearest endpoint. Also recomputes the gradient fill.
+ */
+export function setSliderRange(container: Element, min: number, max: number): void {
+  const input = container.querySelector<HTMLInputElement>(`.${INPUT_CLASS}`);
+  if (!input) return;
+  input.min = String(min);
+  input.max = String(max);
+  const current = parseFloat(input.value) || min;
+  if (current < min) input.value = String(min);
+  else if (current > max) input.value = String(max);
+  updateSliderFill(input);
+}

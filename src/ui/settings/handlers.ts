@@ -200,6 +200,62 @@ export function attachSettingsHandlers(
     });
   }
 
+  // ----- Slider range (Min / Max) -----
+  //
+  // Two number inputs that override the per-site slider bounds. Empty
+  // input ⇒ "use site default" (we write `undefined` to settings, and
+  // the panel falls back via resolveSliderRange()). Validation:
+  //   - parse number; reject NaN/empty as "clear" (writes undefined)
+  //   - within (0, 10] absolute caps
+  //   - sliderMin must be < sliderMax (cross-field check)
+  // The panel subscribes to settings and patches the live slider in-place
+  // via setSliderRange — no rebuild needed.
+  const sliderMinInput = menuRoot.querySelector<HTMLInputElement>('[data-vs-slider-min]');
+  const sliderMaxInput = menuRoot.querySelector<HTMLInputElement>('[data-vs-slider-max]');
+  const sliderRangeReset = menuRoot.querySelector<HTMLButtonElement>(
+    '[data-vs-slider-range-reset]',
+  );
+
+  function parseSliderRangeValue(raw: string): number | undefined {
+    const trimmed = raw.trim();
+    if (!trimmed) return undefined;
+    const parsed = parseFloat(trimmed.replace(',', '.'));
+    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 10) return undefined;
+    return Math.round(parsed * 100) / 100;
+  }
+
+  async function commitSliderRange(): Promise<void> {
+    const rawMin = sliderMinInput?.value ?? '';
+    const rawMax = sliderMaxInput?.value ?? '';
+    const min = parseSliderRangeValue(rawMin);
+    const max = parseSliderRangeValue(rawMax);
+    // Cross-field: if both present and min >= max, drop both with a toast.
+    if (typeof min === 'number' && typeof max === 'number' && min >= max) {
+      ctx.ui.showNotification(ctx.i18n.t('toast.slider_range_invalid'), 'error');
+      return;
+    }
+    await ctx.settingsStore.update({ sliderMin: min, sliderMax: max });
+  }
+
+  if (sliderMinInput) {
+    ctx.cleanup.addEventListener(sliderMinInput, 'change', () => {
+      void commitSliderRange();
+    });
+  }
+  if (sliderMaxInput) {
+    ctx.cleanup.addEventListener(sliderMaxInput, 'change', () => {
+      void commitSliderRange();
+    });
+  }
+  if (sliderRangeReset) {
+    ctx.cleanup.addEventListener(sliderRangeReset, 'click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await ctx.settingsStore.update({ sliderMin: undefined, sliderMax: undefined });
+      deps.rerender();
+    });
+  }
+
   // ----- Language switcher -----
   for (const btn of Array.from(menuRoot.querySelectorAll<HTMLButtonElement>('[data-vs-lang]'))) {
     ctx.cleanup.addEventListener(btn, 'click', async () => {

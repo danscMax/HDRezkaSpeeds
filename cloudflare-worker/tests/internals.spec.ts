@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { _internals } from '../src/index';
 
-const { isAllowedOrigin, validate, formatTelegramMessage, escapeHtml, safeTruncateHtml, hmacSha256Hex } =
-  _internals;
+const {
+  isAllowedOrigin,
+  validate,
+  formatTelegramMessage,
+  escapeHtml,
+  safeTruncateHtml,
+  hmacSha256Hex,
+} = _internals;
 
 const ENV = {
   TELEGRAM_BOT_TOKEN: 'unused-in-pure-tests',
@@ -38,10 +44,7 @@ describe('isAllowedOrigin', () => {
 
 describe('validate', () => {
   it('passes a minimal valid payload', () => {
-    const errors = validate(
-      { app: 'hdrezka', message: 'hello' },
-      ENV,
-    );
+    const errors = validate({ app: 'hdrezka', message: 'hello' }, ENV);
     expect(errors).toEqual([]);
   });
 
@@ -58,10 +61,7 @@ describe('validate', () => {
   });
 
   it('rejects message over 4000 chars', () => {
-    const errors = validate(
-      { app: 'hdrezka', message: 'x'.repeat(4001) },
-      ENV,
-    );
+    const errors = validate({ app: 'hdrezka', message: 'x'.repeat(4001) }, ENV);
     expect(errors).toContain('message_too_long');
   });
 
@@ -83,40 +83,31 @@ describe('validate', () => {
   });
 
   it('rejects optional string fields when wrong-typed', () => {
-    const errors = validate(
-      { app: 'hdrezka', message: 'hi', version: 42 as never },
-      ENV,
-    );
+    const errors = validate({ app: 'hdrezka', message: 'hi', version: 42 as never }, ENV);
     expect(errors).toContain('version');
   });
 
   it('rejects unknown rating', () => {
-    const errors = validate(
-      { app: 'hdrezka', message: 'hi', rating: 'amazing' as never },
-      ENV,
-    );
+    const errors = validate({ app: 'hdrezka', message: 'hi', rating: 'amazing' as never }, ENV);
     expect(errors).toContain('rating');
   });
 
   it('caps version length at 32', () => {
-    expect(
-      validate({ app: 'hdrezka', message: 'hi', version: 'x'.repeat(33) }, ENV),
-    ).toContain('version_too_long');
+    expect(validate({ app: 'hdrezka', message: 'hi', version: 'x'.repeat(33) }, ENV)).toContain(
+      'version_too_long',
+    );
   });
 
   it('caps url at 2048', () => {
     expect(
-      validate(
-        { app: 'hdrezka', message: 'hi', url: `https://${'x'.repeat(2049)}` },
-        ENV,
-      ),
+      validate({ app: 'hdrezka', message: 'hi', url: `https://${'x'.repeat(2049)}` }, ENV),
     ).toContain('url_too_long');
   });
 
   it('caps contact at 200', () => {
-    expect(
-      validate({ app: 'hdrezka', message: 'hi', contact: 'x'.repeat(201) }, ENV),
-    ).toContain('contact_too_long');
+    expect(validate({ app: 'hdrezka', message: 'hi', contact: 'x'.repeat(201) }, ENV)).toContain(
+      'contact_too_long',
+    );
   });
 
   it('caps diagnostics at 16000', () => {
@@ -215,12 +206,12 @@ describe('formatTelegramMessage', () => {
   });
 
   it('renders contact when present, omits when missing', () => {
-    expect(
-      formatTelegramMessage({ app: 'hdrezka', message: 'hi', contact: '@me' }),
-    ).toContain('<b>Contact:</b> @me');
-    expect(
-      formatTelegramMessage({ app: 'hdrezka', message: 'hi' }),
-    ).not.toContain('<b>Contact:</b>');
+    expect(formatTelegramMessage({ app: 'hdrezka', message: 'hi', contact: '@me' })).toContain(
+      '<b>Contact:</b> @me',
+    );
+    expect(formatTelegramMessage({ app: 'hdrezka', message: 'hi' })).not.toContain(
+      '<b>Contact:</b>',
+    );
   });
 
   it('truncates oversized diagnostics with explicit notice', () => {
@@ -258,12 +249,8 @@ describe('formatTelegramMessage', () => {
   });
 
   it('renames app for display', () => {
-    expect(formatTelegramMessage({ app: 'videospeeds', message: 'hi' })).toContain(
-      'VideoSpeeds',
-    );
-    expect(formatTelegramMessage({ app: 'hdrezka', message: 'hi' })).toContain(
-      'HDRezkaSpeeds',
-    );
+    expect(formatTelegramMessage({ app: 'videospeeds', message: 'hi' })).toContain('VideoSpeeds');
+    expect(formatTelegramMessage({ app: 'hdrezka', message: 'hi' })).toContain('HDRezkaSpeeds');
   });
 
   it('falls back to email field for legacy clients', () => {

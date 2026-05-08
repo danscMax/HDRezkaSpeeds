@@ -1238,6 +1238,48 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   box-shadow: var(--vs-menu-active-glow-hover);
 }
 
+/* Slider-range row — two number inputs (Min, Max) for the in-player
+   speed slider override. Empty = "use site default". */
+.vs-slider-range-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 6px;
+}
+.vs-slider-range-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.vs-slider-range-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vs-text-secondary);
+}
+.vs-slider-range-input {
+  padding: 6px 10px;
+  background: var(--vs-menu-input-bg);
+  border: 1px solid var(--vs-menu-input-border);
+  border-radius: 8px;
+  color: var(--vs-text-primary);
+  font: inherit;
+  font-size: 13px;
+  -moz-appearance: textfield;
+}
+.vs-slider-range-input:focus {
+  outline: none;
+  border-color: rgba(var(--vs-accent-rgb, 255, 0, 0), 0.55);
+  background: var(--vs-menu-button-bg-hover);
+}
+.vs-slider-range-input::-webkit-inner-spin-button,
+.vs-slider-range-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* Custom speed input row — sits under the pool grid + above the
    "Reset to defaults" link. Lets a power user type any 0.5x-10x value
    that is not in the conventional pool. Enter or click "+ Add". */

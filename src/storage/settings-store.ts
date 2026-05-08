@@ -212,6 +212,38 @@ function sanitizePatch(
   ) {
     out.speedStep = Math.round(safe.speedStep * 100) / 100;
   }
+  // sliderMin / sliderMax — finite numbers in (0, 10]. min < max enforced
+  // by relative comparison if both are present; relative validation against
+  // the SITE'S hard bounds (speedBoundsFor) lives at use-site (panel.ts)
+  // because this validator is site-agnostic. Undefined is allowed and
+  // means "use site default".
+  if (
+    typeof safe.sliderMin === 'number' &&
+    Number.isFinite(safe.sliderMin) &&
+    safe.sliderMin > 0 &&
+    safe.sliderMin <= 10
+  ) {
+    out.sliderMin = Math.round(safe.sliderMin * 100) / 100;
+  }
+  if (
+    typeof safe.sliderMax === 'number' &&
+    Number.isFinite(safe.sliderMax) &&
+    safe.sliderMax > 0 &&
+    safe.sliderMax <= 10
+  ) {
+    out.sliderMax = Math.round(safe.sliderMax * 100) / 100;
+  }
+  // Cross-field check: drop both if min >= max (incoherent input). The
+  // panel will fall back to site defaults rather than render an invalid
+  // slider.
+  if (
+    typeof out.sliderMin === 'number' &&
+    typeof out.sliderMax === 'number' &&
+    out.sliderMin >= out.sliderMax
+  ) {
+    out.sliderMin = undefined;
+    out.sliderMax = undefined;
+  }
   // lastSeenTheme — only accept the two valid string values; anything
   // else means a corrupt write or a stale shape from an older version.
   if (safe.lastSeenTheme === 'dark' || safe.lastSeenTheme === 'light') {
