@@ -10,7 +10,7 @@
  * and the orchestrator (Wave 1.10) wires the UiPort hook afterwards.
  */
 
-import { handleSpeedButtonClick, setSpeed } from '../speed/controller';
+import { applyTransient, handleSpeedButtonClick, setSpeed } from '../speed/controller';
 import { vsFilledGearIcon, vsIcon } from './icons';
 import {
   refreshActiveButton,
@@ -176,10 +176,36 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   // sidesteps the click semantics for slider drag.
   const sliderInput = sliderContainer.querySelector<HTMLInputElement>('.speed-slider');
   if (sliderInput) {
+    // Drag is rAF-coalesced applyTransient (no storage write per pixel),
+    // and persistence happens once on `change` (release). Before this
+    // split, every `input` event triggered setSpeed → 2 storage writes,
+    // and a 2-second drag at 60–120 events/sec blew through Chrome's
+    // 120-writes-per-minute storage quota in under 1.5s.
+    let pendingRaf: number | null = null;
+    let pendingSpeed: number | null = null;
     ctx.cleanup.addEventListener(sliderInput, 'input', () => {
       const value = parseFloat(sliderInput.value);
+      if (!Number.isFinite(value)) return;
+      // Visual fill is cheap; do it every event for buttery feedback.
+      updateSliderFill(sliderInput);
+      pendingSpeed = value;
+      if (pendingRaf !== null) return;
+      pendingRaf = requestAnimationFrame(() => {
+        pendingRaf = null;
+        if (pendingSpeed !== null) {
+          applyTransient(ctx, pendingSpeed);
+          pendingSpeed = null;
+        }
+      });
+    });
+    ctx.cleanup.addEventListener(sliderInput, 'change', () => {
+      if (pendingRaf !== null) {
+        cancelAnimationFrame(pendingRaf);
+        pendingRaf = null;
+      }
+      pendingSpeed = null;
+      const value = parseFloat(sliderInput.value);
       if (Number.isFinite(value)) {
-        updateSliderFill(sliderInput);
         void setSpeed(ctx, value);
       }
     });

@@ -110,6 +110,27 @@ export async function setSpeed(
 }
 
 /**
+ * Lightweight apply: push the value to video.playbackRate and refresh UI
+ * WITHOUT touching storage. Used by slider drag during continuous input
+ * so we don't burn the chrome.storage.local 120-writes-per-minute quota
+ * on every pixel of motion. The drag's final value is committed via the
+ * `change` event handler that calls setSpeed() once on release.
+ *
+ * Self-write timestamp is still stamped (via applyToVideo) so the
+ * ratechange watchdog in src/index.ts treats this as ours.
+ */
+export function applyTransient(
+  ctx: AppContext,
+  speed: number,
+  opts: ApplyOptions = {},
+): void {
+  const validSpeed = clamp(ctx, speed);
+  applyToVideo(ctx, validSpeed);
+  ctx.ui.refreshButtons(validSpeed, opts);
+  ctx.ui.refreshSlider(validSpeed);
+}
+
+/**
  * One-shot speed for this video only -- single click on a speed button.
  * Doesn't touch `current`; instead stores as `smart`. Cleared automatically
  * when the next video loads or on SPA navigation.
