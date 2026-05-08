@@ -133,10 +133,10 @@ jobs:
         run: npx web-ext lint --source-dir=.output/firefox-mv3
 
   # Cloudflare Worker is published manually (wrangler deploy), but its source
-  # ships from this repo — typecheck it on every PR so a broken deploy script
-  # never sneaks past review.
-  worker-typecheck:
-    name: worker-typecheck
+  # ships from this repo — typecheck + unit-test it on every PR so a broken
+  # deploy never sneaks past review.
+  worker:
+    name: worker (typecheck + tests)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -155,3 +155,6 @@ jobs:
 
       - name: Typecheck worker
         run: npx tsc --noEmit
+
+      - name: Unit tests (Vitest)
+        run: npm test

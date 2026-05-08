@@ -173,6 +173,19 @@ export default {
   },
 };
 
+// Test seam — helpers and the input-validation pipeline are exposed
+// here so unit tests can exercise them without spinning up the worker
+// runtime. The shape is `_internals.<name>` to make the boundary
+// explicit; production callers never reach in.
+export const _internals = {
+  isAllowedOrigin,
+  validate,
+  formatTelegramMessage,
+  escapeHtml,
+  safeTruncateHtml,
+  hmacSha256Hex,
+};
+
 // Telegram delivery with bounded wait + 1 retry on transient failure.
 //
 // Per-call timeout: 6s. With one retry + 500ms backoff the worst case is

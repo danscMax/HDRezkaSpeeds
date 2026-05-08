@@ -11,6 +11,8 @@
       "vite.userscript.config.ts",
       "playwright.config.ts",
       "cloudflare-worker/src/**/*.ts",
+      "cloudflare-worker/tests/**/*.ts",
+      "cloudflare-worker/vitest.config.ts",
       "!**/.output",
       "!**/.wxt",
       "!**/dist*",
