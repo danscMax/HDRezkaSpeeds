@@ -68,40 +68,54 @@ export async function runTmMigration(
     return result; // already done on a prior run
   }
 
-  const keys = storageKeysFor(site);
+  try {
+    const keys = storageKeysFor(site);
 
-  // Settings
-  const rawSettings = readLocalStorageSafely(keys.settings, result.errors);
-  if (rawSettings != null) {
-    try {
-      const parsed = JSON.parse(rawSettings) as Partial<Settings>;
-      if (parsed && typeof parsed === 'object') {
-        // SettingsStore.update() merges the patch onto the live state and
-        // re-validates each field (sliderPosition enum, hotkey shapes, etc.).
-        await settingsStore.update(parsed);
-        result.importedKeys.push(keys.settings);
+    // Settings
+    const rawSettings = readLocalStorageSafely(keys.settings, result.errors);
+    if (rawSettings != null) {
+      try {
+        const parsed = JSON.parse(rawSettings) as Partial<Settings>;
+        if (parsed && typeof parsed === 'object') {
+          // SettingsStore.update() merges the patch onto the live state and
+          // re-validates each field (sliderPosition enum, hotkey shapes, etc.).
+          await settingsStore.update(parsed);
+          result.importedKeys.push(keys.settings);
+        }
+      } catch (e) {
+        result.errors.push(`${keys.settings}: ${describeError(e)}`);
       }
+    }
+
+    // Selected speed (number or numeric string)
+    const rawSpeed = readLocalStorageSafely(keys.speed, result.errors);
+    if (rawSpeed != null) {
+      const parsed = parseFloat(rawSpeed);
+      if (Number.isFinite(parsed)) {
+        try {
+          await speedStore.setCurrent(parsed);
+          result.importedKeys.push(keys.speed);
+        } catch (e) {
+          result.errors.push(`${keys.speed}: ${describeError(e)}`);
+        }
+      }
+    }
+  } finally {
+    // Mark the run -- whether or not anything was imported, AND even if a
+    // step above threw, we never want to probe page-localStorage again
+    // for this site. Re-running could clobber post-install edits with
+    // stale TM data on the next bootstrap. The flag-write itself is
+    // best-effort: if storage is full or unavailable, the next bootstrap
+    // will retry — which is the safer failure mode (vs silently double-
+    // importing once storage recovers).
+    try {
+      await settingsStore.update({
+        [TM_MIGRATION_FLAG]: true,
+      } as unknown as Partial<Settings>);
     } catch (e) {
-      result.errors.push(`${keys.settings}: ${describeError(e)}`);
+      result.errors.push(`flag: ${describeError(e)}`);
     }
   }
-
-  // Selected speed (number or numeric string)
-  const rawSpeed = readLocalStorageSafely(keys.speed, result.errors);
-  if (rawSpeed != null) {
-    const parsed = parseFloat(rawSpeed);
-    if (Number.isFinite(parsed)) {
-      await speedStore.setCurrent(parsed);
-      result.importedKeys.push(keys.speed);
-    }
-  }
-
-  // Mark the run -- whether or not anything was imported, we never want to
-  // probe page-localStorage again for this site (could clobber post-install
-  // edits).
-  await settingsStore.update({
-    [TM_MIGRATION_FLAG]: true,
-  } as unknown as Partial<Settings>);
 
   result.imported = result.importedKeys.length > 0;
   return result;
