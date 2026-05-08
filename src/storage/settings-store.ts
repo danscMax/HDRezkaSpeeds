@@ -44,7 +44,14 @@ export function createSettingsStore(adapter: StorageAdapter): SettingsStoreImpl 
     if (state === null) return;
     const snapshot = state;
     for (const fn of subscribers) {
-      try { fn(snapshot); } catch { /* swallow per subscriber */ }
+      try {
+        fn(snapshot);
+      } catch (e) {
+        // One subscriber crashing must not stop the others, but we still
+        // want a trace — silent swallow used to hide bugs in panel
+        // rerender / theme observer for entire dev cycles.
+        console.warn('[settings-store] subscriber threw:', e);
+      }
     }
   }
 

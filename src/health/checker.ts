@@ -72,7 +72,13 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
 
   function notify(report: DiagnosticReport): void {
     for (const fn of subscribers) {
-      try { fn(report); } catch { /* swallow */ }
+      try {
+        fn(report);
+      } catch (e) {
+        // One subscriber crashing must not stop the others, but a silent
+        // swallow used to hide rerender bugs and stale-data symptoms.
+        ctx.logger.warn('HealthChecker: subscriber threw', e);
+      }
     }
   }
 
