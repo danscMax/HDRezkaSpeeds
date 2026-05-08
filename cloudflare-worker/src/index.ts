@@ -141,16 +141,14 @@ export default {
     const formatted = formatTelegramMessage(payload);
 
     const tgUrl = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
-    const tgRes = await fetch(tgUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: env.TELEGRAM_CHAT_ID,
-        text: formatted,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-      }),
+    const tgBody = JSON.stringify({
+      chat_id: env.TELEGRAM_CHAT_ID,
+      text: formatted,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
     });
+
+    const tgRes = await sendToTelegram(tgUrl, tgBody);
 
     if (!tgRes.ok) {
       // Don't leak the bot's error verbatim to the extension. Log the
@@ -174,6 +172,41 @@ export default {
     return json({ ok: true }, 200);
   },
 };
+
+// Telegram delivery with bounded wait + 1 retry on transient failure.
+//
+// Per-call timeout: 6s. With one retry + 500ms backoff the worst case is
+// ~12.5s, comfortably inside both Cloudflare's 30s wall-clock and the
+// extension's 15s submit-form timeout — that ordering matters: we want the
+// Worker to fail FAST so the user gets a real error toast instead of the
+// extension's own AbortError fallback.
+//
+// Retry only on 5xx (Telegram itself errored, transient) or
+// network/timeout. 4xx is never retried — the payload was rejected and
+// retrying just burns the user's rate-limit quota.
+async function sendToTelegram(url: string, body: string, attempt = 0): Promise<Response> {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      signal: AbortSignal.timeout(6000),
+    });
+    if (res.ok || res.status < 500 || attempt >= 1) return res;
+    // 5xx with retry budget remaining.
+    await sleep(500);
+    return sendToTelegram(url, body, attempt + 1);
+  } catch (e) {
+    // AbortError (timeout) or network error.
+    if (attempt >= 1) throw e;
+    await sleep(500);
+    return sendToTelegram(url, body, attempt + 1);
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function validate(p: FeedbackPayload, env: Env): string[] {
   const errors: string[] = [];
@@ -283,7 +316,30 @@ function formatTelegramMessage(p: FeedbackPayload): string {
 
   // Final hard cap — defense in depth in case someone smuggled HTML
   // entities that expanded length unexpectedly.
-  return body.length > TELEGRAM_TEXT_LIMIT ? body.slice(0, TELEGRAM_TEXT_LIMIT - 3) + '...' : body;
+  return safeTruncateHtml(body, TELEGRAM_TEXT_LIMIT);
+}
+
+// Truncate HTML content to `limit` chars without slicing through an entity
+// (`&amp;` etc.) or a tag (`<b>` etc.) — Telegram's `parse_mode=HTML`
+// rejects the whole message on malformed markup, which would silently drop
+// the user's feedback. Walk forward and remember the latest position that
+// is NOT inside an unclosed `<…` or `&…;` sequence, then cut there.
+function safeTruncateHtml(s: string, limit: number): string {
+  if (s.length <= limit) return s;
+  let inTag = false;
+  let inEntity = false;
+  let safeAt = 0;
+  // Reserve one char for the ellipsis we append.
+  const max = Math.min(s.length, limit - 1);
+  for (let i = 0; i < max; i++) {
+    const c = s.charCodeAt(i);
+    if (c === 0x3c /* < */) { inTag = true; continue; }
+    if (c === 0x3e /* > */ && inTag) { inTag = false; safeAt = i + 1; continue; }
+    if (c === 0x26 /* & */) { inEntity = true; continue; }
+    if (c === 0x3b /* ; */ && inEntity) { inEntity = false; safeAt = i + 1; continue; }
+    if (!inTag && !inEntity) safeAt = i + 1;
+  }
+  return s.slice(0, safeAt) + '…';
 }
 
 function escapeHtml(s: string): string {
