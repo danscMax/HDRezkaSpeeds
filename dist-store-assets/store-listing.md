@@ -35,26 +35,33 @@ WHAT IT DOES
 - 11 preset speed buttons (1.0x to 2.0x in 0.1 steps), positioned right
   below the player. Tuned for movie playback where small speed steps
   matter more than wide range.
-- Slider for in-between values, with a coloured fill that tracks the
-  current speed.
+- Slider for in-between values, with a coloured fill and a value
+  tooltip that follows the thumb so you always see the exact rate.
 - Single-click on a button = temporary speed for this video only.
-  Double-click = save as the default for HDRezka.
-- Configurable hotkeys (default Ctrl+C +0.1 / Ctrl+V -0.1) — assign
-  multiple combinations per action so a remote and a keyboard can both
-  trigger speed changes.
-- In-player gear menu with three tabs:
+  Double-click = save as the default for new videos. The saved speed
+  is marked with a small accent dot in the corner of its button.
+- Configurable hotkeys (default Alt+Period / Alt+Comma — i.e. Alt+. /
+  Alt+,) — assign multiple combinations per action so a remote and a
+  keyboard can both trigger speed changes.
+- In-player gear menu with four tabs:
   - General: slider position (right / below / inside player), language
-    switch (English / Russian), behaviour toggles, advanced auto-recover
-    and self-diagnostics switches.
+    switch (English / Russian), preset chips grouped by range
+    (slower than 1×, 1×–2×, faster than 2×), behaviour toggles.
   - Shortcuts: rebind speed-up / speed-down, add additional combos,
     reset to defaults.
   - Diagnostics: copy a structured report for bug submissions; clear
     cached selectors if a site update breaks the panel.
+  - Support: feedback form (sends to the developer's Telegram via a
+    Cloudflare Worker — no third-party analytics).
 - Toolbar popup mirrors the in-player menu so you can adjust settings
   without opening a video.
 - Automatically follows the HDRezka theme — the panel re-skins to match
   the site's light or dark mode, including when you toggle the theme
-  on the fly.
+  on the fly. Survives fullscreen playback (panel re-parents into the
+  fullscreen element so it stays visible).
+- Accessibility: aria-labels on the gear button, aria-live status
+  announcements for diagnostic state and speed changes,
+  prefers-reduced-motion support.
 
 WHY IT'S RELIABLE
 
@@ -100,20 +107,33 @@ HDRezka.
 - 11 кнопок скорости (1.0x – 2.0x с шагом 0.1) под плеером. Подобраны
   для просмотра фильмов, где важен мелкий шаг изменения скорости, а
   не широкий диапазон.
-- Ползунок для промежуточных значений с цветной заливкой, отражающей
-  текущую скорость.
+- Ползунок для промежуточных значений с цветной заливкой и
+  всплывающей подписью значения над бегунком — точное значение видно
+  всегда.
 - Один клик по кнопке — временная скорость для этого видео. Двойной
-  клик — сохранить как основную для HDRezka.
-- Настраиваемые горячие клавиши (по умолчанию Ctrl+C +0.1 / Ctrl+V
-  -0.1) — можно назначить несколько комбинаций на одно действие
-  (клавиатура + пульт ДУ).
-- Меню настроек на шестерёнке с тремя вкладками: «Общие», «Клавиши»,
-  «Диагностика».
+  клик — сделать скоростью по умолчанию для новых видео. Сохранённая
+  кнопка отмечена маленькой точкой в углу.
+- Настраиваемые горячие клавиши (по умолчанию Alt+Period / Alt+Comma
+  — то есть Alt+. / Alt+,) — можно назначить несколько комбинаций на
+  одно действие (клавиатура + пульт ДУ).
+- Меню настроек на шестерёнке с четырьмя вкладками:
+  - «Общие»: положение ползунка, язык интерфейса, кнопки скорости
+    сгруппированы по диапазонам (медленнее 1×, 1×–2×, быстрее 2×).
+  - «Клавиши»: переназначение хоткеев, дополнительные комбинации,
+    сброс к умолчанию.
+  - «Диагностика»: скопировать отчёт для бага, очистить кеш
+    селекторов.
+  - «Поддержать»: форма обратной связи (отправляется в Telegram
+    разработчика через Cloudflare Worker — без сторонней аналитики).
 - Иконка расширения в тулбаре открывает то же меню без открытия
   видео.
 - Автоматически следует за темой HDRezka — панель перекрашивается под
   светлый или тёмный режим сайта, в том числе при переключении темы
-  «на лету».
+  «на лету». Сохраняется в полноэкранном режиме (панель переезжает в
+  fullscreen-элемент при входе и обратно при выходе).
+- Доступность: aria-labels на шестерёнке, объявление через aria-live
+  при смене скорости и при обновлении статуса диагностики, поддержка
+  prefers-reduced-motion.
 
 ПРИВАТНОСТЬ
 
@@ -208,6 +228,6 @@ Re-generate any time with: `node tests/store-screenshots/render.mjs`
 
 | Store | File |
 |---|---|
-| Chrome Web Store | `.output/hdrezka-speeds-0.2.0-chrome.zip` |
-| Firefox AMO (extension) | `.output/hdrezka-speeds-0.2.0-firefox.zip` |
-| Firefox AMO (sources) | `.output/hdrezka-speeds-0.2.0-sources.zip` |
+| Chrome Web Store | `.output/hdrezka-speeds-0.3.5-chrome.zip` |
+| Firefox AMO (extension) | `.output/hdrezka-speeds-0.3.5-firefox.zip` |
+| Firefox AMO (sources) | `.output/hdrezka-speeds-0.3.5-sources.zip` |
