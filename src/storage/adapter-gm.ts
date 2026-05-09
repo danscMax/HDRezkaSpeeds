@@ -33,24 +33,51 @@ function hasGmSync(): boolean {
   return typeof g.GM_getValue === 'function' && typeof g.GM_setValue === 'function';
 }
 
+// Audit 2026-05-09 sec C10: GM_setValue stores arbitrary types (number,
+// boolean, string, object), but we want lossless JSON round-trips so the
+// adapter is interchangeable with chrome.storage.local. The previous
+// implementation wrote primitives raw and stringified objects, then on
+// read it JSON-parse'd strings. Result: a stored string `"true"` /
+// `"123"` / `"null"` round-tripped as `true`/`123`/`null`, which is
+// type-bending corruption. Fix: always wrap in a JSON envelope
+// `{"_v":1,"d":<value>}` so the read path can recover the exact original type.
+const ENVELOPE_VERSION = 1;
+type Envelope<T> = { _v: 1; d: T };
+
+function isEnvelope(v: unknown): v is Envelope<unknown> {
+  return (
+    !!v &&
+    typeof v === 'object' &&
+    !Array.isArray(v) &&
+    (v as { _v?: unknown })._v === ENVELOPE_VERSION &&
+    'd' in (v as object)
+  );
+}
+
+function decodeRaw<T>(raw: unknown, defaultValue: T): T {
+  if (raw === undefined || raw === null) return defaultValue;
+  if (typeof raw === 'string') {
+    const parsed = safeJsonParse<unknown | typeof SENTINEL>(raw, SENTINEL);
+    if (parsed === SENTINEL) return raw as unknown as T;
+    if (isEnvelope(parsed)) return parsed.d as T;
+    return parsed as T;
+  }
+  if (isEnvelope(raw)) return raw.d as T;
+  return raw as T;
+}
+
+function encodeForStorage<T>(value: T): string {
+  return JSON.stringify({ _v: ENVELOPE_VERSION, d: value } satisfies Envelope<T>);
+}
+
 export function createGmStorageAdapter(): StorageAdapter {
   if (hasGmSync()) {
     return {
       async get<T>(key: string, defaultValue: T): Promise<T> {
-        const raw = g.GM_getValue!(key, undefined);
-        if (raw === undefined) return defaultValue;
-        // GM_setValue stores arbitrary types; if a string came back, try
-        // JSON-parse first (we serialize objects on write below). Otherwise
-        // pass through whatever GM stored.
-        if (typeof raw === 'string') {
-          const parsed = safeJsonParse<T | typeof SENTINEL>(raw, SENTINEL);
-          return parsed === SENTINEL ? (raw as unknown as T) : parsed;
-        }
-        return raw as T;
+        return decodeRaw<T>(g.GM_getValue!(key, undefined), defaultValue);
       },
       async set(key: string, value: unknown): Promise<void> {
-        const stored = typeof value === 'object' && value !== null ? JSON.stringify(value) : value;
-        g.GM_setValue!(key, stored);
+        g.GM_setValue!(key, encodeForStorage(value));
       },
       async remove(key: string): Promise<void> {
         if (typeof g.GM_deleteValue === 'function') g.GM_deleteValue(key);
@@ -58,23 +85,20 @@ export function createGmStorageAdapter(): StorageAdapter {
     };
   }
 
-  // Fallback: page localStorage. Same write contract as the GM branch.
+  // Fallback: page localStorage. Same envelope contract as the GM branch.
   return {
     async get<T>(key: string, defaultValue: T): Promise<T> {
       try {
         const raw = localStorage.getItem(key);
         if (raw == null) return defaultValue;
-        const parsed = safeJsonParse<T | typeof SENTINEL>(raw, SENTINEL);
-        return parsed === SENTINEL ? (raw as unknown as T) : parsed;
+        return decodeRaw<T>(raw, defaultValue);
       } catch {
         return defaultValue;
       }
     },
     async set(key: string, value: unknown): Promise<void> {
       try {
-        const stored =
-          typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
-        localStorage.setItem(key, stored);
+        localStorage.setItem(key, encodeForStorage(value));
       } catch {
         /* swallow quota / private-mode errors */
       }

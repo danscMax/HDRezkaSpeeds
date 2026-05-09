@@ -76,7 +76,8 @@ export async function runTmMigration(
     if (rawSettings != null) {
       try {
         const parsed = JSON.parse(rawSettings) as Partial<Settings>;
-        if (parsed && typeof parsed === 'object') {
+        // Reject arrays (typeof [] === 'object' would otherwise pass).
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           // SettingsStore.update() merges the patch onto the live state and
           // re-validates each field (sliderPosition enum, hotkey shapes, etc.).
           await settingsStore.update(parsed);

@@ -195,7 +195,11 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
         const el = trySelector(hit.selector);
         if (el && ok(key, el)) {
           const sigNow = cache.buildSignature(el);
-          if (!hit.signature || sigNow === hit.signature) {
+          // Audit 2026-05-09 sec C12: require strict signature equality.
+          // Empty signature stays tolerant for legacy cached entries
+          // written before signature tracking landed.
+          const sigOk = !hit.signature || sigNow === hit.signature;
+          if (sigOk) {
             cache.bumpSuccess(key);
             metrics.cacheHits += 1;
             record(key, 'cache');

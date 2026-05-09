@@ -43,7 +43,9 @@ export function createSettingsStore(adapter: StorageAdapter): SettingsStoreImpl 
   function notify(): void {
     if (state === null) return;
     const snapshot = state;
-    for (const fn of subscribers) {
+    // Snapshot the subscriber set so a callback that unsubscribes another
+    // (or itself) doesn't perturb the iteration order.
+    for (const fn of [...subscribers]) {
       try {
         fn(snapshot);
       } catch (e) {
@@ -54,6 +56,13 @@ export function createSettingsStore(adapter: StorageAdapter): SettingsStoreImpl 
       }
     }
   }
+
+  // Audit 2026-05-09 sec C9: serialize writes through a queue + roll back
+  // in-memory state if the persist rejects (quota, IO, runtime gone).
+  // Without this, two concurrent update() calls could broadcast the new
+  // state to subscribers AND fail to persist either, leaving memory and
+  // disk permanently divergent.
+  let writeChain: Promise<unknown> = Promise.resolve();
 
   return {
     async init(site: Site): Promise<void> {
@@ -77,9 +86,10 @@ export function createSettingsStore(adapter: StorageAdapter): SettingsStoreImpl 
       if (raw === null) {
         try {
           await adapter.set(storageKey, state);
-        } catch {
+        } catch (e) {
           // Non-fatal: in-memory state is correct, the next update()
           // will retry the persist.
+          console.warn('[settings-store] first-install pin failed:', e);
         }
       }
     },
@@ -100,13 +110,28 @@ export function createSettingsStore(adapter: StorageAdapter): SettingsStoreImpl 
       // Trusted UI callers pay a tiny validation tax for a meaningful
       // safety net (audit M11).
       const safe = sanitizePatch(patch);
-      // Defensive copy so callers can't mutate the previous snapshot held
-      // by subscribers after this returns.
-      state = { ...current, ...safe };
+      const previous = current;
+      const next = { ...current, ...safe };
+      state = next;
       notify();
-      if (storageKey) {
-        await adapter.set(storageKey, state);
-      }
+      if (!storageKey) return;
+      const myStorageKey = storageKey;
+      const writeOp = writeChain.then(async () => {
+        try {
+          await adapter.set(myStorageKey, next);
+        } catch (e) {
+          // Roll back in-memory state to the pre-update snapshot if the
+          // persist failed AND the live state still equals the value we
+          // were trying to persist.
+          if (state === next) {
+            state = previous;
+            notify();
+          }
+          throw e;
+        }
+      });
+      writeChain = writeOp.catch(() => undefined);
+      await writeOp;
     },
 
     subscribe(fn): () => void {
