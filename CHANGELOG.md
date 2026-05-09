@@ -4,6 +4,81 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.8] — 2026-05-09
+
+Outcome of a multi-agent audit pass against the entire codebase.
+Six grouped commits cover security, data integrity, bootstrap
+correctness, async race conditions, UI lifecycle, and high-impact
+performance. Plus 15 new regression tests gated on the audit findings.
+
+### Visual
+
+- **Pinned-speed indicator redesign.** The 5×5 dot in the corner of the
+  saved/default speed button is replaced by a SVG bookmark icon plus a
+  soft accent halo glow. Colour follows `--vs-accent` (cyan on HDRezka).
+- **Slider tooltip hidden at rest.** Appears only on hover/drag.
+
+### Security
+
+- **Hostname detection anchored** (sec C1). `host.includes('hdrezka')`
+  / `host.includes('rezka.')` were replaced with anchored regexes that
+  match canonical mirrors and a TLD-anchored wildcard, blocking
+  attacker-controlled hosts like `hdrezka.evil.tld`.
+- **Popup message sender validation** (sec C4).
+- **Settings JSON-import allow-listed** (sec C5). Strict
+  `KNOWN_SETTINGS_KEYS` filter + explicit `__proto__`/`constructor`
+  strip + rejection on zero recognised keys.
+- **Feature-detect probe wrapped in try/catch** (sec C19). Memoized.
+
+### Data integrity
+
+- **SettingsStore: write queue + rollback on persist failure** (sec C9).
+- **GM-storage envelope JSON round-trip** (sec C10). Userscript-build
+  adapter wraps every value in `{"_v":1,"d":<value>}` so primitives
+  and strings round-trip losslessly.
+- **Discovery validators return a fresh ok-result** (sec C11).
+- **`Array.isArray` rejection** in TM migration boundary.
+
+### Bootstrap correctness
+
+- **TDZ guard on `killSwitch`** (sec C6).
+- **`isDisposed` guard on popup-message install + SPA reattach** (sec C7/C8).
+- **Language change triggers panel rerender.**
+
+### Async race conditions
+
+- **Click-counter race + unhandled rejection in speed controller** (C13/C14).
+- **Hotkey capture race** (sec C15).
+- **HealthChecker.runOnce is read-only** + **auto-trip latch resets**.
+
+### UI lifecycle
+
+- **Panel.dispose() removes orphan `#speed-notifications` / `#speed-popup`** (C16).
+- **Notification stack restores host container's inline `position`** (C17).
+- **Speed-popup `hideTimer` scoped per-popup via WeakMap** (C18).
+- **Toast timers tracked + cleared on dispose.**
+- **Slider `Number.isFinite` guards.**
+- **Escape closes the gear settings menu** (a11y).
+
+### Performance
+
+- **New coalescing storage adapter** (perf O1) wraps the speed-store —
+  held-hotkey at ~30/sec used to blow Chrome's quota.
+- **HDRezka theme watcher: scoped click-listener** (perf O8) — was
+  triggering a forced-style-recompute on every click sitewide.
+- **HDRezka theme watcher: structured cold-load retry** (perf O9) —
+  short-circuits as soon as `detectFromAttributes` finds the theme
+  class on documentElement/body.
+- **`speed_button_count` scoped to panel root** (perf O11).
+- **`cleanup.setTimeout` self-removes from tracking Set** (perf O17).
+- **Logger uses a circular buffer** (perf O20).
+- **`lcaDistance` is O(d) via `Map`** (perf O7).
+- **`detectFeatures()` is memoized.**
+
+### Tests
+
+- 15 new regression tests in `tests/unit/audit-2026-05-09.spec.ts`.
+
 ## [0.3.5] — 2026-05-08
 
 Closes the three remaining items from the v0.3.4 audit pass plus a
