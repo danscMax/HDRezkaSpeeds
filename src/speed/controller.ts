@@ -27,7 +27,13 @@ const CLICK_DEBOUNCE_MS = 400;
 
 /** Per-context click-debounce state. Keyed by AppContext so multiple
  *  initialised tabs (popup vs in-player) don't share counters. */
-const clickState = new WeakMap<AppContext, { count: number; timer: number | null }>();
+interface ClickState {
+  count: number;
+  timer: number | null;
+  /** A setGlobal/setTemporary promotion is in flight; ignore re-entry until settle. */
+  pending: boolean;
+}
+const clickState = new WeakMap<AppContext, ClickState>();
 
 /**
  * Window in ms during which a `ratechange` event is treated as our own
@@ -188,21 +194,41 @@ export async function setGlobal(
  * Click router: 1st click within debounce -> setTemporary; 2nd click ->
  * setGlobal. State is per-AppContext so each tab/popup keeps its own
  * counter.
+ *
+ * Audit 2026-05-09 sec C13/C14: setGlobal/setTemporary are async. The
+ * previous code reset count=0 before the await, so a click during the
+ * in-flight promotion was treated as a fresh single-click and silently
+ * downgraded the just-applied global. We now mark the state as
+ * "promotion in flight" via a pending flag and short-circuit re-entry
+ * until it settles. Promise rejections are surfaced via .catch.
  */
 export function handleSpeedButtonClick(ctx: AppContext, speed: number): void {
-  const state = clickState.get(ctx) ?? { count: 0, timer: null };
+  const state = clickState.get(ctx) ?? {
+    count: 0,
+    timer: null as number | null,
+    pending: false,
+  };
+  if (state.pending) return;
   state.count += 1;
   if (state.timer !== null) {
     clearTimeout(state.timer);
   }
   state.timer = window.setTimeout(() => {
     const finalCount = state.count;
-    state.count = 0;
     state.timer = null;
+    state.pending = true;
+    const settle = (): void => {
+      state.count = 0;
+      state.pending = false;
+    };
+    const onError = (e: unknown): void => {
+      ctx.logger.error('controller: click promotion failed', e);
+      settle();
+    };
     if (finalCount >= 2) {
-      void setGlobal(ctx, speed);
+      setGlobal(ctx, speed).then(settle, onError);
     } else {
-      void setTemporary(ctx, speed);
+      setTemporary(ctx, speed).then(settle, onError);
     }
   }, CLICK_DEBOUNCE_MS);
   clickState.set(ctx, state);

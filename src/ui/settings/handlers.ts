@@ -311,7 +311,12 @@ export function attachSettingsHandlers(
       input.classList.remove('capturing');
     });
 
-    ctx.cleanup.addEventListener(input, 'keydown', async (event) => {
+    // Audit 2026-05-09 sec C15: avoid concurrent hotkey writes — the
+    // previous async handler awaited update() while the input was still
+    // focused, allowing a second keypress to slice from the same stale
+    // snapshot and clobber the first capture. dataset.busy short-circuits
+    // re-entry; input is blurred synchronously.
+    ctx.cleanup.addEventListener(input, 'keydown', (event) => {
       const ev = event as KeyboardEvent;
       if (ev.key === 'Escape' || ev.key === 'Tab') {
         input.blur();
@@ -319,17 +324,25 @@ export function attachSettingsHandlers(
       }
       ev.preventDefault();
       ev.stopPropagation();
+      if (input.dataset.vsBusy === '1') return;
       const hk = captureHotkey(ev);
-      // Skip pure-modifier presses ("ControlLeft" etc.).
       if (/^(Control|Shift|Alt|Meta)/.test(hk.key)) return;
-      const arr = ctx.settingsStore.getKey('hotkeys')[action].slice();
-      arr[slotIndex] = hk;
-      await ctx.settingsStore.update({
-        hotkeys: { ...ctx.settingsStore.getKey('hotkeys'), [action]: arr },
-      });
+      input.dataset.vsBusy = '1';
       input.value = formatHotkey(hk);
       input.classList.remove('capturing');
-      deps.rerender();
+      input.blur();
+      const liveHotkeys = ctx.settingsStore.getKey('hotkeys');
+      const arr = liveHotkeys[action].slice();
+      arr[slotIndex] = hk;
+      ctx.settingsStore
+        .update({ hotkeys: { ...liveHotkeys, [action]: arr } })
+        .catch((e) => {
+          ctx.logger.error('handlers: hotkey persist failed', e);
+        })
+        .finally(() => {
+          delete input.dataset.vsBusy;
+          deps.rerender();
+        });
     });
   }
 
