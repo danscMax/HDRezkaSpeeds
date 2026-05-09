@@ -72,17 +72,51 @@ export interface ImportResult {
  * SettingsStore. Returns `{ok, message}` so the host can show a toast.
  *
  * Accepts both our own envelope shape and a bare userscript-style settings
- * object (where the userscript exported its raw settings as JSON without a
- * wrapper). The SettingsStore validator filters out unknown / malformed
- * fields per-key.
+ * object. The SettingsStore validator filters out unknown / malformed
+ * fields per-key (`sanitizePatch` in settings-store.ts — proto-pollution
+ * guards + per-field type checks).
+ *
+ * Audit 2026-05-09 sec C5: belt-and-suspenders boundary defence — strip
+ * `__proto__`/`constructor`/`prototype` at the import boundary too, and
+ * reject patches whose recognised-key count is zero.
  */
+const KNOWN_SETTINGS_KEYS: ReadonlyArray<keyof Settings> = [
+  'sliderPosition',
+  'rememberSpeed',
+  'language',
+  'hotkeys',
+  'speedPresets',
+  'speedStep',
+  'sliderMin',
+  'sliderMax',
+  'lastSeenTheme',
+];
+
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function sanitizeImportPatch(raw: unknown): Partial<Settings> | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out: Record<string, unknown> = Object.create(null);
+  let recognised = 0;
+  for (const k of Object.keys(raw as object)) {
+    if (DANGEROUS_KEYS.has(k)) continue;
+    if (k === '__migrated_from_tm') continue;
+    if ((KNOWN_SETTINGS_KEYS as readonly string[]).includes(k)) {
+      out[k] = (raw as Record<string, unknown>)[k];
+      recognised++;
+    }
+  }
+  if (recognised === 0) return null;
+  return out as Partial<Settings>;
+}
+
 export async function importSettingsFromText(ctx: AppContext, text: string): Promise<ImportResult> {
   const parsed = safeJsonParse<unknown>(text, null);
   if (!parsed) {
     return { ok: false, message: 'invalid JSON' };
   }
 
-  let patch: Partial<Settings> | null = null;
+  let raw: unknown = null;
   if (
     typeof parsed === 'object' &&
     parsed !== null &&
@@ -90,25 +124,13 @@ export async function importSettingsFromText(ctx: AppContext, text: string): Pro
       (parsed as { type?: unknown }).type === 'video-speeds-settings') &&
     typeof (parsed as { settings?: unknown }).settings === 'object'
   ) {
-    patch = (parsed as ExportEnvelope).settings;
+    raw = (parsed as ExportEnvelope).settings;
   } else if (typeof parsed === 'object' && parsed !== null) {
-    // Bare settings object (legacy userscript export).
-    patch = parsed as Partial<Settings>;
+    raw = parsed;
   }
 
-  if (!patch) return { ok: false, message: 'unrecognized shape' };
-
-  // Always strip the TM-migration flag from imported data. The flag is
-  // an internal marker for "page localStorage already scanned"; it must
-  // not be transferred across installs (audit M13 -- defense-in-depth
-  // against legacy export files written before buildExportEnvelope was
-  // taught to strip it). The destination's bootstrap decides whether
-  // to migrate based on its OWN flag state.
-  if (patch && typeof patch === 'object') {
-    const cleaned = { ...patch } as Partial<Settings>;
-    delete cleaned.__migrated_from_tm;
-    patch = cleaned;
-  }
+  const patch = sanitizeImportPatch(raw);
+  if (!patch) return { ok: false, message: 'unrecognized shape or no valid keys' };
 
   try {
     await ctx.settingsStore.update(patch);

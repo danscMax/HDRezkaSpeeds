@@ -13,6 +13,11 @@ import type { Site } from '../app/ports';
 
 export function detectSite(host: string = safeHostname()): Site | null {
   const h = host.toLowerCase();
+  // Anchored regexes — bare `h.includes('hdrezka')`/`h.includes('rezka.')`
+  // would match attacker-controlled `hdrezka.evil.tld`, `evil-rezka.com`
+  // (popup calls detectSite over arbitrary tab URLs; audit 2026-05-09).
+  // The catch-all wildcards stay anchored to a TLD to permit unknown
+  // future mirror domains without opening up substring spoofing.
   if (
     /(?:^|\.)hdrezka\.(?:ag|me|co|website|cm)$/.test(h) ||
     /(?:^|\.)rezka\.(?:ag|me|co|website|cm)$/.test(h) ||
@@ -20,8 +25,8 @@ export function detectSite(host: string = safeHostname()): Site | null {
     /(?:^|\.)rezkify\.com$/.test(h) ||
     /(?:^|\.)rezkery\.com$/.test(h) ||
     /(?:^|\.)kinopub\.me$/.test(h) ||
-    h.includes('hdrezka') ||
-    h.includes('rezka.')
+    /(?:^|\.)hdrezka\.[a-z]{2,8}$/.test(h) ||
+    /(?:^|\.)rezka\.[a-z]{2,8}$/.test(h)
   ) {
     return 'hdrezka';
   }
