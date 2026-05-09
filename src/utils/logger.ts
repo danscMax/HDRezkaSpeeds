@@ -79,11 +79,17 @@ export interface ExtendedLogger extends Logger {
 }
 
 export function createLogger(opts: LoggerOptions = {}): ExtendedLogger {
-  const scriptName = opts.scriptName ?? 'HDREZKA-SPEEDS';
+  const scriptName = opts.scriptName ?? 'VIDEO-SPEEDS';
   const emoji = opts.emoji ?? '⚡';
   let minLevel = opts.minLevel ?? defaultMinLevel();
   const maxHistory = opts.historySize ?? 200;
-  const history: HistoryEntry[] = [];
+  // Audit 2026-05-09 perf O20: use a circular buffer instead of
+  // Array.shift on overflow. shift is O(n) — at maxHistory=200 every
+  // overflow shifts 199 elements left. With debug-level chatter from
+  // discovery + health, this is constant pressure on a long-running tab.
+  const buffer: (HistoryEntry | undefined)[] = new Array(maxHistory);
+  let head = 0;
+  let count = 0;
 
   function emit(level: LogLevel, args: unknown[]): void {
     if (LEVEL_ORDER[level] < LEVEL_ORDER[minLevel]) return;
@@ -91,8 +97,9 @@ export function createLogger(opts: LoggerOptions = {}): ExtendedLogger {
     const message = String(args[0] ?? '');
     const details = args.length > 1 ? args.slice(1) : null;
 
-    history.push({ ts: Date.now(), level, message, details });
-    if (history.length > maxHistory) history.shift();
+    buffer[head] = { ts: Date.now(), level, message, details };
+    head = (head + 1) % maxHistory;
+    if (count < maxHistory) count++;
 
     const style = STYLE[level];
     const ts = new Date().toLocaleTimeString();
@@ -108,12 +115,30 @@ export function createLogger(opts: LoggerOptions = {}): ExtendedLogger {
     }
   }
 
+  function snapshotHistory(): HistoryEntry[] {
+    // Read entries in insertion order: oldest first, newest last.
+    const out: HistoryEntry[] = [];
+    if (count < maxHistory) {
+      for (let i = 0; i < count; i++) {
+        const e = buffer[i];
+        if (e) out.push(e);
+      }
+    } else {
+      // Buffer is full; oldest entry sits at `head` (the next write slot).
+      for (let i = 0; i < maxHistory; i++) {
+        const e = buffer[(head + i) % maxHistory];
+        if (e) out.push(e);
+      }
+    }
+    return out;
+  }
+
   return {
     debug: (...args) => emit('debug', args),
     info: (...args) => emit('info', args),
     warn: (...args) => emit('warn', args),
     error: (...args) => emit('error', args),
-    history: () => history,
+    history: snapshotHistory,
     setLevel: (level) => {
       minLevel = level;
     },

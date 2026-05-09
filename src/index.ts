@@ -49,6 +49,7 @@ import { matchesHotkeyArray } from './speed/hotkeys';
 import { createRatechangeMeter } from './speed/meter';
 import { createBrowserStorageAdapter, type StorageAdapter } from './storage/adapter';
 import { runTmMigration } from './storage/migration-tm';
+import { createCoalescingAdapter } from './storage/adapter-coalescing';
 import { createSettingsStore } from './storage/settings-store';
 import { createSpeedStore } from './storage/speed-store';
 import { createPanel, createUiPort, injectStyles, insertPanel, installThemeWatcher } from './ui';
@@ -121,7 +122,10 @@ export async function bootstrap(
   // 2. Storage stores.
   const adapter = options.adapter ?? createBrowserStorageAdapter();
   const settingsStore = createSettingsStore(adapter);
-  const speedStore = createSpeedStore(adapter);
+  // Audit 2026-05-09 perf O1: coalesce speedStore writes (hotkey repeat,
+  // slider drag) into a 200ms window. settingsStore stays uncoalesced
+  // so its rollback-on-failure path (audit C9) sees real rejects.
+  const speedStore = createSpeedStore(createCoalescingAdapter(adapter, { flushMs: 200 }));
   await settingsStore.init(site);
   await speedStore.init(site);
 

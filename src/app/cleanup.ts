@@ -104,7 +104,20 @@ export class CleanupRegistry {
 
   setTimeout(fn: () => void, ms: number): ReturnType<typeof setTimeout> {
     this.assertLive('setTimeout');
-    const id = globalThis.setTimeout(fn, ms);
+    // Audit 2026-05-09 perf O17: remove the id from the tracking set
+    // when the timer fires so a long-lived registry doesn't accumulate
+    // dead ids forever (every reattach + every retry adds a few).
+    let id!: ReturnType<typeof setTimeout>;
+    id = globalThis.setTimeout(() => {
+      this.timeouts.delete(id);
+      try {
+        fn();
+      } catch (e) {
+        // Mirror addEventListener: don't let a thrown handler poison
+        // sibling timers or intervals registered later.
+        console.warn('[cleanup] setTimeout handler threw:', e);
+      }
+    }, ms);
     this.timeouts.add(id);
     return id;
   }

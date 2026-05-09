@@ -263,7 +263,27 @@ export function installThemeWatcher(
   // class on a non-watched node — and the MutationObserver above misses
   // it. After ANY click we re-check after ~250 ms so a CSS-transition
   // has time to settle. Mirrors .user.js:1719-1722.
-  ctx.cleanup.addEventListener(document, 'click', () => scheduleRecheck(250), { capture: true });
+  // Audit 2026-05-09 perf O8: scope click-listener to plausible
+  // theme-toggle targets only. The previous unconditional handler fired
+  // scheduleRecheck on every click sitewide (pagination, episode select,
+  // comment expand, ad clicks), each scheduling a forced-style-recompute
+  // chain (luminance walk + getComputedStyle ×N). HDRezka's theme
+  // toggles always live in elements with one of the heuristic selectors
+  // below; everything else is a false positive.
+  const THEME_CLICK_SELECTOR =
+    '[data-theme-toggle], [data-action*="theme"], [class*="theme"], [class*="skin"], [class*="dark"], [class*="light"]';
+  ctx.cleanup.addEventListener(
+    document,
+    'click',
+    (event) => {
+      const target = (event as Event).target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(THEME_CLICK_SELECTOR)) {
+        scheduleRecheck(250);
+      }
+    },
+    { capture: true },
+  );
 
   // Cold-load race fix. HDRezka applies its theme via JS that runs AFTER
   // our content script's first `injectStyles()` call — at document_idle
@@ -273,9 +293,32 @@ export function installThemeWatcher(
   // We schedule deferred re-checks at progressively longer delays to
   // catch the theme as soon as the host script applies it. window.load
   // is the strongest backstop — by then all site scripts have finished.
-  ctx.cleanup.setTimeout(() => scheduleRecheck(0), 200);
-  ctx.cleanup.setTimeout(() => scheduleRecheck(0), 600);
-  ctx.cleanup.setTimeout(() => scheduleRecheck(0), 1500);
+  // Audit 2026-05-09 perf O9: structured retry that short-circuits as
+  // soon as HDRezka's theme class appears on documentElement/body.
+  // Previously three independent `scheduleRecheck(0)` timers ran
+  // unconditionally, each cancelling and rescheduling the inner debounce
+  // — a setTimeout/clearTimeout churn that defeats the debounce purpose
+  // AND triggers a luminance walk after the class is already known.
+  const COLD_LOAD_DELAYS = [200, 500, 1200] as const;
+  const tryDetectThemeClass = (attempt: number): void => {
+    if (ctx.cleanup.isDisposed) return;
+    if (detectFromAttributes(document.documentElement, document.body) !== null) {
+      // Class is set; one final reapply locks it in then we stop.
+      reapply();
+      return;
+    }
+    if (attempt < COLD_LOAD_DELAYS.length) {
+      ctx.cleanup.setTimeout(
+        () => tryDetectThemeClass(attempt + 1),
+        COLD_LOAD_DELAYS[attempt]!,
+      );
+    } else {
+      // Last attempt — even if class never appeared, run reapply once
+      // so luminance fallback still gets a shot.
+      scheduleRecheck(0);
+    }
+  };
+  tryDetectThemeClass(0);
   if (document.readyState !== 'complete') {
     const onLoad = (): void => scheduleRecheck(100);
     window.addEventListener('load', onLoad, { once: true });
