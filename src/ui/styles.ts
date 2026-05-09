@@ -610,26 +610,46 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
 html[data-vs-theme="light"] .speed-buttons-row {
   background: rgba(255, 255, 255, 0.55);
 }
+/* Pinned (saved/default) speed indicator: bookmark icon top-right +
+   soft accent halo glow around the button. Replaces the earlier 5×5
+   dot (audit 2026-05-09: dot was uninformative, didn't read as
+   "saved"). The bookmark uses mask-image so the colour comes from
+   --vs-accent (per-site palette) without hard-coding hex per build.
+   The halo glow is the primary peripheral-vision signal — even at a
+   glance the pinned button reads as "warmer" than its neighbours. */
+.speed-button.pinned {
+  box-shadow: 0 0 18px 3px rgba(var(--vs-accent-rgb), 0.45);
+}
+.speed-button.pinned.active {
+  box-shadow:
+    0 2px 10px rgba(var(--vs-accent-rgb), 0.35),
+    0 0 22px 5px rgba(var(--vs-accent-rgb), 0.55);
+}
+.speed-button.pinned.active:hover {
+  box-shadow:
+    0 3px 14px rgba(var(--vs-accent-rgb), 0.5),
+    0 0 26px 6px rgba(var(--vs-accent-rgb), 0.6);
+}
 .speed-button.pinned::after {
-  /* Tiny accent-coloured dot in the top-right corner of the saved/
-     default speed (audit MAJ-3 visual indicator). Visible regardless
-     of active/inactive state, so the user sees both "what's playing
-     right now" (active fill) and "what'll be applied to new videos"
-     (this dot). White ring around the dot keeps it readable on both
-     active and inactive button backgrounds. */
   content: '';
   position: absolute;
-  top: 4px;
-  right: 5px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--vs-accent);
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85);
+  top: 2px;
+  right: 7px;
+  width: 7px;
+  height: 11px;
+  background-color: var(--vs-accent);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 24'%3E%3Cpath fill='white' d='M2 1h12v22l-6-5-6 5z'/%3E%3C/svg%3E");
+          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 24'%3E%3Cpath fill='white' d='M2 1h12v22l-6-5-6 5z'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain;
+          mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
   pointer-events: none;
 }
-html[data-vs-theme="light"] .speed-button.pinned::after {
-  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.55);
+.speed-button.pinned.active::after {
+  /* On the active gradient the accent-on-accent icon would disappear;
+     switch to white so the bookmark stays readable. */
+  background-color: #fff;
 }
 .speed-button {
   position: relative;
@@ -780,11 +800,14 @@ html[data-vs-theme="light"] .speed-button.pinned::after {
   flex-shrink: 0;
 }
 
-/* Floating tooltip above the slider thumb. Now ALWAYS visible (audit
-   CRIT-2: at rest the user couldn't read the slider's current value).
-   Reveals at full scale + opacity on container :hover and while the
-   thumb is :active. Slides horizontally via inline style.left set by
-   updateSliderFill (in slider.ts). */
+/* Floating tooltip above the slider thumb. Hidden at rest, revealed on
+   container :hover or while the thumb is :active (drag). The active
+   speed-button in the buttons row already shows the current speed, so
+   a permanent tooltip duplicated that information AND poked above the
+   slider container into the video frame (audit 2026-05-09). The CRIT-2
+   readability concern is solved by the active button's value display.
+   Slides horizontally via inline style.left set by updateSliderFill
+   (in slider.ts). */
 .speed-value {
   position: absolute;
   bottom: 32px;
@@ -796,10 +819,10 @@ html[data-vs-theme="light"] .speed-button.pinned::after {
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
-  opacity: 0.92;
+  opacity: 0;
   transition: opacity 0.2s ease, left 0.1s ease, transform 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  transform: translateX(-50%) scale(0.92);
+  transform: translateX(-50%) scale(0.85);
   font-variant-numeric: tabular-nums;
 }
 .speed-value::after {
