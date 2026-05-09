@@ -126,6 +126,11 @@ export async function bootstrap(
   await speedStore.init(site);
 
   // 3. Discovery.
+  // killSwitch is declared early (TDZ guard, audit 2026-05-09 sec C6) so
+  // the closure inside isFullChainEnabled below can safely reference it
+  // even if a future change in createDiscoveryEngine starts evaluating
+  // the closure synchronously during construction.
+  let killSwitch!: ReturnType<typeof createKillSwitch>;
   const cache = createSelectorCache(adapter, {
     scriptVersion: SCRIPT_VERSION,
   });
@@ -134,7 +139,7 @@ export async function bootstrap(
     site,
     cache,
     validators: Validators,
-    isFullChainEnabled: () => killSwitch.isDiscoveryEnabled(),
+    isFullChainEnabled: () => killSwitch?.isDiscoveryEnabled() ?? true,
     logger,
   });
   const discoveryPort = {
@@ -184,7 +189,7 @@ export async function bootstrap(
   };
 
   // 6. KillSwitch + HealthChecker (need ctx).
-  const killSwitch = createKillSwitch(ctx);
+  killSwitch = createKillSwitch(ctx);
   const healthChecker = createHealthChecker({
     ctx,
     scriptVersion: SCRIPT_VERSION,
@@ -263,9 +268,16 @@ export async function bootstrap(
   cleanup.add(() => panel.dispose());
 
   const offSettingsSub = settingsStore.subscribe((next) => {
+    // Audit 2026-05-09 MAJOR-bootstrap: also force a panel rerender so
+    // on-screen strings update immediately instead of staying stale.
     if (next.language !== lang) {
       lang = next.language;
       ctx.i18n = createTranslator(next.language);
+      try {
+        panel.rerenderSettings();
+      } catch {
+        /* swallow — rerender is best-effort */
+      }
     }
   });
   cleanup.add(offSettingsSub);
@@ -340,6 +352,10 @@ export async function bootstrap(
   //     element appears (episode change inside Plyr, ad-roll insertion,
   //     fullscreen mode reattach).
   const reattach = (): void => {
+    // Audit 2026-05-09 sec C8: bail if the outer cleanup has disposed —
+    // a late-arriving navigation event would otherwise create a fresh
+    // attachCleanup registry that never gets disposed, leaking listeners.
+    if (cleanup.isDisposed) return;
     attachCleanup.dispose();
     attachCleanup = new CleanupRegistry();
     for (const v of document.querySelectorAll('video')) {
