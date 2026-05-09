@@ -9,25 +9,59 @@
 const POPUP_ID = 'speed-popup';
 const VISIBLE_MS = 2000;
 
-let hideTimer: number | null = null;
+// Audit 2026-05-09 sec C18: hideTimer used to be a module-level singleton
+// shared across panel lifecycles. After dispose+re-create, the previous
+// timer kept running and cleared a popup that was already detached. Now
+// we attach the timer to the popup DOM node itself via a WeakMap, so it
+// dies naturally with the node.
+const hideTimers = new WeakMap<HTMLElement, number>();
 
 export function showSpeedPopup(speed: number, container: Element | null = null): void {
   const popup = ensurePopup(container);
   popup.textContent = `${speed.toFixed(2)}x`;
   popup.classList.add('show');
 
-  if (hideTimer !== null) clearTimeout(hideTimer);
-  hideTimer = window.setTimeout(() => {
+  const prev = hideTimers.get(popup);
+  if (prev !== undefined) clearTimeout(prev);
+  const id = window.setTimeout(() => {
     popup.classList.remove('show');
-    hideTimer = null;
+    hideTimers.delete(popup);
   }, VISIBLE_MS);
+  hideTimers.set(popup, id);
+}
+
+/**
+ * Tear down the speed popup completely (audit 2026-05-09 sec C16).
+ * Called from panel.dispose() so a new panel doesn't inherit the
+ * detached node from the previous lifecycle.
+ */
+export function disposeSpeedPopup(): void {
+  const popup = document.getElementById(POPUP_ID);
+  if (!popup) return;
+  const id = hideTimers.get(popup);
+  if (id !== undefined) {
+    clearTimeout(id);
+    hideTimers.delete(popup);
+  }
+  popup.remove();
 }
 
 function ensurePopup(container: Element | null): HTMLElement {
-  let popup = document.getElementById(POPUP_ID);
-  if (popup) return popup;
-
-  popup = document.createElement('div');
+  const existing = document.getElementById(POPUP_ID);
+  // Reuse only when the node is still in the document tree (audit
+  // 2026-05-09 sec C16). A stale node from a torn-down player container
+  // would otherwise be reused and render at coordinates the host page
+  // has since rebuilt.
+  if (existing && existing.isConnected) return existing;
+  if (existing) {
+    const id = hideTimers.get(existing);
+    if (id !== undefined) {
+      clearTimeout(id);
+      hideTimers.delete(existing);
+    }
+    existing.remove();
+  }
+  const popup = document.createElement('div');
   popup.id = POPUP_ID;
   popup.className = 'speed-popup';
   // Per-site sizing/colour comes from styles.ts (`.speed-popup` rules

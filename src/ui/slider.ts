@@ -77,9 +77,16 @@ export function renderSlider(opts: SliderOptions): HTMLElement {
  * Idempotent; safe to call from input/change handlers.
  */
 export function updateSliderFill(input: HTMLInputElement): void {
-  const min = parseFloat(input.min) || 0;
-  const max = parseFloat(input.max) || 1;
-  const value = parseFloat(input.value) || min;
+  // Use Number.isFinite so a legitimate `0` value isn't coerced to the
+  // fallback (audit 2026-05-09 MAJOR-UI). The OR-fallback worked when
+  // bounds were always > 0, but if a future site ships min=0 the old
+  // code would silently treat "actually zero" as "unparseable".
+  const minRaw = parseFloat(input.min);
+  const maxRaw = parseFloat(input.max);
+  const valueRaw = parseFloat(input.value);
+  const min = Number.isFinite(minRaw) ? minRaw : 0;
+  const max = Number.isFinite(maxRaw) ? maxRaw : 1;
+  const value = Number.isFinite(valueRaw) ? valueRaw : min;
   const percent = ((value - min) / (max - min)) * 100;
   input.style.setProperty('--vs-slider-fill', `${percent.toFixed(2)}%`);
 

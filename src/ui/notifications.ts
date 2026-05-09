@@ -93,13 +93,44 @@ export function showNotification(text: string, opts: NotificationOptions = {}): 
     });
   });
 
-  window.setTimeout(() => {
+  // Audit 2026-05-09 MAJOR-UI: stash timer IDs on the toast itself so
+  // disposeNotificationStack() can clear them. Otherwise a fast dispose
+  // leaves up to two zombie timeouts ticking for ~3.25s after the panel
+  // goes away.
+  const tagged = toast as HTMLElement & { __vsTimer1?: number; __vsTimer2?: number };
+  tagged.__vsTimer1 = window.setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(20px)';
-    window.setTimeout(() => {
+    tagged.__vsTimer2 = window.setTimeout(() => {
       toast.parentNode?.removeChild(toast);
     }, 250);
   }, duration);
+}
+
+/**
+ * Tear down the notifications stack and any in-flight toast timers
+ * (audit 2026-05-09 sec C16/C17). Restores the inline `position` we
+ * may have mutated on the player container.
+ */
+export function disposeNotificationStack(): void {
+  const stack = document.getElementById(STACK_ID);
+  if (!stack) return;
+  for (const child of Array.from(stack.children)) {
+    const tagged = child as HTMLElement & { __vsTimer1?: number; __vsTimer2?: number };
+    if (tagged.__vsTimer1 !== undefined) clearTimeout(tagged.__vsTimer1);
+    if (tagged.__vsTimer2 !== undefined) clearTimeout(tagged.__vsTimer2);
+  }
+  // Restore the host container's inline position if we mutated it.
+  const host = stack.parentElement;
+  if (host instanceof HTMLElement) {
+    const tagged = host as HTMLElement & { __vsPriorPosition?: string };
+    if (tagged.__vsPriorPosition !== undefined) {
+      if (tagged.__vsPriorPosition === '') host.style.removeProperty('position');
+      else host.style.position = tagged.__vsPriorPosition;
+      delete tagged.__vsPriorPosition;
+    }
+  }
+  stack.remove();
 }
 
 function ensureStack(playerContainer: Element | null): HTMLElement {
@@ -135,7 +166,15 @@ function ensureStack(playerContainer: Element | null): HTMLElement {
   `;
 
   if (playerContainer instanceof HTMLElement) {
+    // Audit 2026-05-09 sec C17: remember the prior inline position so
+    // disposeNotificationStack() can restore it. Mutating the host's
+    // position to relative used to leak across reload cycles when YT's
+    // player chrome was already styled with a specific stacking context.
     if (window.getComputedStyle(playerContainer).position === 'static') {
+      const tagged = playerContainer as HTMLElement & { __vsPriorPosition?: string };
+      if (tagged.__vsPriorPosition === undefined) {
+        tagged.__vsPriorPosition = playerContainer.style.position; // '' if unset
+      }
       playerContainer.style.position = 'relative';
     }
     stack.style.cssText = styleInPlayer;
