@@ -135,6 +135,9 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
         t('general.pos.video'),
       ),
     ),
+    // Audit 2026-05-10: visible only when the auto-collapse rule fires
+    // (viewport narrow + sliderPosition='right'). See styles.ts.
+    h('p', { class: 'vs-pos-hint-narrow' }, t('general.pos.narrow_hint')),
   );
 
   const presetSet = new Set<number>(settings.speedPresets ?? []);

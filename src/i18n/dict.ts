@@ -107,6 +107,8 @@ export const I18N_DICT = {
     'general.pos.bottom.tip': 'Slider on a separate row below the buttons',
     'general.pos.video': 'In player',
     'general.pos.video.tip': "Embed slider into the player's bottom control bar",
+    'general.pos.narrow_hint':
+      'Auto: on narrow screens the slider wraps below — your choice is kept and restored when there is enough room.',
 
     // behavior.*
     'behavior.section': 'Behavior',
@@ -377,6 +379,8 @@ export const I18N_DICT = {
     'general.pos.bottom.tip': 'Ползунок на отдельной строке под кнопками',
     'general.pos.video': 'В плеере',
     'general.pos.video.tip': 'Встроить ползунок в нижнюю панель плеера',
+    'general.pos.narrow_hint':
+      'Авто: на узком экране ползунок переносится вниз. Ваш выбор сохранён и вернётся, когда места будет достаточно.',
 
     // behavior.*
     'behavior.section': 'Поведение',

@@ -4,6 +4,21 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.11] — 2026-05-10
+
+### Bug fixes
+
+- **Settings menu no longer breaks on layout switch.** scrollTop is
+  reset on every rerender; frozen flip-y is invalidated when
+  sliderPosition changes.
+
+### Layout
+
+- **Auto-collapse "Right" to grid layout on narrow viewports** (< 1100px).
+  Saved sliderPosition unchanged — when viewport widens back, panel
+  returns to single-row "Right" layout.
+- **Settings hint** explains the auto-collapse near the "Right" radio.
+
 ## [0.3.10] — 2026-05-10
 
 ### Layout

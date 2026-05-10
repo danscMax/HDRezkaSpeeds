@@ -397,6 +397,10 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     menuRegistry = new CleanupRegistry();
     const menuCtx: AppContext = { ...ctx, cleanup: menuRegistry };
 
+    // Audit 2026-05-10 bug: replaceChildren preserves scrollTop in
+    // some browsers — reset so the rerendered menu starts from the top.
+    settingsMenu.scrollTop = 0;
+
     settingsMenu.replaceChildren(
       renderSettingsMenu({
         settings: ctx.settingsStore.get(),
@@ -529,6 +533,9 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     if (next.sliderPosition !== lastPos) {
       lastPos = next.sliderPosition;
       applyLayoutImpl();
+      // Audit 2026-05-10: layout switch can move the gear button — reset
+      // so adjustMenuPosition picks fresh flip from the new geometry.
+      frozenFlipY = null;
     }
     // Speed-buttons row is reactive on speedPresets — when the user
     // toggles a speed in Settings → General we need to rebuild the row's

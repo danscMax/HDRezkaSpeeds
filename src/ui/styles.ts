@@ -556,6 +556,49 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   flex: 0 0 auto;
 }
 
+/* Audit 2026-05-10: auto-collapse 'right' to grid 'bottom' on narrow
+   viewports. User's stored sliderPosition stays 'right' — only the
+   visual rendering switches. Reverts when viewport widens back. */
+@media (max-width: 1100px) {
+  .vs-panel[data-vs-slider-position="right"] {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+      "buttons gear   ."
+      "slider  slider .";
+    align-items: center;
+    gap: 12px 12px;
+  }
+  .vs-panel[data-vs-slider-position="right"] .speed-buttons-row {
+    grid-area: buttons;
+    flex-wrap: wrap;
+  }
+  .vs-panel[data-vs-slider-position="right"] .vs-gear-wrapper {
+    grid-area: gear;
+    justify-self: start;
+  }
+  .vs-panel[data-vs-slider-position="right"] .speed-slider-container {
+    grid-area: slider;
+    width: auto;
+    max-width: none;
+    flex: 0 0 auto;
+  }
+}
+
+.vs-pos-hint-narrow {
+  display: none;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--vs-text-dim);
+  margin-top: 6px;
+  font-style: italic;
+}
+@media (max-width: 1100px) {
+  .vs-panel[data-vs-slider-position="right"] .vs-pos-hint-narrow {
+    display: block;
+  }
+}
+
 /* sliderPosition='video' -- ONLY the slider container is detached from
    the panel and re-parented into player chrome (.ytp-right-controls on
    YouTube, the desktop-controls column on RuTube). Mirrors original
