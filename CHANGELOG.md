@@ -4,6 +4,19 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.18] — 2026-05-10
+
+### Internal
+
+- **Removed `scheduleHostHydrationReveal` helper.** The button-cropping
+  artifact it was meant to hide is YouTube-specific (caused by YT's
+  loading-skeleton overflow:hidden on `#primary-inner` during SPA
+  hydration). HDRezka renders its layout synchronously and never
+  exhibited the bug, so deferring our panel was pure delay with no
+  benefit. Panel now reveals immediately. CSS for `vs-panel--pending`
+  remains in place but is no longer toggled — kept for parity with
+  the VideoSpeeds twin in case symmetry is ever needed.
+
 ## [0.3.17] — 2026-05-10
 
 ### Bug fixes
