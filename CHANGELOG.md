@@ -4,6 +4,16 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.16] — 2026-05-10
+
+### Bug fixes
+
+- **Panel ordering with pin button.** `applyLayoutImpl()` now anchors
+  `slider.nextSibling` against `pinBtn` (not `gearWrapper`) — fixes
+  the "panel looks truncated" first frame on slow loads. Grid
+  templates for `sliderPosition='bottom'` and the narrow-viewport
+  auto-collapse rule declare `pin` as an explicit grid area.
+
 ## [0.3.15] — 2026-05-10
 
 ### Behaviour change

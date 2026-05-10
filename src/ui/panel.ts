@@ -526,10 +526,14 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
         }
       }
     } else {
+      // Audit 2026-05-10: pin button (added v0.3.15) sits between
+      // slider and gear in panel layout. Anchor next-sibling check to
+      // pinBtn instead of gearWrapper so applyLayout doesn't reorder
+      // children to [buttons, pin, slider, gear] every call.
       sliderContainer.classList.remove('vs-slider-in-chrome');
-      if (sliderContainer.parentElement !== root || sliderContainer.nextSibling !== gearWrapper) {
+      if (sliderContainer.parentElement !== root || sliderContainer.nextSibling !== pinBtn) {
         try {
-          root.insertBefore(sliderContainer, gearWrapper);
+          root.insertBefore(sliderContainer, pinBtn);
           ctx.logger.info('panel.applyLayout: slider restored into panel');
         } catch (e) {
           ctx.logger.warn('panel.applyLayout: root insert failed', e);
