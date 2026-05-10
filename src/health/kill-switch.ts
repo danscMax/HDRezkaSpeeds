@@ -26,6 +26,14 @@ export interface KillSwitch {
   /** Engage the kill-switch (disable both halves) for a hard stop. */
   trip(): Promise<void>;
   snapshot(): KillSwitchSnapshot;
+  /**
+   * Subscribe to state changes. Fires when EXTERNAL writes (e.g. popup
+   * mutating settingsStore directly) change the persisted healing flags.
+   * Does NOT fire on local setDiscoveryEnabled / setHealthCheckEnabled
+   * calls — those go through `persist()` and the caller already knows.
+   * Returns an unsubscribe function.
+   */
+  subscribe(fn: (s: KillSwitchSnapshot) => void): () => void;
 }
 
 interface PersistedShape {
@@ -47,6 +55,41 @@ export function createKillSwitch(ctx: AppContext): KillSwitch {
     discoveryEnabled: read().discoveryEnabled !== false,
     healthCheckEnabled: read().healthCheckEnabled !== false,
   };
+
+  // Audit 2026-05-09 M1: cross-instance propagation. The popup can write
+  // healing.* through the same SettingsStore (or a future options page);
+  // without this subscriber the active content-script kept its cached
+  // boolean forever and the user had to reload the page for the toggle
+  // to take effect. Refresh local state from every store change.
+  const offSub = ctx.settingsStore.subscribe((next) => {
+    const live = (next as unknown as Record<string, unknown>).healing;
+    const persisted: PersistedShape =
+      live && typeof live === 'object' ? (live as PersistedShape) : {};
+    const incoming: KillSwitchSnapshot = {
+      discoveryEnabled: persisted.discoveryEnabled !== false,
+      healthCheckEnabled: persisted.healthCheckEnabled !== false,
+    };
+    if (
+      incoming.discoveryEnabled !== state.discoveryEnabled ||
+      incoming.healthCheckEnabled !== state.healthCheckEnabled
+    ) {
+      state = incoming;
+      // Notify external listeners (e.g. HealthChecker) so they can
+      // start/stop polling on the fly instead of waiting for next tick.
+      for (const fn of [...listeners]) {
+        try {
+          fn(state);
+        } catch (e) {
+          ctx.logger.warn('KillSwitch: listener threw', e);
+        }
+      }
+    }
+  });
+  ctx.cleanup.add(offSub);
+
+  // External listeners (HealthChecker subscribes to re-arm itself when
+  // healthCheckEnabled flips back on — audit M2).
+  const listeners = new Set<(s: KillSwitchSnapshot) => void>();
 
   async function persist(patch: Partial<KillSwitchSnapshot>): Promise<void> {
     // Optimistic in-memory update so isHealthCheckEnabled() reads the new
@@ -76,5 +119,11 @@ export function createKillSwitch(ctx: AppContext): KillSwitch {
     setHealthCheckEnabled: (on) => persist({ healthCheckEnabled: on }),
     trip: () => persist({ discoveryEnabled: false, healthCheckEnabled: false }),
     snapshot: () => ({ ...state }),
+    subscribe(fn) {
+      listeners.add(fn);
+      return () => {
+        listeners.delete(fn);
+      };
+    },
   };
 }

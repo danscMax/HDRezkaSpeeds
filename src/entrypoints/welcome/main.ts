@@ -29,10 +29,25 @@ const SCRIPT_VERSION = typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.
 
 type T = (key: string) => string;
 
+// Audit 2026-05-09 M5: track ResizeObservers across renderWelcome calls
+// to prevent leaking observers on language switch.
+const liveResizeObservers: ResizeObserver[] = [];
+
+function disconnectAllObservers(): void {
+  for (const ro of liveResizeObservers.splice(0)) {
+    try {
+      ro.disconnect();
+    } catch {
+      /* swallow */
+    }
+  }
+}
+
 const root = document.getElementById('welcome-app');
 if (root) void renderWelcome(root);
 
 async function renderWelcome(host: HTMLElement, langOverride?: Lang): Promise<void> {
+  disconnectAllObservers();
   const adapter = createBrowserStorageAdapter();
 
   // Read language from storage if previously chosen, otherwise auto-detect.
@@ -248,6 +263,7 @@ function wireConnectors(stage: HTMLElement): void {
   if (typeof ResizeObserver !== 'undefined') {
     const ro = new ResizeObserver(() => redraw());
     ro.observe(stage);
+    liveResizeObservers.push(ro);
   }
   // Web fonts can shift text widths after first paint — redraw once they
   // settle so the connectors land on the post-font-loaded boxes.

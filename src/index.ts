@@ -202,6 +202,9 @@ export async function bootstrap(
     killSwitch: killSwitch.snapshot,
     selectorCache: cache,
     isHealthCheckEnabled: killSwitch.isHealthCheckEnabled,
+    // Audit 2026-05-09 M2: pass the killSwitch handle so the checker
+    // can re-arm itself if health-check is toggled back ON after bootstrap.
+    killSwitchHandle: killSwitch,
     // After N consecutive unhealthy reports, flip the kill-switch's
     // health-check flag so the watchdog stops re-running and re-purging
     // the cache. The gear's red dot stays lit (panel.setGearWarning is

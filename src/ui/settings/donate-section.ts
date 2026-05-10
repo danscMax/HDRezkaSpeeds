@@ -49,17 +49,55 @@ const USDT_TRC20: CryptoMethod = {
 };
 
 async function copyToClipboard(text: string, i18n: Translator): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
+  // Audit 2026-05-09 M4: navigator.clipboard.writeText rejects in some
+  // Firefox MV3 builds. Fall back to legacy execCommand via hidden textarea.
+  if (await tryAsyncClipboard(text)) {
     showNotification(i18n.t('toast.address_copied'), {
       kind: 'success',
       playerContainer: null,
     });
-  } catch {
-    showNotification(i18n.t('toast.copy_failed'), {
-      kind: 'error',
+    return;
+  }
+  if (tryExecCommandClipboard(text)) {
+    showNotification(i18n.t('toast.address_copied'), {
+      kind: 'success',
       playerContainer: null,
     });
+    return;
+  }
+  showNotification(i18n.t('toast.copy_failed'), {
+    kind: 'error',
+    playerContainer: null,
+  });
+}
+
+async function tryAsyncClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  return false;
+}
+
+function tryExecCommandClipboard(text: string): boolean {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText =
+      'position:fixed; top:0; left:0; width:1px; height:1px; opacity:0; padding:0; border:0; margin:0;';
+    ta.setAttribute('readonly', '');
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
   }
 }
 

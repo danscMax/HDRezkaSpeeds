@@ -94,11 +94,16 @@ export function createSelectorCache(
   const memBackups = new Map<SelectorKey, CacheEntry>();
   const tentative = new Map<SelectorKey, string[]>();
   let ready = false;
-  let pendingWrite: Promise<void> | null = null;
+  // Audit 2026-05-09 M3: bound the persist() chain. The previous
+  // unconditional `(pendingWrite ?? resolve()).then(...)` built an
+  // ever-growing promise chain on tight bumpSuccess loops — a memory
+  // leak on long-running tabs. We now keep at most one in-flight
+  // promise + one queued; bursts during the in-flight window collapse
+  // into a single trailing write that captures the latest snapshot.
+  let inFlight: Promise<void> | null = null;
+  let trailing = false;
 
-  function persist(): void {
-    // Coalesce rapid writes: if a write is already in flight, schedule the
-    // next one to fire after it lands. We don't await -- callers stay sync.
+  function flush(): Promise<void> {
     const snapshot: PersistedShape = {
       schema_version: schemaVersion,
       script_version: scriptVersion,
@@ -108,13 +113,26 @@ export function createSelectorCache(
           ? (Object.fromEntries(memBackups.entries()) as Partial<Record<SelectorKey, CacheEntry>>)
           : undefined,
     };
-    const next = (pendingWrite ?? Promise.resolve()).then(() =>
-      adapter.set(storageKey, snapshot).catch(() => {
-        // Storage may be unavailable in private mode / quota exceeded;
-        // we still hold the in-memory mirror, so this is best-effort.
-      }),
-    );
-    pendingWrite = next;
+    return adapter.set(storageKey, snapshot).catch(() => {
+      // Storage may be unavailable in private mode / quota exceeded;
+      // we still hold the in-memory mirror, so this is best-effort.
+    });
+  }
+
+  function persist(): void {
+    if (inFlight) {
+      // A write is already in flight — mark trailing so we re-flush
+      // exactly once after it lands, capturing the latest snapshot.
+      trailing = true;
+      return;
+    }
+    inFlight = flush().finally(() => {
+      inFlight = null;
+      if (trailing) {
+        trailing = false;
+        persist();
+      }
+    });
   }
 
   return {
@@ -228,15 +246,16 @@ export function createSelectorCache(
       memCache.clear();
       memBackups.clear();
       tentative.clear();
-      // Drain any in-flight write so we don't race a stale snapshot back
-      // over the removal we're about to commit.
-      if (pendingWrite) {
+      // Drain any in-flight write + cancel any trailing one so we don't
+      // race a stale snapshot back over the removal we're about to commit.
+      trailing = false;
+      if (inFlight) {
         try {
-          await pendingWrite;
+          await inFlight;
         } catch {
           /* swallow */
         }
-        pendingWrite = null;
+        inFlight = null;
       }
       await adapter.remove(storageKey).catch(() => {});
     },
