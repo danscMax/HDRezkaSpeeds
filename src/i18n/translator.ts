@@ -48,10 +48,20 @@ export function createTranslator(lang: Lang): Translator {
     if (s == null) s = fallback[key];
     if (s == null) return key;
     if (vars) {
+      // Audit 2026-05-09 perf P4: split().join() instead of new RegExp().
+      // All placeholder names in the dict are plain ASCII identifiers
+      // (e.g. {count}, {time}, {speed}), so regex escaping is unnecessary.
+      // Allocates one intermediate array per substitution but skips the
+      // RegExp constructor + compile that fired on every t() call with
+      // vars (~10 RegExp compilations per modal rerender, multiplied by
+      // every render path that touches translated strings with placeholders).
       for (const k of Object.keys(vars)) {
         const value = vars[k];
         if (value == null) continue;
-        s = s.replace(new RegExp(`\\{${escapeRegExp(k)}\\}`, 'g'), String(value));
+        const placeholder = `{${k}}`;
+        if (s.includes(placeholder)) {
+          s = s.split(placeholder).join(String(value));
+        }
       }
     }
     return s;
@@ -65,7 +75,3 @@ export function createTranslator(lang: Lang): Translator {
  * code that imports specific keys -- compile fails on a typo.
  */
 export type TypedT = (key: DictKey, vars?: Record<string, string | number>) => string;
-
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}

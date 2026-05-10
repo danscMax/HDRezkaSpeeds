@@ -278,77 +278,56 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
 
   function adjustMenuPosition(): void {
     if (!isMenuOpen()) return;
-    // Reset positioning overrides every call EXCEPT the vertical flip,
-    // which we freeze on first open. Reapply the frozen flip below so
-    // CSS keeps anchoring the menu to the same edge of the gear.
-    settingsMenu.removeAttribute('data-vs-flip');
-    settingsMenu.style.removeProperty('max-height');
-    settingsMenu.style.removeProperty('left');
-    settingsMenu.style.removeProperty('right');
-
-    // ----- Horizontal -----
-    //
-    // Compute the absolute desired left coordinate so the menu fits
-    // within the viewport, then convert it back to a position relative
-    // to the gear-wrapper (the menu's offset parent). Trying flips one
-    // by one (right -> left -> overflow-clamp) was fragile: on narrow
-    // viewports both flips can overflow (gear at x=299 with menu width
-    // 341 in a 375px viewport overflowed left when right-anchored, then
-    // overflowed right by 266px when flipped left).
-    const wrapperRect = gearWrapper.getBoundingClientRect();
-    const viewportW = window.innerWidth;
-    const menuW = settingsMenu.offsetWidth || settingsMenu.getBoundingClientRect().width;
+    // Audit 2026-05-09 perf P1: batch all reads first, then all writes.
+    // The previous interleaved sequence triggered up to 4 forced layouts
+    // per call.
     const PAD = 8;
-    // Default: right-anchored under the gear (matches the userscript).
+    const wrapperRect = gearWrapper.getBoundingClientRect();
+    const gearRect = gearBtn.getBoundingClientRect();
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
+    let needFreezeFlip = frozenFlipY === null;
+    if (needFreezeFlip) {
+      settingsMenu.removeAttribute('data-vs-flip-y');
+    }
+    const menuRect = settingsMenu.getBoundingClientRect();
+    const menuW = settingsMenu.offsetWidth || menuRect.width;
+    const naturalH = settingsMenu.scrollHeight;
+    const spaceBelow = Math.max(0, viewportH - gearRect.bottom - PAD);
+    const spaceAbove = Math.max(0, gearRect.top - PAD);
+
     let absLeft = wrapperRect.right - menuW;
     if (absLeft < PAD) {
-      // Try left-anchored — menu opens to the right of the gear.
       const leftAnchored = wrapperRect.left;
       if (leftAnchored + menuW <= viewportW - PAD) {
         absLeft = leftAnchored;
       } else {
-        // Neither flip fits — clamp into the viewport. Prefer keeping the
-        // menu's right edge within the viewport so the "menu opens from
-        // the gear" affordance is preserved as much as possible.
         absLeft = Math.max(PAD, viewportW - menuW - PAD);
       }
     }
-    settingsMenu.style.left = `${absLeft - wrapperRect.left}px`;
-    settingsMenu.style.right = 'auto';
-
-    // ----- Vertical -----
-    //
-    // FROZEN on first open: compute "should we flip up?" once, lock the
-    // decision, restore it on every subsequent call so tab switches
-    // don't move the menu.
-    const gearRect = gearBtn.getBoundingClientRect();
-    const viewportH = window.innerHeight;
-    const spaceBelow = Math.max(0, viewportH - gearRect.bottom - PAD);
-    const spaceAbove = Math.max(0, gearRect.top - PAD);
-
-    if (frozenFlipY === null) {
-      // Initial open — measure the natural height and decide. We
-      // temporarily clear flip-y so the measurement is honest.
-      settingsMenu.removeAttribute('data-vs-flip-y');
-      const rect = settingsMenu.getBoundingClientRect();
-      if (rect.bottom > viewportH - 4 && spaceAbove > spaceBelow) {
+    if (needFreezeFlip) {
+      if (menuRect.bottom > viewportH - 4 && spaceAbove > spaceBelow) {
         frozenFlipY = 'up';
       } else {
         frozenFlipY = 'down';
       }
+      needFreezeFlip = false;
     }
+    const room = frozenFlipY === 'up' ? spaceAbove : spaceBelow;
+    const needsMaxHeight = naturalH > room && room > 0;
+
+    settingsMenu.removeAttribute('data-vs-flip');
+    settingsMenu.style.left = `${absLeft - wrapperRect.left}px`;
+    settingsMenu.style.right = 'auto';
     if (frozenFlipY === 'up') {
       settingsMenu.setAttribute('data-vs-flip-y', 'up');
     } else {
       settingsMenu.removeAttribute('data-vs-flip-y');
     }
-
-    // max-height — recomputed every call so a growing tab can scroll
-    // internally instead of overflowing the viewport.
-    const room = frozenFlipY === 'up' ? spaceAbove : spaceBelow;
-    const naturalH = settingsMenu.scrollHeight;
-    if (naturalH > room && room > 0) {
+    if (needsMaxHeight) {
       settingsMenu.style.maxHeight = `${room}px`;
+    } else {
+      settingsMenu.style.removeProperty('max-height');
     }
   }
 

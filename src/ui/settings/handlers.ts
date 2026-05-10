@@ -94,7 +94,7 @@ export function attachSettingsHandlers(
       if (pos) {
         await ctx.settingsStore.update({ sliderPosition: pos });
         ctx.ui.applyLayout();
-        deps.rerender();
+        // Audit 2026-05-09 perf P3: subscriber handles rerender.
       }
     });
   }
@@ -126,7 +126,7 @@ export function attachSettingsHandlers(
         next = [...current, value].sort((a, b) => a - b);
       }
       await ctx.settingsStore.update({ speedPresets: next });
-      deps.rerender();
+      // Audit 2026-05-09 perf P3: subscriber handles rerender.
     });
   }
   const presetReset = menuRoot.querySelector<HTMLButtonElement>('[data-vs-preset-reset]');
@@ -137,7 +137,7 @@ export function attachSettingsHandlers(
       await ctx.settingsStore.update({
         speedPresets: [...defaultPresetsFor(ctx.site)],
       });
-      deps.rerender();
+      // Audit 2026-05-09 perf P3: subscriber handles rerender.
     });
   }
 
@@ -180,7 +180,7 @@ export function attachSettingsHandlers(
     const next = [...current, value].sort((a, b) => a - b);
     await ctx.settingsStore.update({ speedPresets: next });
     presetInput.value = '';
-    deps.rerender();
+    // Audit 2026-05-09 perf P3: subscriber handles rerender.
   }
   if (presetAdd) {
     ctx.cleanup.addEventListener(presetAdd, 'click', async (event) => {
@@ -252,7 +252,7 @@ export function attachSettingsHandlers(
       event.preventDefault();
       event.stopPropagation();
       await ctx.settingsStore.update({ sliderMin: undefined, sliderMax: undefined });
-      deps.rerender();
+      // Audit 2026-05-09 perf P3: subscriber handles rerender.
     });
   }
 
@@ -262,7 +262,7 @@ export function attachSettingsHandlers(
       const lang = btn.dataset.vsLang as Lang | undefined;
       if (lang === 'en' || lang === 'ru') {
         await ctx.settingsStore.update({ language: lang });
-        deps.rerender();
+        // Audit 2026-05-09 perf P3: subscriber handles rerender.
         ctx.ui.showNotification(ctx.i18n.t('toast.lang_switched'), 'info');
       }
     });
@@ -341,7 +341,7 @@ export function attachSettingsHandlers(
         })
         .finally(() => {
           delete input.dataset.vsBusy;
-          deps.rerender();
+          // Audit 2026-05-09 perf P3: subscriber handles rerender.
         });
     });
   }
@@ -367,7 +367,7 @@ export function attachSettingsHandlers(
         ],
       };
       await ctx.settingsStore.update({ hotkeys: next });
-      deps.rerender();
+      // Audit 2026-05-09 perf P3: subscriber handles rerender.
       // Auto-focus the newly added input so capture starts on first
       // keypress, no extra click required (audit C3.2). Mirror
       // .user.js:4485-4490 setTimeout(...newRow.click(), 50). We use
@@ -399,7 +399,7 @@ export function attachSettingsHandlers(
       const arr = live[action].slice();
       arr.splice(slotIndex, 1);
       await ctx.settingsStore.update({ hotkeys: { ...live, [action]: arr } });
-      deps.rerender();
+      // Audit 2026-05-09 perf P3: subscriber handles rerender.
     });
   }
 
@@ -414,7 +414,7 @@ export function attachSettingsHandlers(
       await ctx.settingsStore.update({
         hotkeys: { ...live, [action]: fresh[action] },
       });
-      deps.rerender();
+      // Audit 2026-05-09 perf P3: subscriber handles rerender.
     });
   }
 
@@ -450,7 +450,7 @@ export function attachSettingsHandlers(
       openImportPicker(ctx, (result) => {
         if (result.ok) {
           ctx.ui.showNotification(ctx.i18n.t('settings.import.success'), 'info');
-          deps.rerender();
+          // Audit 2026-05-09 perf P3: subscriber handles rerender.
         } else {
           ctx.ui.showNotification(
             ctx.i18n.t('settings.import.failure', { message: result.message ?? 'unknown' }),

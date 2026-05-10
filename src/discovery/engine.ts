@@ -132,14 +132,26 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
       }
 
       if (key === 'playerContainer') {
-        const candidates = (
-          Array.from(doc.querySelectorAll('div, section, article')) as HTMLElement[]
-        )
-          .filter((el) => el.querySelector('video'))
-          .map((el) => ({ el, area: el.clientWidth * el.clientHeight }))
-          .filter((x) => x.area > 0 && x.el.clientWidth > 200 && x.el.clientHeight > 100)
-          // Smallest containing video = the tightest wrapper, usually the player.
-          .sort((a, b) => a.area - b.area);
+        // Audit 2026-05-09 perf P2: walk ancestors of <video> instead of
+        // scanning every div/section/article on the page. O(depth) vs the
+        // previous O(n_elements) × O(subtree-query) pattern.
+        const video = doc.querySelector('video');
+        if (!video) return null;
+        const candidates: Array<{ el: HTMLElement; area: number }> = [];
+        let node: Element | null = video.parentElement;
+        let safety = 32;
+        while (node && safety-- > 0) {
+          if (node === doc.body) break;
+          if (node instanceof HTMLElement) {
+            const w = node.clientWidth;
+            const h = node.clientHeight;
+            if (w > 200 && h > 100) {
+              candidates.push({ el: node, area: w * h });
+            }
+          }
+          node = node.parentElement;
+        }
+        candidates.sort((a, b) => a.area - b.area);
         return candidates[0]?.el ?? null;
       }
 
