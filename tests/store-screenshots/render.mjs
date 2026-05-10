@@ -74,7 +74,12 @@ const ctx = await chromium.launchPersistentContext(userDataDir, {
     `--load-extension=${EXT_DIR}`,
     '--no-first-run',
     '--no-default-browser-check',
+    // Force English UI so the panel + modal i18n picks 'en'.
+    // Store listings target an international audience, Russian copy
+    // is a regression for non-RU users.
+    '--lang=en-US',
   ],
+  locale: 'en-US',
   viewport: { width: 1280, height: 800 },
   deviceScaleFactor: 1,
 });
