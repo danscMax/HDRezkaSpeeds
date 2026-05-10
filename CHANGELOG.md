@@ -4,6 +4,17 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.13] — 2026-05-10
+
+### Bug fixes (root-cause)
+
+- **Settings menu: single-source-of-scroll fix.** Removed the nested
+  scroll container on `.vs-tab-panel` that competed with the v0.3.12
+  `.vs-menu-body` scroll. `settingsMenu.scrollHeight` now correctly
+  reports actual content height, so `adjustMenuPosition()` computes
+  max-height and flip-y based on real geometry — header + tabs no
+  longer get pushed above the viewport.
+
 ## [0.3.12] — 2026-05-10
 
 ### Bug fixes

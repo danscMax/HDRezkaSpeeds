@@ -1243,20 +1243,13 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
    pushes past the menu fixed 340px frame (e.g. a long crypto address
    that the wrapping logic has not applied yet). Without it, the menu
    would grow a horizontal scrollbar mid-tab-switch. */
+/* Audit 2026-05-10: tab-panel is a flow container only — single scroll
+   source lives on .vs-menu-body. The previous nested scroll caused
+   scrollHeight on .settings-menu to misreport, breaking max-height
+   math and pushing the header above the viewport. */
 .vs-tab-panel {
   padding: 10px 16px 14px;
-  max-height: 60vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--vs-menu-scrollbar) transparent;
   animation: vs-panel-in 160ms ease-out;
-}
-.vs-tab-panel::-webkit-scrollbar { width: 6px; }
-.vs-tab-panel::-webkit-scrollbar-track { background: transparent; }
-.vs-tab-panel::-webkit-scrollbar-thumb {
-  background: var(--vs-menu-scrollbar);
-  border-radius: 3px;
 }
 .vs-tab-panel[aria-hidden="true"] { display: none; }
 
