@@ -702,17 +702,14 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   row-gap: 4px;
   flex-shrink: 1;
   min-width: 0;
-  /* Subtle surface so the pill row reads as a unit rather than as
-     pills "floating in the air" on near-black HDRezka backgrounds
-     (audit MAJ-13). The light-theme override below softens it. */
-  background: rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-radius: 18px;
-  padding: 4px 6px;
-}
-html[data-vs-theme="light"] .speed-buttons-row {
-  background: rgba(255, 255, 255, 0.55);
+  /* No surface around the pill row -- original userscript inserted
+     the buttons directly into the host page without a wrapper, and
+     the wrapper background read as a foreign dark band against
+     HDRezka's near-black surrounding canvas. Each pill carries its
+     own translucent surface (.speed-button background) so they still
+     read as a unit without the outer container. (Reverts audit
+     MAJ-13's surface — the surface looked good on lighter hosts but
+     misaligned on HDRezka.) */
 }
 /* Pinned (saved/default) speed indicator: bookmark icon top-right +
    soft accent halo glow around the button. Replaces the earlier 5×5

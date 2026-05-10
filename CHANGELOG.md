@@ -4,6 +4,18 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.19] — 2026-05-10
+
+### Visual
+
+- **Removed dark surface around the speed pills.** The `.speed-buttons-row`
+  wrapper had a translucent dark/light surface (added in audit MAJ-13)
+  meant to make the pill row read as a unit on near-black hosts. In
+  practice on HDRezka it rendered as a foreign dark band that didn't
+  match the page's uniformly-dark surrounding canvas. Reverted to the
+  original userscript look — each pill carries its own translucent
+  surface, the row is transparent.
+
 ## [0.3.18] — 2026-05-10
 
 ### Internal
