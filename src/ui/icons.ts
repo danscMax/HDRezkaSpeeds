@@ -41,7 +41,8 @@ export type IconName =
   | 'heart'
   | 'external-link'
   | 'help-circle'
-  | 'mail';
+  | 'mail'
+  | 'bookmark';
 
 /**
  * Icon spec — array of [tag, attrs] tuples. Each tuple becomes an SVG
@@ -185,6 +186,10 @@ const VS_ICONS: Record<IconName, readonly SvgPart[]> = {
     ['rect', { x: 2, y: 4, width: 20, height: 16, rx: 2 }],
     ['path', { d: 'm22 7-10 5L2 7' }],
   ],
+  // Lucide bookmark — same shape as the pinned-speed indicator on
+  // active buttons (mask in styles.ts), keeping the "save / pinned"
+  // affordance visually consistent across the panel.
+  bookmark: [['path', { d: 'm19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z' }]],
 };
 
 /**

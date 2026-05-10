@@ -13,9 +13,14 @@
 import { CleanupRegistry } from '../app/cleanup';
 import type { AppContext } from '../app/context';
 import { defaultPresetsFor, speedBoundsFor } from '../config';
-import { applyTransient, handleSpeedButtonClick, setSpeed } from '../speed/controller';
+import {
+  applyTransient,
+  handleSpeedButtonClick,
+  setGlobal,
+  setTemporary,
+} from '../speed/controller';
 import { refreshActiveButton, refreshPinnedButton, renderButtonsRow } from './buttons';
-import { vsFilledGearIcon } from './icons';
+import { vsFilledGearIcon, vsIcon } from './icons';
 import { disposeNotificationStack } from './notifications';
 import { disposeSpeedPopup } from './popup';
 import { refreshDiagnosticStatus } from './settings/diag-status';
@@ -157,14 +162,25 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   gearWrapper.appendChild(gearBtn);
   gearWrapper.appendChild(settingsMenu);
 
-  // Brand marker removed in 0.3.7 — the chevrons-up icon was a purely
-  // decorative "this is the extension" identity hint that users found
-  // confusing and inert (no click target, no meaning). The gear button
-  // is identity enough; users who want to verify which extension drew
-  // the panel can hover the gear (its title attribute names the
-  // extension).
+  // Audit 2026-05-10: explicit "save as default" pin button. Click =
+  // setGlobal(currentSpeed). Discoverable alternative to the
+  // double-click-on-preset shortcut for power users.
+  const pinBtn = document.createElement('button');
+  pinBtn.type = 'button';
+  pinBtn.className = 'vs-pin-button';
+  pinBtn.setAttribute('aria-label', ctx.i18n.t('panel.pin.aria'));
+  pinBtn.title = ctx.i18n.t('panel.pin.tooltip');
+  pinBtn.appendChild(vsIcon('bookmark', 14));
+  ctx.cleanup.addEventListener(pinBtn, 'click', () => {
+    const speed = ctx.speedStore.current();
+    if (Number.isFinite(speed)) {
+      void setGlobal(ctx, speed);
+    }
+  });
+
   root.appendChild(buttonsRow);
   root.appendChild(sliderContainer);
+  root.appendChild(pinBtn);
   root.appendChild(gearWrapper);
 
   // ----- Tab state preserved across rerenders -----
@@ -221,7 +237,10 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       pendingSpeed = null;
       const value = parseFloat(sliderInput.value);
       if (Number.isFinite(value)) {
-        void setSpeed(ctx, value);
+        // Audit 2026-05-10: slider release applies as TEMPORARY (one-shot)
+        // — same as a single button click. Persistent default is set
+        // explicitly via the pin button or double-click on a preset.
+        void setTemporary(ctx, value);
       }
     });
     // Mobile: stop the page from scrolling while the user drags the slider

@@ -99,6 +99,8 @@ export const I18N_DICT = {
     // Single line so the browser tooltip doesn't blow up.
     'panel.button.tooltip':
       'Click — temporary speed for this video. Double-click — save as default.',
+    'panel.pin.tooltip': 'Save current speed as default for new videos',
+    'panel.pin.aria': 'Save current speed as default',
     'menu.help.tip': 'Open the welcome page',
     'general.slider_pos': 'Slider position',
     'general.pos.right': 'Right',
@@ -371,6 +373,8 @@ export const I18N_DICT = {
 
     'panel.button.tooltip':
       'Клик — временно для этого видео. Двойной клик — сохранить как основную.',
+    'panel.pin.tooltip': 'Сохранить текущую скорость как основную для новых видео',
+    'panel.pin.aria': 'Сохранить текущую скорость как основную',
     'menu.help.tip': 'Открыть страницу с подсказками',
     'general.slider_pos': 'Положение ползунка',
     'general.pos.right': 'Справа',

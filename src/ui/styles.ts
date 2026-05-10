@@ -946,6 +946,37 @@ html[data-vs-theme="light"] .speed-value::after {
   border-top-color: rgba(255, 255, 255, 0.96);
 }
 
+/* Audit 2026-05-10: explicit "save current speed as default" button.
+   Same circle/size as the gear; accent halo on hover signals the
+   persistence semantics. Bookmark icon mirrors the in-button
+   saved-speed indicator. */
+.vs-pin-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--vs-bg-button);
+  color: var(--vs-button-text);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.vs-pin-button svg {
+  width: 14px;
+  height: 14px;
+}
+.vs-pin-button:hover {
+  background: var(--vs-bg-button-hover);
+  box-shadow: 0 0 12px 2px rgba(var(--vs-accent-rgb), 0.4);
+  color: var(--vs-accent);
+}
+.vs-pin-button:active {
+  transform: scale(0.92);
+}
+
 /* Gear -- circular icon button. Matches the original userscript
    .settings-button (28x28 circle, 16px SVG, rotates 60deg on hover). */
 .vs-gear-wrapper {

@@ -4,6 +4,21 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.15] — 2026-05-10
+
+### Behaviour change
+
+- **Slider release applies as TEMPORARY (one-shot) instead of
+  persisting as the default.** Dragging the slider for the current
+  video no longer locks that value as the saved default. To set the
+  default explicitly, use the new pin button or double-click a preset.
+
+### Added
+
+- **Pin button — "Save current speed as default".** Bookmark-icon
+  button next to the gear; click saves the current speed as the
+  default for new videos (`setGlobal`).
+
 ## [0.3.14] — 2026-05-10
 
 ### Bug fixes (root-cause, for real)
