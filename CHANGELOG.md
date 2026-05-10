@@ -4,6 +4,15 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.10] — 2026-05-10
+
+### Layout
+
+- **Auto-wrap on narrow viewports.** The panel + speed-buttons row now
+  wrap to multiple lines when the user's chosen `sliderPosition`
+  doesn't fit on one line, instead of overflowing into adjacent host
+  page content.
+
 ## [0.3.9] — 2026-05-10
 
 Continuation of the audit-driven cleanup that started in 0.3.8.

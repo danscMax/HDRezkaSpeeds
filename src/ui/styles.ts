@@ -482,7 +482,12 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
 .vs-panel {
   display: flex;
   align-items: center;
+  /* Audit 2026-05-10: allow wrap on narrow viewports instead of
+     overflowing into the host page's adjacent columns. Preserves
+     user's chosen sliderPosition. */
+  flex-wrap: wrap;
   gap: 16px;
+  row-gap: 8px;
   padding: 0;
   /* Auto horizontal margins center the panel within its parent column. On
      YouTube's narrow-viewport layout (parent retains a desktop min-width
@@ -639,8 +644,12 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
+  /* Audit 2026-05-10: allow buttons to wrap when even the buttons-only
+     row exceeds available width. row-gap matches the panel's. */
+  flex-wrap: wrap;
+  row-gap: 4px;
+  flex-shrink: 1;
+  min-width: 0;
   /* Subtle surface so the pill row reads as a unit rather than as
      pills "floating in the air" on near-black HDRezka backgrounds
      (audit MAJ-13). The light-theme override below softens it. */
