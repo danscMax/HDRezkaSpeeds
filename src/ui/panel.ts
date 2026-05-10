@@ -278,18 +278,27 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
 
   function adjustMenuPosition(): void {
     if (!isMenuOpen()) return;
-    // Audit 2026-05-09 perf P1: batch all reads first, then all writes.
-    // The previous interleaved sequence triggered up to 4 forced layouts
-    // per call.
+
+    // Audit 2026-05-10 root-cause: clear inline overrides BEFORE
+    // measuring. settingsMenu.scrollHeight reflects the current
+    // (clamped) layout, so reading it without first clearing
+    // max-height would return the previous-call's clamp value, not
+    // the natural content height. That made `naturalH > room`
+    // misfire and the menu would alternate between clamped and
+    // unclamped on each call — visually it lost its top portion
+    // (header + tabs scrolled past the viewport top) and then
+    // "self-recovered" on the next pass.
+    settingsMenu.removeAttribute('data-vs-flip');
+    settingsMenu.removeAttribute('data-vs-flip-y');
+    settingsMenu.style.removeProperty('max-height');
+    settingsMenu.style.removeProperty('left');
+    settingsMenu.style.removeProperty('right');
+
     const PAD = 8;
     const wrapperRect = gearWrapper.getBoundingClientRect();
     const gearRect = gearBtn.getBoundingClientRect();
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
-    let needFreezeFlip = frozenFlipY === null;
-    if (needFreezeFlip) {
-      settingsMenu.removeAttribute('data-vs-flip-y');
-    }
     const menuRect = settingsMenu.getBoundingClientRect();
     const menuW = settingsMenu.offsetWidth || menuRect.width;
     const naturalH = settingsMenu.scrollHeight;
@@ -305,29 +314,23 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
         absLeft = Math.max(PAD, viewportW - menuW - PAD);
       }
     }
-    if (needFreezeFlip) {
+    if (frozenFlipY === null) {
       if (menuRect.bottom > viewportH - 4 && spaceAbove > spaceBelow) {
         frozenFlipY = 'up';
       } else {
         frozenFlipY = 'down';
       }
-      needFreezeFlip = false;
     }
     const room = frozenFlipY === 'up' ? spaceAbove : spaceBelow;
     const needsMaxHeight = naturalH > room && room > 0;
 
-    settingsMenu.removeAttribute('data-vs-flip');
     settingsMenu.style.left = `${absLeft - wrapperRect.left}px`;
     settingsMenu.style.right = 'auto';
     if (frozenFlipY === 'up') {
       settingsMenu.setAttribute('data-vs-flip-y', 'up');
-    } else {
-      settingsMenu.removeAttribute('data-vs-flip-y');
     }
     if (needsMaxHeight) {
       settingsMenu.style.maxHeight = `${room}px`;
-    } else {
-      settingsMenu.style.removeProperty('max-height');
     }
   }
 

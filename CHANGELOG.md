@@ -4,6 +4,20 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.14] — 2026-05-10
+
+### Bug fixes (root-cause, for real)
+
+- **Settings menu: clear inline overrides before measuring.**
+  `adjustMenuPosition()` was reading `settingsMenu.scrollHeight` while
+  a stale inline `max-height` from the previous call clamped the
+  height. `scrollHeight` reflected the clamp, not the natural content,
+  so the `naturalH > room` check misfired and the menu alternated
+  between clamped and unclamped on each layout switch — that was the
+  visible "header keeps disappearing then self-recovering" bug. Fixed
+  by clearing all inline overrides at the very top of the function,
+  then taking a single honest measurement.
+
 ## [0.3.13] — 2026-05-10
 
 ### Bug fixes (root-cause)
