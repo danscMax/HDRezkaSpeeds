@@ -514,6 +514,13 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   position: static;
   animation: vs-fade-in 0.3s ease;
 }
+.vs-panel.vs-panel--pending {
+  /* Audit 2026-05-10: while the host page is still rendering its
+     loading skeleton, keep the panel invisible. panel.ts removes
+     vs-panel--pending after host hydration via MutationObserver
+     OR window.load + 100ms OR a 1500ms hard timeout. */
+  visibility: hidden;
+}
 
 /* sliderPosition='bottom' -- buttons + gear share the top row; slider
    takes its own row below them. Mirrors .user.js:2873-2877 layout-bottom

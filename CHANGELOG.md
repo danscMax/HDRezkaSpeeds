@@ -4,6 +4,25 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.17] — 2026-05-10
+
+### Bug fixes
+
+- **Buttons visually cropped at the bottom during page load.** During
+  the host's loading-skeleton state HDRezka briefly applies tight
+  layout/clip rules around the player column, and the panel rendered
+  into that subtree before host hydration would show with its bottom
+  third sliced off for a few hundred ms. Mirrors the VideoSpeeds fix.
+
+  `panel.ts` now creates the root with `vs-panel--pending` (CSS:
+  `visibility: hidden`) and calls `scheduleHostHydrationReveal`,
+  which removes the class as soon as any of these fires: the page's
+  `h1` has non-empty text, a `MutationObserver` observes that
+  transition, `window.load` + 100 ms grace, or a 1500 ms hard
+  timeout. All listeners are wired through global cleanup.
+  `visibility: hidden` keeps the panel in flow so reveal does not
+  reflow the page.
+
 ## [0.3.16] — 2026-05-10
 
 ### Bug fixes

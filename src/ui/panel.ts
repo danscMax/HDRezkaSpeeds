@@ -75,6 +75,82 @@ export interface CreatePanelOptions {
   diagActions?: DiagActions;
 }
 
+/**
+ * Reveal the panel after the host page finishes its initial loading
+ * skeleton. Audit 2026-05-10. See VideoSpeeds twin for the full rationale.
+ */
+function scheduleHostHydrationReveal(root: HTMLElement, ctx: AppContext): void {
+  let revealed = false;
+  const reveal = (): void => {
+    if (revealed) return;
+    revealed = true;
+    root.classList.remove('vs-panel--pending');
+  };
+
+  // HDRezka usually loads the title quickly; check a generic title
+  // heuristic — heading with non-empty text inside the player column.
+  const checkHostHydrated = (): boolean => {
+    try {
+      const t = document.querySelector('h1');
+      if (t && (t.textContent ?? '').trim().length > 0) {
+        reveal();
+        return true;
+      }
+    } catch {
+      /* swallow */
+    }
+    return false;
+  };
+
+  if (checkHostHydrated()) return;
+
+  let mo: MutationObserver | null = null;
+  try {
+    mo = new MutationObserver(() => {
+      if (checkHostHydrated()) {
+        mo?.disconnect();
+        mo = null;
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+    ctx.cleanup.add(() => {
+      try {
+        mo?.disconnect();
+      } catch {
+        /* swallow */
+      }
+    });
+  } catch {
+    /* fall through to timer */
+  }
+
+  const onLoad = (): void => {
+    setTimeout(() => {
+      reveal();
+      mo?.disconnect();
+      mo = null;
+    }, 100);
+  };
+  if (document.readyState === 'complete') {
+    onLoad();
+  } else {
+    window.addEventListener('load', onLoad, { once: true });
+    ctx.cleanup.add(() => {
+      try {
+        window.removeEventListener('load', onLoad);
+      } catch {
+        /* swallow */
+      }
+    });
+  }
+
+  ctx.cleanup.setTimeout(() => {
+    reveal();
+    mo?.disconnect();
+    mo = null;
+  }, 1500);
+}
+
 export function createPanel(opts: CreatePanelOptions): PanelHandle {
   const { ctx, scriptVersion } = opts;
   const bounds = speedBoundsFor(ctx.site);
@@ -96,8 +172,11 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   };
 
   const root = document.createElement('div');
-  root.className = 'vs-panel';
+  // Audit 2026-05-10: vs-panel--pending hides the panel until the host
+  // page finishes initial loading skeleton. See scheduleHostHydrationReveal.
+  root.className = 'vs-panel vs-panel--pending';
   root.dataset.vsSite = ctx.site;
+  scheduleHostHydrationReveal(root, ctx);
 
   // Pinned = the saved/default speed when rememberSpeed is on. Used
   // to decorate that button with a small dot so the user sees which
