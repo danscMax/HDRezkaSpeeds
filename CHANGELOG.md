@@ -4,6 +4,43 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.9] — 2026-05-10
+
+Continuation of the audit-driven cleanup that started in 0.3.8.
+
+### Visual
+
+- **Pluralized "issues found" headline** in EN diagnostic tab.
+
+### Accessibility / UX
+
+- **Settings menu announced as `dialog`** (was `menu`); + `aria-expanded`
+  on the gear button.
+- **Detached anchor for JSON-export.**
+- **Production console hygiene** — info logs gated behind DEV.
+
+### Bug fixes
+
+- **KillSwitch propagation across instances** — popup-toggles take
+  effect without page reload.
+- **HealthChecker re-arms** when killSwitch.healthCheckEnabled
+  transitions false → true post-bootstrap.
+- **Cache `persist()` chain bounded** — fixes memory leak on tight
+  `bumpSuccess` loops.
+- **Firefox clipboard fallback** to `document.execCommand('copy')`.
+- **Welcome page ResizeObserver disconnect** on language switch.
+- **Defensive `try/catch` around `isHealthy()`** in diag-status.
+
+### Performance
+
+- `adjustMenuPosition` reads/writes batched (P1).
+- `heuristicScan` for `playerContainer` is now an O(depth) ancestor
+  walk instead of O(n_elements) × subtree query (P2).
+- Settings handlers no longer double-rerender — 11 redundant
+  `deps.rerender()` calls removed (P3).
+- `translator.t()` uses `split().join()` for placeholders (P4).
+- Single shared `formatSpeed()` in `ui/format.ts`.
+
 ## [0.3.8] — 2026-05-09
 
 Outcome of a multi-agent audit pass against the entire codebase.
