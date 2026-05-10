@@ -19,10 +19,16 @@ export function detectBrowserLang(): Lang {
         ? navigator.languages
         : [(typeof navigator !== 'undefined' && navigator.language) || 'en'];
 
+    // Audit 2026-05-09 Q7: match against the BCP-47 primary subtag, not
+    // a string prefix. `code.startsWith('en')` would match imaginary
+    // tags like `eng-*` (or future `en` collisions), and once
+    // SUPPORTED_LANGS contains both `zh` and `zh-Hant` the OR-prefix
+    // would silently pick whichever sat first in the array.
     for (const raw of list) {
       const code = String(raw ?? '').toLowerCase();
+      const primary = code.split(/[-_]/)[0] ?? code;
       for (const lang of SUPPORTED_LANGS) {
-        if (code.startsWith(lang)) return lang;
+        if (primary === lang) return lang;
       }
     }
   } catch {

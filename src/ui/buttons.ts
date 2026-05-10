@@ -8,6 +8,8 @@
  */
 
 import { h } from './dom-h';
+// formatSpeedLabel uses the shared formatter (audit 2026-05-09 Q6).
+import { formatSpeed as formatSpeedLabel } from './format';
 
 export interface ButtonsRowOptions {
   /** Speeds to render as buttons; usually derived from per-site bounds. */
@@ -117,7 +119,3 @@ function isSameSpeed(a: number, b: number): boolean {
  * get the minimal decimal form ("1.5x", "1.25x"). Avoids visual noise
  * like "1.00x" or "1.50x" while keeping precision for the in-between values.
  */
-function formatSpeedLabel(s: number): string {
-  if (Number.isInteger(s)) return `${s}x`;
-  return `${s.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}x`;
-}

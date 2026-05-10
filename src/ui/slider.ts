@@ -9,6 +9,8 @@
  */
 
 import { h } from './dom-h';
+// formatSliderLabel uses the shared formatter (audit 2026-05-09 Q6).
+import { formatSpeed as formatSliderLabel } from './format';
 
 const CONTAINER_CLASS = 'speed-slider-container';
 const INPUT_CLASS = 'speed-slider';
@@ -102,9 +104,6 @@ export function updateSliderFill(input: HTMLInputElement): void {
   }
 }
 
-function formatSliderLabel(value: number): string {
-  return `${value.toFixed(2).replace(/\.?0+$/, '')}x`;
-}
 
 /**
  * Imperative setter -- updates value + fill + label without firing the

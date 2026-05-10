@@ -61,7 +61,14 @@ function projectReport(ctx: AppContext): DiagViewModel {
     };
   }
 
-  if (ctx.diagnostics.isHealthy()) {
+  // Audit 2026-05-09 Q4: defensive try/catch around isHealthy().
+  let healthy = false;
+  try {
+    healthy = ctx.diagnostics.isHealthy();
+  } catch {
+    healthy = false;
+  }
+  if (healthy) {
     const time = readString(report, 'lastCheckTime') ?? '';
     return {
       state: 'ok',
@@ -86,9 +93,12 @@ function projectReport(ctx: AppContext): DiagViewModel {
   // visible line break (audit B3.1).
   const detail =
     issues.length > 0 ? issues.map((s) => `• ${s}`).join('\n') : t('diag.status.try_again');
+  // Audit 2026-05-09 Q2: pluralized key.
+  const issuesCountKey =
+    issues.length === 1 ? 'diag.status.issues_count.one' : 'diag.status.issues_count.other';
   return {
     state: 'warn',
-    headline: t('diag.status.issues_count', { count: issues.length }),
+    headline: t(issuesCountKey, { count: issues.length }),
     detail,
   };
 }

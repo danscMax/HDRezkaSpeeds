@@ -141,13 +141,17 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   // aria-label for screen readers; title gives the same affordance to
   // sighted hover users.
   gearBtn.setAttribute('aria-label', ctx.i18n.t('menu.title'));
-  gearBtn.setAttribute('aria-haspopup', 'menu');
+  // Audit 2026-05-09 a11y Q1: dialog with form inputs, not menu.
+  gearBtn.setAttribute('aria-haspopup', 'dialog');
   gearBtn.setAttribute('aria-expanded', 'false');
   gearBtn.title = ctx.i18n.t('menu.title');
   gearBtn.appendChild(vsFilledGearIcon(16));
 
   const settingsMenu = document.createElement('div');
   settingsMenu.className = 'settings-menu';
+  settingsMenu.setAttribute('role', 'dialog');
+  settingsMenu.setAttribute('aria-modal', 'false');
+  settingsMenu.setAttribute('aria-label', ctx.i18n.t('menu.title'));
   settingsMenu.setAttribute('aria-hidden', 'true');
 
   gearWrapper.appendChild(gearBtn);
@@ -351,6 +355,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   function closeMenu(): void {
     settingsMenu.classList.remove('show');
     settingsMenu.setAttribute('aria-hidden', 'true');
+    gearBtn.setAttribute('aria-expanded', 'false');
     // Reset the frozen flip so the next open re-decides based on the
     // current viewport (the user may have scrolled or resized).
     frozenFlipY = null;
@@ -364,6 +369,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       rerenderSettings();
       settingsMenu.classList.add('show');
       settingsMenu.setAttribute('aria-hidden', 'false');
+      gearBtn.setAttribute('aria-expanded', 'true');
       adjustMenuPosition();
     }
   });

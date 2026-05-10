@@ -51,14 +51,11 @@ export function exportSettingsToFile(ctx: AppContext): void {
   const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
 
+  // Audit 2026-05-09 Q3: detached anchor — no host-page DOM mutation.
   const a = document.createElement('a');
   a.href = url;
   a.download = `${FILENAME_PREFIX}-${ctx.site}-${todayIso()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // Revoke after the click handler fires; small delay so the browser has
-  // time to start the download.
+  a.dispatchEvent(new MouseEvent('click', { bubbles: false, cancelable: true }));
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 

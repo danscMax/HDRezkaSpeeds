@@ -452,7 +452,10 @@ function applyReportToMenu(
     headlineEl.textContent = i18n.t('diag.status.issue_single', { issue: issues[0] ?? '' });
     detailEl.textContent = i18n.t('diag.status.try_again');
   } else {
-    headlineEl.textContent = i18n.t('diag.status.issues_count', { count: issues.length });
+    // Audit 2026-05-09 Q2: pluralized key.
+    const issuesCountKey =
+      issues.length === 1 ? 'diag.status.issues_count.one' : 'diag.status.issues_count.other';
+    headlineEl.textContent = i18n.t(issuesCountKey, { count: issues.length });
     detailEl.textContent =
       issues.length > 0 ? issues.map((s) => `• ${s}`).join('\n') : i18n.t('diag.status.try_again');
   }

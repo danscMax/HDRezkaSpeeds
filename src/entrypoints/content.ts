@@ -35,7 +35,10 @@ export default defineContentScript({
   runAt: 'document_idle',
   allFrames: false,
   async main(ctx) {
-    console.info('[HDREZKA-SPEEDS] content script loaded on', location.hostname);
+    // Audit 2026-05-09 Q5: gate noisy info logs behind DEV.
+    if (import.meta.env.DEV) {
+      console.info('[HDREZKA-SPEEDS] content script loaded on', location.hostname);
+    }
     // `signal` ties the listener's lifetime to ctx (WXT invalidates on
     // HMR / extension reload). Without it, dev rebuilds accumulate one
     // unhandledrejection filter per cycle.
