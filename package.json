@@ -1,6 +1,6 @@
 {
   "name": "hdrezka-speeds",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "description": "HDRezka Speed Controller — speed buttons, slider, hotkeys, diagnostics. Bilingual (EN/RU).",
   "private": true,
   "license": "GPL-3.0-or-later",

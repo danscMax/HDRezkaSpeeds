@@ -4,6 +4,15 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.3.12] — 2026-05-10
+
+### Bug fixes
+
+- **Settings menu: sticky header + tabs.** Restructured the modal so
+  `.vs-menu-body` owns `overflow-y: auto` while header + tabs stay
+  pinned via `flex-shrink: 0`. Previously the whole modal scrolled,
+  letting tall tabs push header + tabs out of view.
+
 ## [0.3.11] — 2026-05-10
 
 ### Bug fixes

@@ -1066,21 +1066,10 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   box-shadow: var(--vs-menu-shadow-1), var(--vs-menu-shadow-2);
   z-index: 999999;
   display: none;
-  /* Internal vertical scroll engages once panel.ts caps max-height for a
-     viewport that can't fit the natural modal height. Horizontal stays
-     clipped so a wide row never escapes the rounded corners. */
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--vs-menu-scrollbar) transparent;
+  /* Audit 2026-05-10: scroll moved to .vs-menu-body. Header + tabs
+     stay pinned via flex-shrink:0; the body grows + scrolls. */
+  overflow: hidden;
   font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-.settings-menu::-webkit-scrollbar {
-  width: 6px;
-}
-.settings-menu::-webkit-scrollbar-thumb {
-  background: var(--vs-menu-scrollbar);
-  border-radius: 3px;
 }
 .settings-menu.show {
   display: flex;
@@ -1138,6 +1127,24 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
 }
 /* Header bar: padded + bottom border separating it from the tabs
    container (parity .user.js:3084-3114). */
+/* Audit 2026-05-10: scroll container — header+tabs stay pinned, body
+   scrolls internally. min-height:0 lets the flex child shrink below
+   its content size. */
+.vs-menu-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vs-menu-scrollbar) transparent;
+}
+.vs-menu-body::-webkit-scrollbar {
+  width: 6px;
+}
+.vs-menu-body::-webkit-scrollbar-thumb {
+  background: var(--vs-menu-scrollbar);
+  border-radius: 3px;
+}
 .vs-menu-header {
   display: flex;
   align-items: center;

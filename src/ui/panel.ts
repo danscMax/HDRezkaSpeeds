@@ -397,9 +397,6 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     menuRegistry = new CleanupRegistry();
     const menuCtx: AppContext = { ...ctx, cleanup: menuRegistry };
 
-    // Audit 2026-05-10 bug: replaceChildren preserves scrollTop in
-    // some browsers — reset so the rerendered menu starts from the top.
-    settingsMenu.scrollTop = 0;
 
     settingsMenu.replaceChildren(
       renderSettingsMenu({

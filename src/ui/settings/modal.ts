@@ -615,12 +615,17 @@ export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
     ),
   );
 
-  return fragment(
-    header,
-    tabs,
+  // Audit 2026-05-10: wrap tab panels in a dedicated scroll container
+  // (.vs-menu-body) so header + tabs stay pinned at the top regardless
+  // of how tall the active tab grows.
+  const body = h(
+    'div',
+    { class: 'vs-menu-body' },
     generalTab(opts, activeTab !== 'general'),
     hotkeysTab(opts, activeTab !== 'hotkeys'),
     diagTab(opts, activeTab !== 'diag'),
     donateTab(opts, activeTab !== 'donate'),
   );
+
+  return fragment(header, tabs, body);
 }
