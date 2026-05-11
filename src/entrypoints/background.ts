@@ -24,4 +24,36 @@ export default defineBackground(() => {
     const url = browser.runtime.getURL('/welcome.html');
     void browser.tabs.create({ url });
   });
+
+  // Audit 2026-05-11: open-extension-page proxy. Content scripts can't
+  // navigate to chrome-extension:// URLs via window.open — the page's
+  // own `window` (origin hdrezka.ag / rezka.ag / etc.) is treated as
+  // the initiator and the target is not in `web_accessible_resources`,
+  // so the browser silently drops the open. Routing through the
+  // background SW works because the SW owns chrome.tabs and is
+  // allowed to create tabs at extension URLs without the `tabs`
+  // permission. Reachable from the in-player Settings → feedback CTA.
+  // Strict allow-list of paths the proxy will open. WXT's getURL is
+  // statically typed to known public paths, so we narrow on the wire
+  // before resolving.
+  const ALLOWED_PAGES = new Set(['/feedback.html', '/welcome.html']);
+  browser.runtime.onMessage.addListener(
+    (
+      msg: unknown,
+      sender,
+    ): Promise<{ ok: boolean; error?: string }> | undefined => {
+      if (!msg || typeof msg !== 'object') return undefined;
+      const m = msg as { type?: unknown; path?: unknown };
+      if (m.type !== 'open-extension-page') return undefined;
+      if (typeof m.path !== 'string' || !ALLOWED_PAGES.has(m.path)) {
+        return Promise.resolve({ ok: false, error: 'invalid_path' });
+      }
+      const url = browser.runtime.getURL(m.path as '/feedback.html' | '/welcome.html');
+      void sender;
+      return browser.tabs
+        .create({ url })
+        .then(() => ({ ok: true }))
+        .catch((e: unknown) => ({ ok: false, error: String(e) }));
+    },
+  );
 });

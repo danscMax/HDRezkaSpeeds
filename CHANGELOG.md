@@ -4,6 +4,20 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.4.3] — 2026-05-11
+
+### Bug fix
+
+- **"Связаться с автором" CTA in the in-player Settings did nothing.**
+  Mirror of the VideoSpeeds 0.4.3 fix. Clicking the button under the
+  gear icon silently failed because `window.open(chrome-extension://
+  feedback.html)` from a content script context is blocked when the
+  target URL isn't in `web_accessible_resources` — the page's own
+  origin (hdrezka.ag / rezka.ag / etc.) is the navigation initiator.
+  Now routed through the background SW via
+  `runtime.sendMessage({ type: 'open-extension-page', ... })` with
+  a strict path allow-list.
+
 ## [0.4.2] — 2026-05-11
 
 Wave 6 — remaining Low-priority items from the 2026-05-11 audit.

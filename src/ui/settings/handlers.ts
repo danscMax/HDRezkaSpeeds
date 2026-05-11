@@ -23,25 +23,31 @@ import type { ActiveTab } from './modal';
 /**
  * Open the in-extension feedback page in a new tab.
  *
- * `runtime.getURL` resolves to the absolute moz-extension:// /
- * chrome-extension:// URL of the bundled feedback.html; we then call
- * `window.open` because `browser.tabs.create` is NOT exposed in
- * content-script contexts. The user-gesture from the original click
- * carries through, so the popup-blocker doesn't intervene.
+ * Audit 2026-05-11: route through the background SW. From content-
+ * script context, `window.open(chrome-extension://feedback.html)` is
+ * silently dropped — the page's window (origin hdrezka.ag /
+ * rezka.ag / etc.) is the navigation initiator and the target URL
+ * is not in `web_accessible_resources`, so the browser refuses.
+ * Asking the background SW to call `browser.tabs.create` works
+ * because the SW is allowed to open extension URLs without the
+ * `tabs` permission.
  *
- * The earlier implementation tried `browser.tabs.create` first and
- * fell back to `window.open('feedback.html')` — but that fallback
- * fired EVERY time (since tabs is unavailable) and `'feedback.html'`
- * is a relative URL the host page resolves against its own origin,
- * landing the user at rezka.ag/.../feedback.html → 404.
+ * From the toolbar popup the same handler runs but the popup's own
+ * origin matches the extension's, so the indirection is technically
+ * unnecessary there. We use it uniformly to keep one call path.
  */
 function openFeedbackPage(): void {
-  try {
-    const url = browser.runtime.getURL('/feedback.html');
-    window.open(url, '_blank');
-  } catch (e) {
-    console.warn('[HDREZKA-SPEEDS] Failed to open feedback page', e);
-  }
+  void browser.runtime
+    .sendMessage({ type: 'open-extension-page', path: '/feedback.html' })
+    .then((res: unknown) => {
+      const ok = !!(res && typeof res === 'object' && (res as { ok?: boolean }).ok);
+      if (!ok) {
+        console.warn('[HDREZKA-SPEEDS] background did not open feedback tab', res);
+      }
+    })
+    .catch((e: unknown) => {
+      console.warn('[HDREZKA-SPEEDS] Failed to open feedback page', e);
+    });
 }
 
 export interface SettingsHandlersDeps {
