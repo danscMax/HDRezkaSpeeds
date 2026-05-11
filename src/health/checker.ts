@@ -216,7 +216,12 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
     if (pollIntervalId !== null) return;
     pollIntervalId = ctx.cleanup.setInterval(() => {
       if (!deps.isHealthCheckEnabled()) {
-        stopPolling();
+        // Audit 2026-05-11 W1.2 (REL-002): auto-trip path must reset
+        // started + re-arm the watcher so user re-enable resumes
+        // polling. Previously stopPolling() alone left started=true
+        // and no watcher → checker dead until page reload.
+        stop();
+        armReEnableWatcher();
         return;
       }
       // Skip the tick when the tab is hidden. Background tabs don't need

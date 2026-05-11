@@ -42,13 +42,12 @@ interface PersistedShape {
 }
 
 export function createKillSwitch(ctx: AppContext): KillSwitch {
-  // Settings.healing isn't a declared field on Settings (we don't persist
-  // KillSwitch state by default; defaults to {true,true}). Read defensively
-  // through the store; if the field is missing we use defaults.
+  // Audit 2026-05-11 W1.3 (SEC2-001): `healing` is now a declared
+  // Settings field (typed in storage/types.ts). Read it directly; the
+  // optional shape gives us safe defaults ({true,true}) when nothing
+  // has been persisted yet.
   function read(): PersistedShape {
-    const raw = (ctx.settingsStore.get() as unknown as Record<string, unknown>).healing;
-    if (raw && typeof raw === 'object') return raw as PersistedShape;
-    return {};
+    return ctx.settingsStore.get().healing ?? {};
   }
 
   let state: KillSwitchSnapshot = {
@@ -62,9 +61,7 @@ export function createKillSwitch(ctx: AppContext): KillSwitch {
   // boolean forever and the user had to reload the page for the toggle
   // to take effect. Refresh local state from every store change.
   const offSub = ctx.settingsStore.subscribe((next) => {
-    const live = (next as unknown as Record<string, unknown>).healing;
-    const persisted: PersistedShape =
-      live && typeof live === 'object' ? (live as PersistedShape) : {};
+    const persisted: PersistedShape = next.healing ?? {};
     const incoming: KillSwitchSnapshot = {
       discoveryEnabled: persisted.discoveryEnabled !== false,
       healthCheckEnabled: persisted.healthCheckEnabled !== false,
@@ -98,13 +95,13 @@ export function createKillSwitch(ctx: AppContext): KillSwitch {
     // of disk, which silently undid user toggles on the next page load.
     const prev = state;
     state = { ...state, ...patch };
-    const live = (ctx.settingsStore.get() as unknown as Record<string, unknown>).healing;
-    const merged = { ...(typeof live === 'object' && live ? live : {}), ...patch };
-    // Use the store's update so subscribers get notified, even though
-    // `healing` isn't a declared field. The validator in Wave 1.4 ignores
-    // unknown fields on init, but update() merges them as-is.
+    const live = ctx.settingsStore.get().healing;
+    const merged = { ...(live ?? {}), ...patch };
+    // Audit 2026-05-11 W1.3 (SEC2-001): `healing` is now a declared
+    // Settings field with its own sub-validator in sanitizePatch — the
+    // patch reaches disk and survives page reloads.
     try {
-      await ctx.settingsStore.update({ healing: merged } as never);
+      await ctx.settingsStore.update({ healing: merged });
     } catch (e) {
       state = prev;
       ctx.logger.warn('KillSwitch: persist rejected, reverting in-memory state', e);

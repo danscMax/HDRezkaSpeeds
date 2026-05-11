@@ -103,32 +103,35 @@ export function createSettingsStore(adapter: StorageAdapter): SettingsStoreImpl 
     },
 
     async update(patch: Partial<Settings>): Promise<void> {
-      const current = requireInit();
       // Sanitize incoming patch before merge -- update() is reachable from
       // the import-settings flow (user-supplied JSON) and from the TM-
       // migration scan; both can carry partly malformed sub-shapes.
       // Trusted UI callers pay a tiny validation tax for a meaningful
       // safety net (audit M11).
       const safe = sanitizePatch(patch);
-      const previous = current;
-      const next = { ...current, ...safe };
-      state = next;
-      notify();
-      if (!storageKey) return;
+      if (!storageKey) {
+        // No-storage path (popup with stub) — synchronous in-memory
+        // update + notify. No rollback concern since nothing to persist.
+        const current = requireInit();
+        state = { ...current, ...safe };
+        notify();
+        return;
+      }
       const myStorageKey = storageKey;
+      // Audit 2026-05-11 W1.1 (REL-001): serialize updates through
+      // writeChain. Capture `previous` AT WRITE TIME (not at update()
+      // entry) so concurrent overlapping update() calls don't corrupt
+      // each other's rollback target. Also defers notify() until after
+      // adapter.set() resolves — closes V-F22 (double-notify on
+      // rollback) since failure path now never mutated state.
       const writeOp = writeChain.then(async () => {
-        try {
-          await adapter.set(myStorageKey, next);
-        } catch (e) {
-          // Roll back in-memory state to the pre-update snapshot if the
-          // persist failed AND the live state still equals the value we
-          // were trying to persist.
-          if (state === next) {
-            state = previous;
-            notify();
-          }
-          throw e;
-        }
+        const previous = requireInit();
+        const next: Settings = { ...previous, ...safe };
+        await adapter.set(myStorageKey, next);
+        // Commit only after persist succeeded. If adapter.set throws,
+        // state stays at `previous` — no rollback needed.
+        state = next;
+        notify();
       });
       writeChain = writeOp.catch(() => undefined);
       await writeOp;
@@ -275,6 +278,23 @@ function sanitizePatch(
     out.lastSeenTheme = safe.lastSeenTheme;
   }
   if (safe.__migrated_from_tm === true) out.__migrated_from_tm = true;
+
+  // Audit 2026-05-11 W1.3 (SEC2-001): persist KillSwitch state. Sub-
+  // validator drops anything that isn't a recognized boolean field.
+  if (safe.healing && typeof safe.healing === 'object' && !Array.isArray(safe.healing)) {
+    const healingRaw = safe.healing as Record<string, unknown>;
+    const healingOut: NonNullable<Settings['healing']> = {};
+    for (const k of Object.keys(healingRaw)) {
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+      if (k !== 'discoveryEnabled' && k !== 'healthCheckEnabled') continue;
+      if (typeof healingRaw[k] === 'boolean') {
+        healingOut[k] = healingRaw[k] as boolean;
+      }
+    }
+    if (Object.keys(healingOut).length > 0) {
+      out.healing = healingOut;
+    }
+  }
 
   return out;
 }

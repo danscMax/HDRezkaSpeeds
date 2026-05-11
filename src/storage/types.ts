@@ -74,6 +74,18 @@ export interface Settings {
   lastSeenTheme?: 'dark' | 'light';
   /** Set after a successful one-time TM-import on first run. */
   __migrated_from_tm?: boolean;
+  /**
+   * Defense-in-depth toggles persisted on user action from the Settings →
+   * Diagnostics tab. KillSwitch state mirror — when a user toggles
+   * `discoveryEnabled` or `healthCheckEnabled` off, the value must survive
+   * a page reload (audit 2026-05-11 W1.3 SEC2-001: previously this patch
+   * was dropped by sanitizePatch's whitelist, so toggles never reached
+   * disk and re-enabled themselves on every bootstrap).
+   */
+  healing?: {
+    discoveryEnabled?: boolean;
+    healthCheckEnabled?: boolean;
+  };
 }
 
 /**

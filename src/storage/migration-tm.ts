@@ -74,17 +74,26 @@ export async function runTmMigration(
     // Settings
     const rawSettings = readLocalStorageSafely(keys.settings, result.errors);
     if (rawSettings != null) {
-      try {
-        const parsed = JSON.parse(rawSettings) as Partial<Settings>;
-        // Reject arrays (typeof [] === 'object' would otherwise pass).
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          // SettingsStore.update() merges the patch onto the live state and
-          // re-validates each field (sliderPosition enum, hotkey shapes, etc.).
-          await settingsStore.update(parsed);
-          result.importedKeys.push(keys.settings);
+      // Audit 2026-05-11 W1.4 (SEC-002): page localStorage is attacker-
+      // controlled; cap JSON.parse input at 256 KB to avoid main-thread
+      // freezes from malicious multi-MB payloads on first install.
+      if (rawSettings.length > 256 * 1024) {
+        result.errors.push(
+          `${keys.settings}: payload exceeds 256 KB (${rawSettings.length} bytes), skipping`,
+        );
+      } else {
+        try {
+          const parsed = JSON.parse(rawSettings) as Partial<Settings>;
+          // Reject arrays (typeof [] === 'object' would otherwise pass).
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            // SettingsStore.update() merges the patch onto the live state and
+            // re-validates each field (sliderPosition enum, hotkey shapes, etc.).
+            await settingsStore.update(parsed);
+            result.importedKeys.push(keys.settings);
+          }
+        } catch (e) {
+          result.errors.push(`${keys.settings}: ${describeError(e)}`);
         }
-      } catch (e) {
-        result.errors.push(`${keys.settings}: ${describeError(e)}`);
       }
     }
 
