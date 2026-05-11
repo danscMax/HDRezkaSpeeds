@@ -618,14 +618,20 @@ export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
   // Audit 2026-05-10: wrap tab panels in a dedicated scroll container
   // (.vs-menu-body) so header + tabs stay pinned at the top regardless
   // of how tall the active tab grows.
-  const body = h(
-    'div',
-    { class: 'vs-menu-body' },
-    generalTab(opts, activeTab !== 'general'),
-    hotkeysTab(opts, activeTab !== 'hotkeys'),
-    diagTab(opts, activeTab !== 'diag'),
-    donateTab(opts, activeTab !== 'donate'),
-  );
+  //
+  // Audit 2026-05-11 W2.4 (PERF-001 + PERF-002): only render the
+  // ACTIVE tab. Tab switch re-runs rerenderSettings() so this is a
+  // pure cost reduction. attachSettingsHandlers' querySelectorAll
+  // walks are now scoped to the single active panel automatically.
+  const activePanel =
+    activeTab === 'general'
+      ? generalTab(opts, false)
+      : activeTab === 'hotkeys'
+        ? hotkeysTab(opts, false)
+        : activeTab === 'diag'
+          ? diagTab(opts, false)
+          : donateTab(opts, false);
+  const body = h('div', { class: 'vs-menu-body' }, activePanel);
 
   return fragment(header, tabs, body);
 }

@@ -22,6 +22,13 @@ import type { StorageAdapter } from './adapter';
 export interface CoalescingOptions {
   /** Coalesce window in ms. Default 200ms. */
   flushMs?: number;
+  /**
+   * Audit 2026-05-11 W2.1 (REL-004): per-key write-error surface.
+   * Coalesced writes are best-effort by design, but previously ALL
+   * errors were silently swallowed. This callback is invoked once
+   * per failed flush so the host can log / throttle telemetry.
+   */
+  onWriteError?: (key: string, err: unknown) => void;
 }
 
 const PENDING_SENTINEL = Symbol('vs-coalescing-pending');
@@ -31,6 +38,7 @@ export function createCoalescingAdapter(
   opts: CoalescingOptions = {},
 ): StorageAdapter {
   const flushMs = opts.flushMs ?? 200;
+  const onWriteError = opts.onWriteError;
   const pending = new Map<string, unknown>();
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -41,11 +49,16 @@ export function createCoalescingAdapter(
       const batch = Array.from(pending.entries());
       pending.clear();
       for (const [key, value] of batch) {
-        // Fire writes in parallel; failures are independent. Each
-        // adapter.set already swallows context-invalidated and other
-        // benign cases, so an awaited Promise.all is safe.
-        void inner.set(key, value).catch(() => {
-          /* swallow — coalesced writes are best-effort */
+        // Fire writes in parallel; failures are independent. Surface
+        // non-benign rejects via onWriteError.
+        void inner.set(key, value).catch((err) => {
+          if (onWriteError) {
+            try {
+              onWriteError(key, err);
+            } catch {
+              /* swallow — callback's own throw must not crash flush */
+            }
+          }
         });
       }
     }, flushMs);

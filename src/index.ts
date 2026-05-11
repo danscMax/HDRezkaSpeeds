@@ -123,9 +123,17 @@ export async function bootstrap(
   const adapter = options.adapter ?? createBrowserStorageAdapter();
   const settingsStore = createSettingsStore(adapter);
   // Audit 2026-05-09 perf O1: coalesce speedStore writes (hotkey repeat,
-  // slider drag) into a 200ms window. settingsStore stays uncoalesced
-  // so its rollback-on-failure path (audit C9) sees real rejects.
-  const speedStore = createSpeedStore(createCoalescingAdapter(adapter, { flushMs: 200 }));
+  // slider drag) into a 200ms window. Audit 2026-05-11 W2.1 (REL-004):
+  // surface coalesced write errors so quota-exceeded / runtime-invalidated
+  // failures don't disappear silently.
+  const speedStore = createSpeedStore(
+    createCoalescingAdapter(adapter, {
+      flushMs: 200,
+      onWriteError: (key, err) => {
+        logger.warn(`speedStore coalesced write failed for ${key}`, err);
+      },
+    }),
+  );
   await settingsStore.init(site);
   await speedStore.init(site);
 
@@ -342,12 +350,21 @@ export async function bootstrap(
       const ev = event as KeyboardEvent;
       if (shouldSkipHotkey(ev)) return;
       const hk = settingsStore.getKey('hotkeys');
+      // Audit 2026-05-11 W2.6 (PERF-004): match the hotkey BEFORE
+      // resolving <video>. discovery.resolve() calls
+      // getBoundingClientRect via its validator — every keystroke
+      // used to pay that cost even when the user was typing in a
+      // search field. Reordering keeps the resolve in the matched
+      // branch only.
+      const speedUp = matchesHotkeyArray(ev, hk.speedUp);
+      const speedDown = !speedUp && matchesHotkeyArray(ev, hk.speedDown);
+      if (!speedUp && !speedDown) return;
       const step = settingsStore.getKey('speedStep') ?? SPEED_STEP;
       const v = ctx.discovery.resolve('video') as HTMLVideoElement | null;
-      if (matchesHotkeyArray(ev, hk.speedUp)) {
+      if (speedUp) {
         ev.preventDefault();
         if (v) void setTemporary(ctx, v.playbackRate + step);
-      } else if (matchesHotkeyArray(ev, hk.speedDown)) {
+      } else if (speedDown) {
         ev.preventDefault();
         if (v) void setTemporary(ctx, v.playbackRate - step);
       }
@@ -606,6 +623,19 @@ function installRemovalObserver(
 ): void {
   const parent = panelEl.parentElement;
   if (!parent) return;
+  // Audit 2026-05-11 W2.3 (REL-006): port VS idempotency brand. Without
+  // this guard, rapid episode-change / ad-roll mutation bursts on
+  // HDRezka schedule overlapping insert chains that each install a
+  // sibling observer on the same parent — every childList mutation
+  // then fires the callback N times. Mirror of VideoSpeeds:760-817.
+  type Branded = Element & { __vsRemovalObserverPanel?: HTMLElement };
+  if ((parent as Branded).__vsRemovalObserverPanel === panelEl) return;
+  (parent as Branded).__vsRemovalObserverPanel = panelEl;
+  ctx.cleanup.add(() => {
+    if ((parent as Branded).__vsRemovalObserverPanel === panelEl) {
+      delete (parent as Branded).__vsRemovalObserverPanel;
+    }
+  });
   let lastPrev: Element | null = panelEl.previousElementSibling;
   const observer = new MutationObserver(() => {
     if (panelEl.parentNode !== parent || !document.contains(panelEl)) {
