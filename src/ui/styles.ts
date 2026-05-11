@@ -54,7 +54,11 @@ export function detectAndApplyTheme(
     detectByLuminance(referenceEl ?? container.body, container) ??
     preferredColorScheme(container) ??
     'dark';
-  root.dataset.vsTheme = theme;
+  // Audit 2026-05-11 W6.3 (PERF-008): idempotent write — skip the
+  // observer fire downstream when theme didn't actually change.
+  if (root.dataset.vsTheme !== theme) {
+    root.dataset.vsTheme = theme;
+  }
 }
 
 /**

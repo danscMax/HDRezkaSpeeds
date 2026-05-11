@@ -312,14 +312,30 @@ export async function bootstrap(
   // 9a. Wire the theme watcher AFTER the panel exists.
   const reapplyTheme = installThemeWatcher(site, ctx, () => panel.element);
 
+  // Audit 2026-05-11 W6.3 (REL-014 + PERF-008): debounce by 500 ms
+  // so a host-page class-shuffle doesn't trigger a write storm.
+  let persistThemeTimer: ReturnType<typeof setTimeout> | null = null;
   const persistTheme = (): void => {
     const theme = document.documentElement.dataset.vsTheme;
     if (theme !== 'dark' && theme !== 'light') return;
     if (settingsStore.getKey('lastSeenTheme') === theme) return;
-    void settingsStore.update({ lastSeenTheme: theme }).catch(() => {
-      /* fire-and-forget */
-    });
+    if (persistThemeTimer !== null) clearTimeout(persistThemeTimer);
+    persistThemeTimer = setTimeout(() => {
+      persistThemeTimer = null;
+      const liveTheme = document.documentElement.dataset.vsTheme;
+      if (liveTheme !== 'dark' && liveTheme !== 'light') return;
+      if (settingsStore.getKey('lastSeenTheme') === liveTheme) return;
+      void settingsStore.update({ lastSeenTheme: liveTheme }).catch(() => {
+        /* fire-and-forget */
+      });
+    }, 500);
   };
+  cleanup.add(() => {
+    if (persistThemeTimer !== null) {
+      clearTimeout(persistThemeTimer);
+      persistThemeTimer = null;
+    }
+  });
   persistTheme();
   const themePersistObserver = new MutationObserver(persistTheme);
   themePersistObserver.observe(document.documentElement, {
@@ -440,14 +456,24 @@ export async function bootstrap(
       }
     } else if (!fs && panelOrigParent) {
       // Exiting fullscreen. Restore the panel to its original spot.
+      // Audit 2026-05-11 W6.2 (REL-013): if the original parent was
+      // detached during fullscreen (e.g. episode change while
+      // fullscreen), restoring there orphans the panel — its
+      // sibling-watcher's parent is the same detached node and
+      // won't fire. Fall back to scheduleInsertWithRetry.
+      const origStillLive = document.contains(panelOrigParent);
       try {
-        if (panelOrigNext && panelOrigNext.parentNode === panelOrigParent) {
+        if (origStillLive && panelOrigNext && panelOrigNext.parentNode === panelOrigParent) {
           panelOrigParent.insertBefore(panelEl, panelOrigNext);
-        } else {
+        } else if (origStillLive) {
           panelOrigParent.appendChild(panelEl);
+        } else {
+          ctx.logger.warn('fullscreen: original parent detached, rescheduling insert');
+          scheduleInsertWithRetry(panelEl, ctx);
         }
       } catch (e) {
-        ctx.logger.warn('fullscreen: panel restore failed', e);
+        ctx.logger.warn('fullscreen: panel restore failed, rescheduling insert', e);
+        scheduleInsertWithRetry(panelEl, ctx);
       }
       panelOrigParent = null;
       panelOrigNext = null;
@@ -666,10 +692,20 @@ function attachToVideo(
   ctx: AppContext,
   meter: ReturnType<typeof createRatechangeMeter>,
   cleanup: CleanupRegistry,
+  attempt = 0,
 ): void {
   const v = ctx.discovery.resolve('video');
   if (!(v instanceof HTMLVideoElement)) {
-    cleanup.setTimeout(() => attachToVideo(ctx, meter, cleanup), 500);
+    // Audit 2026-05-11 W6.1 (REL-012): cap with exponential backoff.
+    // 20 attempts, 500 ms × 1.2^attempt, max 5 s. The orchestrator
+    // re-arms on every episode change / reattach so giving up here
+    // is bounded.
+    if (attempt >= 20) {
+      ctx.logger.warn('attachToVideo: gave up after 20 attempts; will re-arm on next reattach');
+      return;
+    }
+    const delay = Math.min(5000, Math.round(500 * 1.2 ** attempt));
+    cleanup.setTimeout(() => attachToVideo(ctx, meter, cleanup, attempt + 1), delay);
     return;
   }
   type Branded = HTMLVideoElement & { __vsAttached?: boolean; __vsSelfWriteAt?: number };

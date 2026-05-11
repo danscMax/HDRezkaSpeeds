@@ -218,17 +218,11 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
       if (!deps.isHealthCheckEnabled()) {
         // Audit 2026-05-11 W1.2 (REL-002): auto-trip path must reset
         // started + re-arm the watcher so user re-enable resumes
-        // polling. Previously stopPolling() alone left started=true
-        // and no watcher → checker dead until page reload.
+        // polling.
         stop();
         armReEnableWatcher();
         return;
       }
-      // Skip the tick when the tab is hidden. Background tabs don't need
-      // a fresh diagnostic — the user can't see the gear-warning dot, and
-      // the next visible tick (Chrome resumes intervals on tab show) will
-      // catch any degradation that happened while invisible.
-      if (typeof document !== 'undefined' && document.hidden) return;
       run();
     }, POLL_MS);
   }
@@ -243,6 +237,21 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
   function stop(): void {
     started = false;
     stopPolling();
+  }
+
+  // Audit 2026-05-11 W6.6 (PERF-013): pause polling when tab is
+  // hidden, resume on visible. Avoids firing the interval into a
+  // no-op every 30 s on background tabs.
+  if (typeof document !== 'undefined') {
+    const onVisibility = (): void => {
+      if (!started) return;
+      if (document.hidden) {
+        stopPolling();
+      } else if (deps.isHealthCheckEnabled()) {
+        startPolling();
+      }
+    };
+    ctx.cleanup.addEventListener(document, 'visibilitychange', onVisibility);
   }
 
   return {

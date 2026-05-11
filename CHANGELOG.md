@@ -4,6 +4,36 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.4.2] — 2026-05-11
+
+Wave 6 — remaining Low-priority items from the 2026-05-11 audit.
+
+### Reliability
+
+- **REL-012 — `attachToVideo` retry cap.** Max 20 attempts with
+  exponential backoff (`500 ms × 1.2^attempt`, max 5 s) instead of
+  looping forever. The orchestrator re-arms on every reattach
+  (episode change, ad-roll), so giving up is bounded.
+- **REL-013 — fullscreen reparent fallback.** If the original
+  parent was detached during fullscreen, restore now falls back to
+  `scheduleInsertWithRetry` instead of silently orphaning the
+  panel.
+- **REL-014 + PERF-008 — theme observer debounce + idempotent
+  write.** `persistTheme` debounces 500 ms and re-checks at fire
+  time; `detectAndApplyTheme` writes the attribute only when it
+  actually changed.
+
+### Performance
+
+- **PERF-007 — logger history doesn't pin live refs.** Detail args
+  are snapshotted to strings at capture time so the circular
+  buffer doesn't hold detached DOM nodes alive.
+- **PERF-010 — buttons row no-op refresh short-circuit.** Same-
+  value calls return without DOM mutation. The walk that does
+  fire iterates direct children instead of a full querySelectorAll.
+- **PERF-013 — health checker pauses on hidden tabs.** Resumes on
+  visibilitychange.
+
 ## [0.4.1] — 2026-05-11
 
 Wave 5 mirror of VideoSpeeds 0.4.1. RuTube-specific items (PLAT-002,

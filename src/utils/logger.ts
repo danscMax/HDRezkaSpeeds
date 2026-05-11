@@ -58,6 +58,40 @@ const STYLE: Record<LogLevel, { glyph: string; color: string; method: 'log' | 'w
   };
 
 /**
+ * Audit 2026-05-11 W6.4 (PERF-007): convert a detail arg to a
+ * human-readable string for the history buffer. Primitives pass
+ * through; Error gets message+stack; DOM Element renders as a tag-
+ * summary; objects/arrays JSON.stringify with circular-ref guard.
+ */
+function snapshotForHistory(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  const t = typeof value;
+  if (t === 'string' || t === 'number' || t === 'boolean' || t === 'bigint') return value;
+  if (value instanceof Error) {
+    return `${value.name}: ${value.message}${value.stack ? `\n${value.stack}` : ''}`;
+  }
+  if (typeof Element !== 'undefined' && value instanceof Element) {
+    const id = value.id ? `#${value.id}` : '';
+    const cls = value.className && typeof value.className === 'string'
+      ? `.${value.className.split(/\s+/).filter(Boolean).slice(0, 3).join('.')}`
+      : '';
+    return `<${value.tagName.toLowerCase()}${id}${cls}>`;
+  }
+  try {
+    const seen = new WeakSet<object>();
+    return JSON.stringify(value, (_k, v) => {
+      if (v && typeof v === 'object') {
+        if (seen.has(v as object)) return '[circular]';
+        seen.add(v as object);
+      }
+      return v;
+    });
+  } catch {
+    return String(value);
+  }
+}
+
+/**
  * Build the default min-level from Vite's DEV flag. WXT injects
  * `import.meta.env.DEV` automatically; production builds = false.
  */
@@ -97,7 +131,12 @@ export function createLogger(opts: LoggerOptions = {}): ExtendedLogger {
     const message = String(args[0] ?? '');
     const details = args.length > 1 ? args.slice(1) : null;
 
-    buffer[head] = { ts: Date.now(), level, message, details };
+    // Audit 2026-05-11 W6.4 (PERF-007): stringify non-primitive
+    // details at capture time so the circular buffer doesn't pin
+    // live DOM nodes / large objects beyond their natural GC.
+    const snapshotDetails =
+      details === null ? null : details.map(snapshotForHistory);
+    buffer[head] = { ts: Date.now(), level, message, details: snapshotDetails };
     head = (head + 1) % maxHistory;
     if (count < maxHistory) count++;
 
@@ -106,8 +145,8 @@ export function createLogger(opts: LoggerOptions = {}): ExtendedLogger {
     const prefix = `%c${emoji} [${scriptName}] ${style.glyph} ${level.toUpperCase()} [${ts}] ${message}`;
     const css = `color: ${style.color}; font-weight: bold;`;
 
-    // Use the level-appropriate console method so DevTools' filter
-    // checkboxes work as users expect.
+    // Live console gets original refs (so DevTools can inspect); only
+    // the history buffer holds the stringified snapshots.
     if (details) {
       console[style.method](prefix, css, ...(details as unknown[]));
     } else {
