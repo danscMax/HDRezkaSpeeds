@@ -22,8 +22,16 @@
  * in the page's single-threaded model. Two scripts that initialize at
  * the exact same tick can both pass the check; in practice the userscript
  * runs at document_start and the extension at document_idle, so the order
- * is well-separated. Wave 1.10 may add a microtask re-check if real
- * collisions show up.
+ * is well-separated.
+ *
+ * KNOWN DOS LIMITATION (audit 2026-05-11 W5.3 / V-F20): the marker is
+ * `document.documentElement.dataset.vsTmActive` — a shared DOM
+ * attribute that the host page can set at document_start. A hostile
+ * host page can suppress our injection by planting that marker, denying
+ * the user the speed-control UI. This is FUNCTIONAL DENIAL ONLY — no
+ * data exfiltration is possible. Acceptable trade-off given the
+ * mitigation cost. If a user reports the extension dead on a specific
+ * mirror, check whether the page sets vsTmActive.
  */
 
 const TM_MARKER_KEY = 'vsTmActive';

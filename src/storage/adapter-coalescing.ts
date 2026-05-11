@@ -1,12 +1,16 @@
 /**
  * Coalescing wrapper over a StorageAdapter.
  *
- * Audit 2026-05-09 perf O1: a held hotkey (or a non-coalesced caller
- * misbehaving) can flood storage at 120+ writes/sec, blowing through
- * Chrome's 120-writes-per-minute quota in under a second. The slider
- * drag path already has its own rAF coalescing inside the controller,
- * but every other call site (hotkey repeat, settings.update bursts,
- * cache.bumpSuccess) goes straight to the underlying adapter.
+ * Why: a held hotkey (or any non-coalesced caller misbehaving) can
+ * flood the underlying storage at 60–120+ writes/sec. Each write is a
+ * separate IPC round-trip to the extension service worker plus a disk
+ * flush; collapsing bursts into one write per coalesce window cuts
+ * IPC + disk-IO cost by orders of magnitude.
+ *
+ * Audit 2026-05-11 W5.8 (PLAT-007): the earlier "120-writes-per-
+ * minute Chrome quota" justification was wrong. That quota applies
+ * to `chrome.storage.sync` only — `.local` (what we use) has only a
+ * size cap. Coalescing is still valuable for IPC/disk amortization.
  *
  * This wrapper buffers writes per-key for `flushMs` (default 200ms) and
  * collapses bursts into a single underlying `set()`. Last write wins.
@@ -14,7 +18,8 @@
  * `get(k)` immediately after `set(k, v)` returns `v` instead of the
  * pre-burst value.
  *
- * `remove()` flushes any pending write for the same key before delegating.
+ * `remove()` drops any pending write for the same key and forwards
+ * directly to inner.remove (W5.7).
  */
 
 import type { StorageAdapter } from './adapter';
@@ -30,8 +35,6 @@ export interface CoalescingOptions {
    */
   onWriteError?: (key: string, err: unknown) => void;
 }
-
-const PENDING_SENTINEL = Symbol('vs-coalescing-pending');
 
 export function createCoalescingAdapter(
   inner: StorageAdapter,
@@ -66,11 +69,9 @@ export function createCoalescingAdapter(
 
   return {
     async get<T>(key: string, defaultValue: T): Promise<T> {
-      if (pending.has(key)) {
-        const buffered = pending.get(key);
-        if (buffered === PENDING_SENTINEL) return defaultValue; // queued remove
-        return buffered as T;
-      }
+      // Audit 2026-05-11 W5.7: pending only holds real values now
+      // (remove() no longer queues a sentinel).
+      if (pending.has(key)) return pending.get(key) as T;
       return inner.get<T>(key, defaultValue);
     },
 
@@ -80,20 +81,18 @@ export function createCoalescingAdapter(
     },
 
     async remove(key: string): Promise<void> {
-      pending.set(key, PENDING_SENTINEL);
-      // Flush immediately so the remove takes effect on the underlying
-      // adapter without waiting for the coalesce window.
-      if (flushTimer !== null) {
-        clearTimeout(flushTimer);
-        flushTimer = null;
+      // Audit 2026-05-11 W5.7 (PERF-012): drop the queued write for
+      // this key (if any) and forward to inner.remove directly. The
+      // previous code flushed ALL pending writes under one await —
+      // turning unrelated fire-and-forget writes into blocking
+      // writes whenever a remove overlapped them. The other pending
+      // writes either fire on the next scheduled flush or after
+      // this remove resolves; no behavior change for them.
+      pending.delete(key);
+      if (pending.size > 0 && flushTimer === null) {
+        scheduleFlush();
       }
-      const batch = Array.from(pending.entries());
-      pending.clear();
-      const tasks = batch.map(([k, v]) => {
-        if (v === PENDING_SENTINEL) return inner.remove(k);
-        return inner.set(k, v);
-      });
-      await Promise.allSettled(tasks);
+      await inner.remove(key);
     },
   };
 }

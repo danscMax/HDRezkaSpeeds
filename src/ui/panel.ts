@@ -172,7 +172,15 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   pinBtn.title = ctx.i18n.t('panel.pin.tooltip');
   pinBtn.appendChild(vsIcon('bookmark', 14));
   ctx.cleanup.addEventListener(pinBtn, 'click', () => {
-    const speed = ctx.speedStore.current();
+    // Audit 2026-05-11 (post-0.4.0): pin must save the EFFECTIVE
+    // playing speed, not the persisted global. Mirror of VS fix —
+    // read order: video.playbackRate → smart() → current().
+    const video = ctx.discovery.resolve('video');
+    const vRate =
+      video instanceof HTMLVideoElement && Number.isFinite(video.playbackRate)
+        ? video.playbackRate
+        : null;
+    const speed = vRate ?? ctx.speedStore.smart() ?? ctx.speedStore.current();
     if (Number.isFinite(speed)) {
       void setGlobal(ctx, speed);
     }
@@ -208,22 +216,26 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   const sliderInput = sliderContainer.querySelector<HTMLInputElement>('.speed-slider');
   if (sliderInput) {
     // Drag is rAF-coalesced applyTransient (no storage write per pixel),
-    // and persistence happens once on `change` (release). Before this
-    // split, every `input` event triggered setSpeed → 2 storage writes,
-    // and a 2-second drag at 60–120 events/sec blew through Chrome's
-    // 120-writes-per-minute storage quota in under 1.5s.
+    // and persistence happens once on `change` (release). Audit
+    // 2026-05-11 W5.8 (PLAT-007): the real benefit is amortizing the
+    // IPC round-trip to the service worker + disk-IO across the drag
+    // burst; chrome.storage.local has no rate-limit quota (that was
+    // a doc error in the previous comment — only chrome.storage.sync
+    // is rate-limited).
     let pendingRaf: number | null = null;
     let pendingSpeed: number | null = null;
     ctx.cleanup.addEventListener(sliderInput, 'input', () => {
       const value = parseFloat(sliderInput.value);
       if (!Number.isFinite(value)) return;
-      // Visual fill is cheap; do it every event for buttery feedback.
-      updateSliderFill(sliderInput);
       pendingSpeed = value;
       if (pendingRaf !== null) return;
       pendingRaf = requestAnimationFrame(() => {
         pendingRaf = null;
         if (pendingSpeed !== null) {
+          // Audit 2026-05-11 W5.5 (PERF-005): updateSliderFill moved
+          // into the rAF callback. Same buttery feedback at half
+          // the DOM ops/sec on high-DPI mice / touchpads.
+          updateSliderFill(sliderInput);
           applyTransient(ctx, pendingSpeed);
           pendingSpeed = null;
         }

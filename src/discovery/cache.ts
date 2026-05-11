@@ -166,7 +166,17 @@ export function createSelectorCache(
     },
 
     get(key: SelectorKey): CacheEntry | null {
-      return memCache.get(key) ?? null;
+      const entry = memCache.get(key);
+      if (!entry) return null;
+      // Audit 2026-05-11 W5.4 (REL-009): expire entries whose
+      // valid_until has passed. Falls through to selector tables /
+      // heuristics to rebuild fresh.
+      if (entry.valid_until && Date.now() > entry.valid_until) {
+        memCache.delete(key);
+        persist();
+        return null;
+      }
+      return entry;
     },
 
     set(key: SelectorKey, payload: SetPayload): void {

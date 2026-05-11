@@ -4,6 +4,52 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.4.1] — 2026-05-11
+
+Wave 5 mirror of VideoSpeeds 0.4.1. RuTube-specific items (PLAT-002,
+PLAT-003, PERF-009) don't apply to HDRezka.
+
+### Bug fixes
+
+- **Pin button ("Save current as default") restored old global
+  instead of saving the current speed.** Reproduction: global = 2x,
+  user drags slider to 1.5x, clicks the bookmark pin. Result: video
+  snapped back to 2x and 2x re-confirmed as global. Cause: handler
+  read `ctx.speedStore.current()` (the persisted global), ignoring
+  `video.playbackRate` and the `smart` temp-store. Fixed — read order
+  is now `video.playbackRate` → `speedStore.smart()` →
+  `speedStore.current()`.
+
+### Security / Documentation
+
+- **V-F20 — documented TM-coexist DoS limitation.** Host page can
+  set `dataset.vsTmActive` to suppress our injection. Functional
+  denial only; acceptable trade-off given the marker design supports
+  Tampermonkey coexistence. Documented in `utils/tm-coexist.ts`.
+
+### Performance / Reliability
+
+- **REL-009 — discovery cache enforces TTL.** Expired entries
+  (`Date.now() > valid_until`) now miss on `get()` instead of being
+  returned. Falls through to selector tables to rebuild fresh.
+
+- **PERF-005 — slider drag visual fill batched into rAF.**
+  `updateSliderFill` moved into the existing rAF callback alongside
+  `applyTransient` — same perceived smoothness at half the DOM
+  ops/sec on high-DPI inputs.
+
+- **PERF-012 — coalescing `remove()` targeted flush.** Drops queued
+  write for the key being removed and forwards directly to the
+  inner adapter; unrelated pending writes continue async on the
+  next flush instead of being awaited under the remove.
+
+### Documentation
+
+- **PLAT-007 — corrected "120-writes-per-minute" comments.** That
+  Chrome quota applies to `storage.sync` only, not `.local`.
+  Coalescing's real benefit is IPC + disk amortization. Header
+  docstrings + slider-drag comment rewritten accurately.
+
 ## [0.4.0] — 2026-05-11
 
 Full-cycle tech-debt audit (7 parallel auditors + DA validation + lead
