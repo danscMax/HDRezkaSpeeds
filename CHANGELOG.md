@@ -4,6 +4,92 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.4.0] — 2026-05-11
+
+Full-cycle tech-debt audit (7 parallel auditors + DA validation + lead
+verification) followed by a 4-wave remediation sweep. Mirror of the
+VideoSpeeds 0.4.0 release for the shared-core modules, plus HDRezka-
+specific mirror-drift fixes. Audit artifacts:
+`plans/tech-debt-video-extensions/2026-05-11/`.
+
+### Critical bug fixes (shared with VideoSpeeds)
+
+- **Settings-store rollback corruption on concurrent updates (REL-001).**
+  Captured `previous` inside writeChain closure; defer notify() until
+  persist resolves. Caller contract: must `await update()` before
+  reading the new value.
+
+- **HealthChecker dead-lock after auto-trip (REL-002).** Auto-trip
+  path now resets `started` and re-arms the kill-switch watcher so
+  user re-enable resumes polling without page reload.
+
+### Security fixes (High)
+
+- **KillSwitch state silently dropped on persist (SEC2-001).**
+  Declared `healing` as an optional Settings field with sub-validator.
+  Defense-in-depth toggles now survive page reload.
+
+- **TM migration unbounded inputs (SEC-001 + SEC-002).** 256 KB cap
+  on `JSON.parse` + `.slice(0, 16)` on hotkey arrays — blocks DoS
+  from page-controlled localStorage on first install.
+
+### Performance / Reliability (High)
+
+- **Coalescing adapter `onWriteError` callback (REL-004).** Quota-
+  exceeded failures in speedStore writes now reach `logger.warn`
+  instead of disappearing silently.
+
+- **HDRezka `installRemovalObserver` brand guard (REL-006).** Ported
+  the `__vsRemovalObserverPanel` idempotency brand from VS. Rapid
+  episode-change / ad-roll mutation bursts no longer install
+  duplicate MutationObservers on the same parent.
+
+- **Settings modal renders only the active tab (PERF-001 + PERF-002).**
+  Tab switch already triggers `rerenderSettings()`, so this is a
+  pure cost reduction — ~75% less DOM work per modal open.
+
+- **Hotkey match-first ordering (PERF-004).** `discovery.resolve('video')`
+  now fires only when a hotkey matched, not on every keystroke.
+
+### HDRezka-specific cleanup
+
+- **Validators rewritten for HD context (V-F17 + V-F18).** Header
+  docstring no longer claims "HDRezka paths dropped (out of product
+  scope)" — file IS HD's. Comments narrating "YouTube SPA hydration"
+  replaced with HDRezka multi-page rationale. `lcaDistance > 10`
+  threshold raised to `> 15` for HD: metadata anchors
+  (`.b-content__inline_items`, `.b-post__info`) sit 8-12 hops from
+  `<video>` rather than YT's 5-8, so 10 was silently rejecting valid
+  candidates.
+
+- **CWS store-listing rewrite.** The Chrome Web Store rejected the
+  previous submission for "keyword spam" (Yellow Argon violation,
+  ref ID). The 10-domain "SUPPORTED MIRRORS" list and the
+  unnecessary LICENSE block were the trigger. Replaced with a
+  generic "COMPATIBILITY" note; tags list trimmed to focused
+  marketing keywords. Mirror brand keywords belong in
+  `host_permissions`, not the description.
+
+- **Removed HD copy-paste cruft.** Stale comments referencing
+  "YouTube comments header / RuTube sidebar" or "on YouTube it's
+  red, on RuTube it's blue" rewritten for HDRezka context. The
+  `isHDRezka` helper export deleted (no callers — `detectSite()`
+  is the live API). Dead `.vs-panel--pending` CSS removed (helper
+  removed in 0.3.18 but the CSS rule shipped).
+
+### Code cleanup (shared with VS)
+
+- **Deleted 8 dead barrel files** (`src/{app,...,utils}/index.ts`).
+- **Deleted `setSpeed`** — function existed but had zero call sites
+  since the click-router refactor.
+- **Deleted dead exports** (`DEFAULT_PRESETS`, `safeStorage`,
+  `feature-detect.ts`).
+- **Deleted dead i18n keys**: `menu.version_tip`,
+  `donate.crypto.copied`, plus four `toast.title_*` / `toast.premium_*`
+  keys that referenced YouTube-only features and never had call sites
+  in HD.
+- **Deleted `.vs-brand` CSS** (never applied).
+
 ## [0.3.19] — 2026-05-10
 
 ### Visual

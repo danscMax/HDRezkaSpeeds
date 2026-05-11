@@ -85,14 +85,10 @@ LANGUAGES
 English and Russian. UI language is auto-detected from your browser on
 first run; switch any time from the gear menu.
 
-SUPPORTED MIRRORS
+COMPATIBILITY
 
-hdrezka.ag, rezka.ag, hdrezka.me, hdrezka.co, hdrezka.website,
-hdrezka.cm, hdrezka-home.tv, rezkify.com, rezkery.com, kinopub.me
-
-LICENSE
-
-GPL-3.0-or-later (GNU General Public License version 3 or later).
+Works on the official HDRezka site and the mirror domains you've
+granted access to in your browser's site settings.
 ```
 
 ### Russian translation
@@ -147,14 +143,10 @@ HDRezka.
 Английский и русский. Язык интерфейса определяется автоматически
 по языку браузера; переключается в меню в любой момент.
 
-ПОДДЕРЖИВАЕМЫЕ ЗЕРКАЛА
+СОВМЕСТИМОСТЬ
 
-hdrezka.ag, rezka.ag, hdrezka.me, hdrezka.co, hdrezka.website,
-hdrezka.cm, hdrezka-home.tv, rezkify.com, rezkery.com, kinopub.me
-
-ЛИЦЕНЗИЯ
-
-GPL-3.0-or-later.
+Работает на официальном сайте HDRezka и на тех зеркалах, которые
+вы разрешили в настройках доступа к сайтам в браузере.
 ```
 
 ---
@@ -182,8 +174,12 @@ GPL-3.0-or-later.
 
 ## Tags / keywords (where the store accepts them)
 
-`hdrezka`, `rezka`, `video speed`, `playback speed`, `hotkeys`,
-`keyboard shortcuts`, `video player`, `slider`, `plyr`
+`video speed`, `playback speed`, `keyboard shortcuts`
+
+(Audit 2026-05-11: trimmed to focused tags after CWS rejected the
+previous longer list for "keyword stuffing" — Yellow Argon
+violation reference. Brand keywords like hdrezka/rezka belong in
+the manifest's host_permissions, not the marketing description.)
 
 ---
 
