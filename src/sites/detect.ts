@@ -33,10 +33,6 @@ export function detectSite(host: string = safeHostname()): Site | null {
   return null;
 }
 
-export function isHDRezka(host?: string): boolean {
-  return detectSite(host) === 'hdrezka';
-}
-
 /**
  * Allow-list of HDRezka URL patterns that actually host a playable video.
  *

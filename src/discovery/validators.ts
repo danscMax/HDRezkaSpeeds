@@ -1,11 +1,18 @@
 /**
  * Acceptance criteria per selector key. Used by DiscoveryEngine to reject
- * accidental matches (e.g. heuristic strategy finding a sidebar thumbnail
+ * accidental matches (e.g. heuristic strategy finding a thumbnail
  * instead of the real player). Each validator returns `{ok, reasons}`;
  * reasons feed into the diagnostic report.
  *
- * Ported from .user.js:980-1061 with HDRezka-specific paths dropped
- * (out of product scope). Otherwise behaviorally identical.
+ * HDRezka context: this is a classic multi-page site, not a SPA. Plyr
+ * mounts the <video> lazily after the user clicks the play overlay, so
+ * we can't require currentSrc/readyState — the validator only filters
+ * thumbnail-sized previews and autoplay decoys. The LCA-distance check
+ * on infoElem keeps a generous threshold because HD's metadata anchors
+ * (.b-content__inline_items, .b-post__info) sit in the body trunk
+ * rather than under the player wrapper. Audit 2026-05-11 W3.4 (V-F17,
+ * V-F18): file used to inherit verbatim from VS — comments rewritten
+ * to reflect HD reality, threshold raised from 10 to 15.
  */
 
 import type { SelectorKey, ValidationResult, Validator } from './types';
@@ -55,9 +62,11 @@ const validators: Record<SelectorKey, Validator> = {
     if (!isElement(el) || el.tagName !== 'VIDEO') return fail('not <video>');
     const v = el as HTMLVideoElement;
     const r = v.getBoundingClientRect();
-    // Don't require currentSrc/readyState — on YouTube SPA the <video> is
-    // in the DOM before src is set. The validator only filters thumbnails
-    // and autoplay previews; setSpeed has its own retry for "not ready".
+    // Don't require currentSrc/readyState — on HDRezka the Plyr-wrapped
+    // <video> is in the DOM before src is set (poster image + click-to-
+    // play wrapper). The validator only filters thumbnails and autoplay
+    // previews; the attachToVideo retry loop in src/index.ts handles
+    // the "not ready" case.
     const hasSrc = !!v.currentSrc || !!v.src;
     if (hasSrc && r.width < 100 && r.height < 60) return fail('thumbnail-sized video');
     if (hasSrc && v.muted && v.loop && r.width < 400) return fail('autoplay preview');
@@ -77,15 +86,20 @@ const validators: Record<SelectorKey, Validator> = {
     if (!isElement(el)) return fail('not Element');
     if (!el.isConnected) return fail('detached');
     // clientHeight check from the userscript was filtering out empty
-    // elements, but on SPA navigations the watch-metadata container
-    // often has clientHeight=0 for the first ~200ms while YouTube
-    // hydrates its content. Use childElementCount as a lighter signal:
-    // anything with at least one child element is "real enough" to be
-    // a metadata anchor; the LCA distance check below filters out
-    // sidebar candidates.
+    // elements, but the metadata anchors (.b-content__inline_items,
+    // .b-post__info) can have clientHeight=0 briefly during the post-
+    // navigation reflow on episode change. Use childElementCount as a
+    // lighter signal: anything with at least one child element is
+    // "real enough" to be a metadata anchor; the LCA distance check
+    // below filters out unrelated DOM islands.
     if (el.childElementCount === 0) return fail('empty -- nothing inside');
     const video = document.querySelector('video');
-    if (video && lcaDistance(el, video) > 10) return fail('too far from video in DOM');
+    // Threshold raised from 10 → 15 (audit 2026-05-11 W3.4 V-F18):
+    // HD's metadata anchors live in the body trunk rather than under
+    // the player wrapper, so a healthy LCA can be 8-12 hops on the
+    // `.b-content__main` page layout. 10 was YouTube-tuned and
+    // silently rejected valid HD candidates.
+    if (video && lcaDistance(el, video) > 15) return fail('too far from video in DOM');
     return ok();
   },
 

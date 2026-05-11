@@ -1,6 +1,5 @@
 export {
   type ButtonsRowOptions,
-  DEFAULT_PRESETS,
   refreshActiveButton,
   renderButtonsRow,
 } from './buttons';

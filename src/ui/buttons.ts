@@ -91,22 +91,6 @@ export function refreshPinnedButton(row: Element, pinned: number | null): void {
   }
 }
 
-/**
- * Default preset speeds for each site (parity with original userscript
- * .user.js:4004-4008).
- *
- * - YouTube: 1.5–3.5 in 0.25 steps. Tuned for fast-forwarding lectures
- *   and reviews where the user already knows they want > 1×; the
- *   absence of 1× is intentional (clicking the active button toggles
- *   nothing useful, and YouTube's own UI exposes 1× via the speed menu).
- * - RuTube: 1–3 in 0.25 steps (full range, since RuTube's own player
- *   has no fine-grained speed control).
- */
-export const DEFAULT_PRESETS: Readonly<Record<string, readonly number[]>> = {
-  youtube: [1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5],
-  rutube: [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3],
-};
-
 function isSameSpeed(a: number, b: number): boolean {
   // Threshold 0.01 (parity with .user.js:2630 Math.abs < 0.01). Tighter
   // 0.001 used to miss button highlight after float-drift accumulation

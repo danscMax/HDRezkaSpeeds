@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createTranslator,
   type DictKey,
-  detectBrowserLang,
-  escHtml,
   I18N_DICT,
   type Lang,
   SUPPORTED_LANGS,
-} from '../../src/i18n';
+} from '../../src/i18n/dict';
+import { detectBrowserLang } from '../../src/i18n/detect';
+import { createTranslator, escHtml } from '../../src/i18n/translator';
 
 const EN_KEYS = Object.keys(I18N_DICT.en) as DictKey[];
 

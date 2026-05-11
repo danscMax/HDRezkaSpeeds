@@ -24,7 +24,6 @@ export const I18N_DICT = {
   en: {
     // menu.*
     'menu.title': 'Playback Speed',
-    'menu.version_tip': 'Script version',
 
     // tabs.*
     'tabs.general': 'General',
@@ -230,10 +229,6 @@ export const I18N_DICT = {
     'toast.discovery_off': 'Auto-recover disabled',
     'toast.healthcheck_on': 'Self-diagnostics enabled',
     'toast.healthcheck_off': 'Self-diagnostics disabled',
-    'toast.title_hidden': 'Player title hidden',
-    'toast.title_shown': 'Player title shown',
-    'toast.premium_hidden': 'Premium banners hidden',
-    'toast.premium_shown': 'Premium banners shown',
     'toast.diag_ok': 'Everything is working',
     'toast.diag_issues': 'Issues detected -- see Diagnostics tab',
     'toast.diag_waiting': 'Waiting -- start the video first',
@@ -291,7 +286,6 @@ export const I18N_DICT = {
     'donate.crypto.step3':
       '3. In the wallet — tap "Send", paste the address, enter any amount, confirm.',
     'donate.crypto.copy': 'Copy',
-    'donate.crypto.copied': 'Copied',
     'donate.crypto.address_label': 'Wallet address',
     'donate.ton.wallet_name': 'Tonkeeper',
     'donate.usdt.wallet_name': 'Trust Wallet',
@@ -301,7 +295,6 @@ export const I18N_DICT = {
   ru: {
     // menu.*
     'menu.title': 'Скорость воспроизведения',
-    'menu.version_tip': 'Версия скрипта',
 
     // tabs.*
     'tabs.general': 'Общие',
@@ -506,10 +499,6 @@ export const I18N_DICT = {
     'toast.discovery_off': 'Авто-восстановление выключено',
     'toast.healthcheck_on': 'Самодиагностика включена',
     'toast.healthcheck_off': 'Самодиагностика выключена',
-    'toast.title_hidden': 'Заголовок плеера скрыт',
-    'toast.title_shown': 'Заголовок плеера показан',
-    'toast.premium_hidden': 'Premium-баннеры скрыты',
-    'toast.premium_shown': 'Premium-баннеры показаны',
     'toast.diag_ok': 'Всё работает',
     'toast.diag_issues': 'Обнаружены проблемы -- см. вкладку «Диагностика»',
     'toast.diag_waiting': 'Ожидание -- сначала запустите видео',
@@ -565,7 +554,6 @@ export const I18N_DICT = {
     'donate.crypto.step3':
       '3. В кошельке — нажмите «Отправить», вставьте адрес, введите сумму и подтвердите.',
     'donate.crypto.copy': 'Скопировать',
-    'donate.crypto.copied': 'Скопировано',
     'donate.crypto.address_label': 'Адрес кошелька',
     'donate.ton.wallet_name': 'Tonkeeper',
     'donate.usdt.wallet_name': 'Trust Wallet',

@@ -1,23 +1,17 @@
 /**
  * Speed controller -- the only module that touches `video.playbackRate`.
  *
- * Three entry points:
- *   - setSpeed(ctx, speed)         -- applies + persists as current
- *   - setTemporary(ctx, speed)     -- applies as one-shot (smart-store)
- *   - setGlobal(ctx, speed)        -- applies + persists + forces
- *                                     rememberSpeed=true + toast
- *   - handleClick(ctx, speed)      -- single click -> temp, double -> global
+ * Entry points (audit 2026-05-11 W3.1: setSpeed deleted as dead code):
+ *   - applyTransient(ctx, speed)         -- video + UI only, no storage
+ *                                           (slider drag, rAF-coalesced)
+ *   - setTemporary(ctx, speed)           -- smart-store (one-shot)
+ *   - setGlobal(ctx, speed)              -- current + force rememberSpeed
+ *   - handleSpeedButtonClick(ctx, speed) -- single -> temp, double -> global
  *
  * Everything goes through ctx (audit C2). The controller never reaches into
  * UI directly: ui.refreshButtons / refreshSlider / showNotification keep
  * the dependency arrow pointing one way (controller -> ports, never
  * controller -> ui module).
- *
- * Ported from .user.js:2263-2412 with the inline retry loop deferred to
- * the site-bootstrap layer (Wave 1.10 attachToVideo) -- the controller
- * here assumes the caller passes a ready video. If `ctx.discovery.resolve`
- * returns null we just log and bail; the playing/loadedmetadata listeners
- * in the site layer pick up the speed when the video becomes ready.
  */
 
 import type { AppContext } from '../app/context';
@@ -49,7 +43,7 @@ export const SELF_WRITE_GRACE_MS = 60;
 function applyToVideo(ctx: AppContext, speed: number): boolean {
   const el = ctx.discovery.resolve('video');
   if (!(el instanceof HTMLVideoElement)) {
-    ctx.logger.debug('controller.setSpeed: video not ready, deferring');
+    ctx.logger.debug('controller.applyToVideo: video not ready, deferring');
     return false;
   }
   try {
@@ -60,7 +54,7 @@ function applyToVideo(ctx: AppContext, speed: number): boolean {
     el.playbackRate = speed;
     return true;
   } catch (e) {
-    ctx.logger.error('controller.setSpeed: failed to set playbackRate', e);
+    ctx.logger.error('controller.applyToVideo: failed to set playbackRate', e);
     return false;
   }
 }
@@ -84,43 +78,11 @@ export interface ApplyOptions {
 }
 
 /**
- * Apply a speed and persist it as the current value. Used by slider drag
- * and by external (programmatic) callers that want a "set this and remember
- * it" semantic without the toast/force-rememberSpeed of `setGlobal`.
- *
- * Persist-then-apply order (.user.js:2369-2399 parity): clear smart and
- * write current to storage BEFORE setting `video.playbackRate`. Otherwise
- * the ratechange watchdog reads pickInitialSpeed = smart || current and
- * — between our `el.playbackRate = X` and `setSmart(null)` — sees stale
- * smart and reverts our write.
- *
- * `current` is gated on `rememberSpeed` (audit B2.1): when the user has
- * opted out of persistence, slider drag is a one-shot for this video.
- * The smart store is still cleared so subsequent click-router temps
- * don't bleed.
- */
-export async function setSpeed(
-  ctx: AppContext,
-  speed: number,
-  opts: ApplyOptions = {},
-): Promise<void> {
-  const validSpeed = clamp(ctx, speed);
-  await ctx.speedStore.setSmart(null);
-  if (ctx.settingsStore.getKey('rememberSpeed') === true) {
-    await ctx.speedStore.setCurrent(validSpeed);
-  }
-  applyToVideo(ctx, validSpeed);
-  ctx.ui.refreshButtons(validSpeed, opts);
-  ctx.ui.refreshSlider(validSpeed);
-  ctx.logger.debug('controller.setSpeed', validSpeed);
-}
-
-/**
  * Lightweight apply: push the value to video.playbackRate and refresh UI
  * WITHOUT touching storage. Used by slider drag during continuous input
- * so we don't burn the chrome.storage.local 120-writes-per-minute quota
- * on every pixel of motion. The drag's final value is committed via the
- * `change` event handler that calls setSpeed() once on release.
+ * so we don't burn IPC / disk-IO on every pixel of motion. The drag's
+ * final value is committed via the `change` event handler that calls
+ * setTemporary() once on release.
  *
  * Self-write timestamp is still stamped (via applyToVideo) so the
  * ratechange watchdog in src/index.ts treats this as ours.

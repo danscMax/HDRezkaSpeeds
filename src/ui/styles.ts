@@ -400,10 +400,9 @@ html[data-vs-theme="dark"] {
   --vs-menu-shadow-2: 0 8px 24px -6px rgba(0, 0, 0, 0.5);
   /* Active state — calmer than .speed-button.active (which uses the
      bright --vs-accent gradient): the menu can have several actives at
-     once, brighter would overwhelm. Bound to the site-aware --vs-accent-*
-     palette so on YouTube it's red, on RuTube it's blue. Hover deepens
-     via filter:brightness so we don't need a separate per-site hover
-     gradient. */
+     once, brighter would overwhelm. Bound to the HDRezka cyan-blue
+     accent palette. Hover deepens via filter:brightness so we don't
+     need a separate hover gradient. */
   --vs-menu-active-bg: linear-gradient(135deg, var(--vs-accent-dark) 0%, var(--vs-accent-darker) 100%);
   --vs-menu-active-fg: #ffffff;
   --vs-menu-active-glow: 0 2px 10px rgba(var(--vs-accent-rgb), 0.35);
@@ -508,20 +507,12 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   color: var(--vs-text-primary);
   /* No z-index on purpose: it would create a stacking context that traps
      the settings modal (child) under host-page elements with a higher
-     z-index in the document context (YouTube comments header, RuTube
-     sidebar). The gear-wrapper still has position:relative so the modal
-     can anchor to it. */
+     z-index in the document context (HDRezka's sticky header, Plyr's
+     fullscreen overlay). The gear-wrapper still has position:relative
+     so the modal can anchor to it. */
   position: static;
   animation: vs-fade-in 0.3s ease;
 }
-.vs-panel.vs-panel--pending {
-  /* Audit 2026-05-10: while the host page is still rendering its
-     loading skeleton, keep the panel invisible. panel.ts removes
-     vs-panel--pending after host hydration via MutationObserver
-     OR window.load + 100ms OR a 1500ms hard timeout. */
-  visibility: hidden;
-}
-
 /* sliderPosition='bottom' -- buttons + gear share the top row; slider
    takes its own row below them. Mirrors .user.js:2873-2877 layout-bottom
    where wrapperDiv (buttons + settings) sat above sliderContainer.
@@ -677,21 +668,6 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
 /* Speed-button row: pill buttons. min-width keeps every label centred
    even when the text varies (1x vs 1.25x); height fixed so the row is
    visually stable. Ported from .user.js:.speed-button. */
-.vs-brand {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-right: 2px;
-  opacity: 0.5;
-  color: var(--vs-accent, currentColor);
-  transition: opacity 0.15s ease;
-  flex-shrink: 0;
-  cursor: default;
-  pointer-events: auto;
-}
-.vs-brand:hover { opacity: 0.85; }
 .speed-buttons-row {
   display: inline-flex;
   align-items: center;

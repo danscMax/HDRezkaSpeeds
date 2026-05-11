@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { detectSite, isHDRezka } from '../../src/sites/detect';
+import { detectSite } from '../../src/sites/detect';
 import {
   importSettingsFromText,
   buildExportEnvelope,
@@ -36,10 +36,8 @@ describe('audit C1: detectSite anchored to whole-host TLD', () => {
     expect(detectSite('hdrezka.cz')).toBe('hdrezka');
     expect(detectSite('rezka.io')).toBe('hdrezka');
   });
-  it('isHDRezka delegates to detectSite anchoring', () => {
-    expect(isHDRezka('www.hdrezka.ag')).toBe(true);
-    expect(isHDRezka('hdrezka.evil.tld')).toBe(false);
-  });
+  // Audit 2026-05-11 W3.6: removed isHDRezka — dead export. detectSite
+  // is the live API; anchoring is verified above.
 });
 
 // --- C5: import schema validation -------------------------------------
