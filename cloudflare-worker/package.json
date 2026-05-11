@@ -12,7 +12,7 @@
     "logs": "wrangler tail"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
+    "@biomejs/biome": "^2.4.15",
     "@cloudflare/vitest-pool-workers": "^0.16.3",
     "@cloudflare/workers-types": "^4.20260101.0",
     "typescript": "^6.0.3",
