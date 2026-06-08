@@ -28,7 +28,7 @@
     "@playwright/test": "^1.59.1",
     "@vitest/coverage-v8": "^4.1.5",
     "@vitest/ui": "^4.1.5",
-    "happy-dom": "^20.9.0",
+    "happy-dom": "^20.10.2",
     "typescript": "^6.0.3",
     "vite": "^8.0.11",
     "vite-plugin-monkey": "^8.0.1",
