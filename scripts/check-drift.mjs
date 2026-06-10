@@ -12,13 +12,20 @@
  *   npm run drift -- --accept     # acknowledge current divergence as intentional
  *   node scripts/check-drift.mjs C:/path/to/twin
  *
- * Acknowledged divergence: files that legitimately differ (site-specific
- * wiring inside otherwise-shared modules) are recorded in
- * scripts/drift-baseline.json as a symmetric pair-hash of both sides.
- * They stay silent until EITHER side changes again — then they reappear
- * as unexpected drift and must be re-reviewed (port the change to the
- * twin, or re-accept). The pair-hash is order-independent, so the same
- * baseline file is shared verbatim between the two checkouts.
+ * Every drifted file is either ACKNOWLEDGED or UNEXPECTED. Files that
+ * legitimately differ (site-specific wiring, per-product i18n/styles
+ * content) are recorded in scripts/drift-baseline.json as a symmetric
+ * pair-hash of both sides. An acknowledged file stays silent until
+ * EITHER side changes again — then it reappears as unexpected drift and
+ * must be re-reviewed (port the change to the twin, or re-accept).
+ * There is deliberately NO permanent allow-list: every divergent file,
+ * however routinely it churns, gets re-flagged on change so a real fix
+ * (e.g. the 0.5.1 styles.ts polish) is never silently skipped.
+ *
+ * The pair-hash is order-independent and `--accept` writes the baseline
+ * into BOTH checkouts, so the two copies of drift-baseline.json always
+ * agree. Only check-drift.mjs itself still needs a manual copy to the
+ * twin when the script changes.
  *
  * Exit code 0 always — this is an informational report, not a CI gate
  * (site-specific divergence inside shared files is sometimes legitimate).
@@ -34,17 +41,22 @@ const SELF_ROOT = resolve(__dirname, '..');
 const SELF_NAME = basename(SELF_ROOT);
 const TWIN_NAME = SELF_NAME === 'HDRezkaSpeeds' ? 'VideoSpeeds' : 'HDRezkaSpeeds';
 const cliArgs = process.argv.slice(2);
+const unknownFlag = cliArgs.find((a) => a.startsWith('-') && a !== '--accept');
+if (unknownFlag) {
+  console.error(`unknown flag: ${unknownFlag}`);
+  console.error('usage: node scripts/check-drift.mjs [--accept] [path-to-twin]');
+  process.exit(1);
+}
 const ACCEPT = cliArgs.includes('--accept');
 const twinArg = cliArgs.find((a) => a !== '--accept');
 const TWIN_ROOT = resolve(twinArg ?? join(SELF_ROOT, '..', TWIN_NAME));
-const BASELINE_PATH = join(__dirname, 'drift-baseline.json');
+const BASELINE_NAME = 'drift-baseline.json';
+const BASELINE_PATH = join(__dirname, BASELINE_NAME);
 
 // Shared core — directories whose files are expected to stay in lockstep.
 // site-specific dirs (sites/, entrypoints/) are skipped: they legitimately
 // diverge per product.
 const SHARED_DIRS = ['src/app', 'src/discovery', 'src/health', 'src/speed', 'src/storage', 'src/ui', 'src/utils', 'src/i18n'];
-// Files that are shared in spirit but contain per-product content.
-const EXPECTED_DIVERGENT = new Set(['src/i18n/dict.ts', 'src/ui/styles.ts', 'src/storage/mirrors-store.ts', 'src/ui/settings/mirrors-block.ts', 'src/sites/mirror-hosts.ts']);
 
 if (!existsSync(TWIN_ROOT)) {
   console.error(`twin checkout not found: ${TWIN_ROOT}`);
@@ -73,6 +85,9 @@ function hashOf(absPath) {
 
 // Order-independent hash of both sides' content hashes, so the baseline
 // file is identical regardless of which checkout it was generated from.
+// Re-hashing (instead of storing the sorted concatenation) halves the
+// baseline's value size; debuggability is not lost — the report names
+// the drifted file, and `git diff` against the twin shows the change.
 function pairHash(hashA, hashB) {
   return createHash('sha256').update([hashA, hashB].sort().join('+')).digest('hex');
 }
@@ -91,7 +106,7 @@ const selfFiles = new Set(SHARED_DIRS.flatMap((d) => listFiles(SELF_ROOT, d)));
 const twinFiles = new Set(SHARED_DIRS.flatMap((d) => listFiles(TWIN_ROOT, d)));
 
 const baseline = loadBaseline();
-const drifted = []; // { rel, pair }
+const drifted = []; // { rel, pair, acknowledged }
 const onlySelf = [];
 const onlyTwin = [];
 let identical = 0;
@@ -103,32 +118,33 @@ for (const rel of [...selfFiles].sort()) {
   }
   const selfHash = hashOf(join(SELF_ROOT, rel));
   const twinHash = hashOf(join(TWIN_ROOT, rel));
-  if (selfHash === twinHash) identical++;
-  else drifted.push({ rel, pair: pairHash(selfHash, twinHash) });
+  if (selfHash === twinHash) {
+    identical++;
+  } else {
+    const pair = pairHash(selfHash, twinHash);
+    drifted.push({ rel, pair, acknowledged: baseline[rel] === pair });
+  }
 }
 for (const rel of [...twinFiles].sort()) {
   if (!selfFiles.has(rel)) onlyTwin.push(rel);
 }
 
-const markerFor = (entry) => {
-  if (EXPECTED_DIVERGENT.has(entry.rel)) return ' (expected divergence)';
-  if (baseline[entry.rel] === entry.pair) return ' (acknowledged)';
-  return '';
-};
-const unexpected = drifted.filter((e) => !EXPECTED_DIVERGENT.has(e.rel) && baseline[e.rel] !== e.pair);
+const unexpected = drifted.filter((e) => !e.acknowledged);
 
 if (ACCEPT) {
-  // Acknowledge the CURRENT pair-state of every unexpectedly drifted file.
+  // Acknowledge the CURRENT pair-state of every drifted file, dropping
+  // stale entries (file no longer drifted, or no longer exists).
   // Re-running after either side changes flags the file again.
-  const next = { ...baseline };
-  for (const e of unexpected) next[e.rel] = e.pair;
-  // Drop stale entries: file no longer drifted (or no longer exists).
-  const driftedNow = new Set(drifted.map((e) => e.rel));
-  for (const rel of Object.keys(next)) if (!driftedNow.has(rel)) delete next[rel];
-  const sorted = Object.fromEntries(Object.entries(next).sort(([a], [b]) => a.localeCompare(b)));
-  writeFileSync(BASELINE_PATH, `${JSON.stringify(sorted, null, 2)}\n`);
-  console.log(`baseline updated: ${Object.keys(sorted).length} acknowledged file(s) → ${BASELINE_PATH}`);
-  console.log('copy scripts/drift-baseline.json to the twin checkout so both sides agree.');
+  const next = Object.fromEntries(drifted.map((e) => [e.rel, e.pair]).sort(([a], [b]) => a.localeCompare(b)));
+  const json = `${JSON.stringify(next, null, 2)}\n`;
+  // Write BOTH checkouts so the two baselines can never diverge.
+  const twinBaselinePath = join(TWIN_ROOT, 'scripts', BASELINE_NAME);
+  writeFileSync(BASELINE_PATH, json);
+  writeFileSync(twinBaselinePath, json);
+  console.log(`baseline updated: ${drifted.length} acknowledged file(s)`);
+  console.log(`  → ${BASELINE_PATH}`);
+  console.log(`  → ${twinBaselinePath}`);
+  console.log('commit the baseline in both checkouts. (check-drift.mjs itself still needs a manual copy when the script changes.)');
   process.exit(0);
 }
 
@@ -136,7 +152,7 @@ console.log(`drift report: ${SELF_NAME} vs ${TWIN_NAME}`);
 console.log(`  identical shared files : ${identical}`);
 console.log(`  drifted                : ${drifted.length}`);
 for (const e of drifted) {
-  console.log(`    ~ ${e.rel}${markerFor(e)}`);
+  console.log(`    ~ ${e.rel}${e.acknowledged ? ' (acknowledged)' : ''}`);
 }
 if (onlySelf.length) {
   console.log(`  only in ${SELF_NAME}:`);
@@ -149,5 +165,5 @@ if (onlyTwin.length) {
 console.log(
   unexpected.length
     ? `\n${unexpected.length} unexpectedly drifted file(s) — diff them before the next release, then port or \`npm run drift -- --accept\`.`
-    : '\nshared core is in lockstep ✅ (modulo expected/acknowledged divergence)',
+    : '\nshared core is in lockstep ✅ (modulo acknowledged divergence)',
 );

@@ -236,7 +236,8 @@ export function handleSpeedButtonClick(ctx: AppContext, speed: number): void {
 
 /**
  * Compute the speed to apply when a new <video> attaches.
- * Priority: smart (one-shot) -> current (if rememberSpeed) -> default.
+ * Priority: smart (one-shot) -> per-content memory (FEAT-015, when
+ * enabled) -> current (if rememberSpeed) -> default.
  */
 export function pickInitialSpeed(ctx: AppContext): number {
   const smart = ctx.speedStore.smart();

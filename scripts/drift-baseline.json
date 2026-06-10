@@ -3,6 +3,7 @@
   "src/discovery/selectors.ts": "ee0562df79f1e72d50b07be5f9bfd917a346e2b5397002531db383e8008c3def",
   "src/discovery/validators.ts": "f1eda304c7c9d04677faf0c621f91dbf4faed088b4eb2a47b1317373b7b72403",
   "src/health/report.ts": "734064fc90cb6021d45810dad9d0fed5cd23b8ad9ad5fd3ff86e2896b7b6640e",
+  "src/i18n/dict.ts": "ba10187b9d42078283436aab1434c0961a5cd2d7402b6db6c7f8aae47c604f52",
   "src/storage/settings-store.ts": "93b4736c963af8b79bc68ab6d76aa50187655e441d5853fc0707b86f1be81882",
   "src/storage/types.ts": "5a5163d1356bc166716e4020cc111b93b3ccb0c9dc1aedd404432037a497c944",
   "src/ui/insertion.ts": "4763254dd127db236b59bb2a4c327d185fb344787e7c645eb575ef0e308c1760",
@@ -10,5 +11,6 @@
   "src/ui/settings/export-import.ts": "40e54d4471f60e6495c1aad767fd70cd779b60e9cce61dc0102435b46a3071ce",
   "src/ui/settings/handlers.ts": "de0299afc1e670e57851988cf442cde7cd6268186139ed281c4e712294df335a",
   "src/ui/settings/modal.ts": "285818aca5dc67625a987ff17666bc3cd4d828098e63bfceb320c4695e57a531",
+  "src/ui/styles.ts": "cb744ce3bc84bb8599166aa86c77eedef889209950611ef9fb519d5aa7e83311",
   "src/utils/tm-coexist.ts": "c47015ad069991222bce208a64c280434e349cd174949b32bda953af676e9062"
 }
