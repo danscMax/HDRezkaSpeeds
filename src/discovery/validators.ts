@@ -76,7 +76,30 @@ const validators: Record<SelectorKey, Validator> = {
   playerContainer(el) {
     if (!isElement(el)) return fail('not Element');
     if (!el.isConnected) return fail('detached');
-    if (!el.querySelector('video')) return fail('no <video> descendant');
+    // FIX 2026-06-10 (user report): on title pages the <video> mounts
+    // only AFTER the user clicks Play — before that, #player.b-player
+    // holds just the #videoplayer holder div, so the old strict
+    // "<video> descendant" check rejected the real wrapper and the
+    // panel fell back to the tentative before-info anchor, landing
+    // inside the movie info table. Accept the wrapper by structure:
+    // a mounted <video>, a player-sized <iframe> (some mirrors embed
+    // the cdn player), or HDRezka's canonical pre-play markers
+    // (.b-player class / #videoplayer holder). Heuristic strategies
+    // still face the size gate below, so random page blocks without
+    // these markers keep being rejected.
+    const hasVideo = !!el.querySelector('video');
+    const frame = el.querySelector('iframe');
+    let frameLooksLikePlayer = false;
+    if (frame) {
+      const fr = frame.getBoundingClientRect();
+      frameLooksLikePlayer = fr.width >= 300 && fr.height >= 150;
+    }
+    const isHdPrePlayWrapper =
+      el.matches('.b-player, #player') ||
+      !!el.querySelector('#videoplayer, [class*="b-player__holder"]');
+    if (!hasVideo && !frameLooksLikePlayer && !isHdPrePlayWrapper) {
+      return fail('no <video>/player descendant');
+    }
     const r = el.getBoundingClientRect();
     if (r.width < 150 || r.height < 80) return fail('too small for real player');
     return ok();

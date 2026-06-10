@@ -4,6 +4,23 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.5.1] — 2026-06-10
+
+### Fixed
+
+- **Panel landed inside the movie info table on title pages** (long-
+  standing, present since at least 0.4.3; user report). Before the user
+  hits Play, `#player.b-player` has no `<video>` descendant, so the
+  playerContainer validator rejected the real wrapper and the panel fell
+  back to the before-info anchor. The validator now also accepts
+  HDRezka's pre-play wrapper markers (`.b-player` / `#videoplayer`
+  holder) and player-sized iframes; the panel sits right under the
+  player again.
+- **Light theme polish:** button pills barely read on white pages
+  (fill 0.06 → 0.08, border 0.10 → 0.16), and the pinned-speed halo
+  bled into white backgrounds making the pill look washed-out — glow
+  tightened, accent ring added.
+
 ## [0.5.0] — 2026-06-10
 
 ### Added

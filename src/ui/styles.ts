@@ -415,14 +415,17 @@ html[data-vs-theme="dark"] {
   --vs-toggle-on: var(--vs-accent-dark);
 }
 html[data-vs-theme="light"] {
-  --vs-bg-button: rgba(0, 0, 0, 0.06);
-  --vs-bg-button-hover: rgba(0, 0, 0, 0.12);
+  /* VIS 2026-06-10: 0.06 pills with a 0.10 border melted into white
+     site backgrounds — bump fill + border so the row reads as buttons
+     at a glance on light pages. */
+  --vs-bg-button: rgba(0, 0, 0, 0.08);
+  --vs-bg-button-hover: rgba(0, 0, 0, 0.15);
   --vs-button-text: rgba(15, 15, 15, 0.88);
   --vs-bg-track: rgba(0, 0, 0, 0.15);
   --vs-text-primary: rgba(15, 15, 15, 0.92);
   --vs-text-secondary: rgba(15, 15, 15, 0.66);
   --vs-text-dim: rgba(15, 15, 15, 0.55);
-  --vs-border: rgba(0, 0, 0, 0.10);
+  --vs-border: rgba(0, 0, 0, 0.16);
   --vs-accent: #00a1db;
   --vs-accent-dark: #0080b0;
   --vs-accent-darker: #005f85;
@@ -739,6 +742,14 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
    glance; the halo still ties it to the accent palette. */
 html[data-vs-theme="dark"] .speed-button.pinned:not(.active)::after {
   background-color: rgba(255, 255, 255, 0.88);
+}
+/* VIS 2026-06-10: on light pages the wide 0.45-alpha halo bled into the
+   white background and made the pinned pill read as a washed-out /
+   half-disabled button (user report). Tighten the glow; the accent
+   bookmark icon carries the "saved" signal on light. */
+html[data-vs-theme="light"] .speed-button.pinned:not(.active) {
+  box-shadow: 0 0 8px 1px rgba(var(--vs-accent-rgb), 0.30);
+  border-color: rgba(var(--vs-accent-rgb), 0.45);
 }
 .speed-button {
   position: relative;
