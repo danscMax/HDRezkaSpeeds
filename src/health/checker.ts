@@ -218,7 +218,8 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
       if (!deps.isHealthCheckEnabled()) {
         // Audit 2026-05-11 W1.2 (REL-002): auto-trip path must reset
         // started + re-arm the watcher so user re-enable resumes
-        // polling.
+        // polling. Previously stopPolling() alone left started=true
+        // and no watcher → checker dead until page reload.
         stop();
         armReEnableWatcher();
         return;
@@ -239,13 +240,19 @@ export function createHealthChecker(deps: CreateHealthCheckerDeps): HealthChecke
     stopPolling();
   }
 
-  // Audit 2026-05-11 W6.6 (PERF-013): pause polling when tab is
-  // hidden, resume on visible. Avoids firing the interval into a
-  // no-op every 30 s on background tabs.
+  // Audit 2026-05-11 W6.6 (PERF-013): pause polling when the tab is
+  // hidden instead of firing the interval into a no-op every 30 s.
+  // Chrome throttles background intervals to 1 Hz so the cost is
+  // small, but multiplied across hundreds of background tabs (a
+  // typical heavy user) it adds up. Resume on visible. We don't
+  // start polling immediately on visible — the next user interaction
+  // or the natural poll interval picks up the work.
   if (typeof document !== 'undefined') {
     const onVisibility = (): void => {
-      if (!started) return;
+      if (!started) return; // checker isn't running anyway
       if (document.hidden) {
+        // Pause: clear the interval but keep started=true so resume
+        // restarts polling without re-arming the watcher.
         stopPolling();
       } else if (deps.isHealthCheckEnabled()) {
         startPolling();

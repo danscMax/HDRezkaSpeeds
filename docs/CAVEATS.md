@@ -45,3 +45,11 @@ then reload the extension in `chrome://extensions/` / `about:debugging`.
 `HDRezkaSpeeds` and `VideoSpeeds` share most of `src/` by copy-paste.
 Run `npm run drift` to compare the shared core against the sibling
 checkout and port fixes both ways before a release.
+
+Legitimate site-specific divergence inside shared files (mirrors wiring,
+selectors, RuTube-only settings) is acknowledged in
+`scripts/drift-baseline.json` via a symmetric pair-hash: the file stays
+silent until either side changes again, then reappears as unexpected
+drift. After reviewing/porting, re-acknowledge with
+`npm run drift -- --accept` and copy both `scripts/check-drift.mjs` and
+`scripts/drift-baseline.json` to the twin so the two checkouts agree.

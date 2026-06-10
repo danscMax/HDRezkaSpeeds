@@ -39,8 +39,10 @@ function hasGmSync(): boolean {
 // implementation wrote primitives raw and stringified objects, then on
 // read it JSON-parse'd strings. Result: a stored string `"true"` /
 // `"123"` / `"null"` round-tripped as `true`/`123`/`null`, which is
-// type-bending corruption. Fix: always wrap in a JSON envelope
-// `{"_v":1,"d":<value>}` so the read path can recover the exact original type.
+// type-bending corruption (e.g. a settings field stored as the literal
+// string "1.5x" came back as the number 1.5). Fix: always wrap in a
+// JSON envelope `{"_v":1,"d":<value>}` so the read path can recover the
+// exact original type.
 const ENVELOPE_VERSION = 1;
 type Envelope<T> = { _v: 1; d: T };
 

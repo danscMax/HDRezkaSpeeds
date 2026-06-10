@@ -1,17 +1,28 @@
 /**
  * Speed controller -- the only module that touches `video.playbackRate`.
  *
- * Entry points (audit 2026-05-11 W3.1: setSpeed deleted as dead code):
- *   - applyTransient(ctx, speed)         -- video + UI only, no storage
- *                                           (slider drag, rAF-coalesced)
- *   - setTemporary(ctx, speed)           -- smart-store (one-shot)
- *   - setGlobal(ctx, speed)              -- current + force rememberSpeed
- *   - handleSpeedButtonClick(ctx, speed) -- single -> temp, double -> global
+ * Entry points (audit 2026-05-11 W3.1: setSpeed was deleted as dead
+ * code; all callers migrated to one of the three explicit semantics):
+ *   - applyTransient(ctx, speed)        -- writes to video + UI, no
+ *                                          storage. Used by slider
+ *                                          drag (rAF-coalesced).
+ *   - setTemporary(ctx, speed)          -- writes to smart-store
+ *                                          (one-shot for this video).
+ *                                          Pill click, hotkey, slider
+ *                                          change-event release.
+ *   - setGlobal(ctx, speed)             -- writes current + forces
+ *                                          rememberSpeed=true + toast.
+ *                                          Pin button, pill dbl-click.
+ *   - handleSpeedButtonClick(ctx, speed) -- click router: single ->
+ *                                          temp, double -> global.
  *
  * Everything goes through ctx (audit C2). The controller never reaches into
  * UI directly: ui.refreshButtons / refreshSlider / showNotification keep
  * the dependency arrow pointing one way (controller -> ports, never
  * controller -> ui module).
+ *
+ * Ported from .user.js:2263-2412 with the inline retry loop deferred to
+ * the site-bootstrap layer (Wave 1.10 attachToVideo).
  */
 
 import type { AppContext } from '../app/context';
@@ -89,9 +100,9 @@ export interface ApplyOptions {
 /**
  * Lightweight apply: push the value to video.playbackRate and refresh UI
  * WITHOUT touching storage. Used by slider drag during continuous input
- * so we don't burn IPC / disk-IO on every pixel of motion. The drag's
- * final value is committed via the `change` event handler that calls
- * setTemporary() once on release.
+ * so we don't burn IPC / disk-IO writes on every pixel of motion. The
+ * drag's final value is committed via the `change` event handler that
+ * calls setTemporary() once on release.
  *
  * Self-write timestamp is still stamped (via applyToVideo) so the
  * ratechange watchdog in src/index.ts treats this as ours.
@@ -177,12 +188,15 @@ export async function setGlobal(
  * setGlobal. State is per-AppContext so each tab/popup keeps its own
  * counter.
  *
- * Audit 2026-05-09 sec C13/C14: setGlobal/setTemporary are async. The
- * previous code reset count=0 before the await, so a click during the
- * in-flight promotion was treated as a fresh single-click and silently
- * downgraded the just-applied global. We now mark the state as
- * "promotion in flight" via a pending flag and short-circuit re-entry
- * until it settles. Promise rejections are surfaced via .catch.
+ * Audit 2026-05-09 sec C13/C14: setGlobal/setTemporary are async (storage
+ * writes). The previous code reset `state.count = 0` before kicking off
+ * the await, so a click arriving during the in-flight promise would
+ * re-enter `handleSpeedButtonClick` with count=0 and be treated as a
+ * fresh single-click — silently downgrading the just-applied global to
+ * a temporary. We now mark the state as "promotion in flight" via a
+ * `pending` flag and short-circuit re-entry while it's set, only
+ * resetting count after the promotion settles. Promise rejections are
+ * surfaced via .catch (was: `void` swallowed silent storage failures).
  */
 export function handleSpeedButtonClick(ctx: AppContext, speed: number): void {
   const state = clickState.get(ctx) ?? {
@@ -190,7 +204,11 @@ export function handleSpeedButtonClick(ctx: AppContext, speed: number): void {
     timer: null as number | null,
     pending: false,
   };
-  if (state.pending) return;
+  if (state.pending) {
+    // A previous click is still being applied; ignore the burst until it
+    // settles. The user's intent is clear from the in-flight promotion.
+    return;
+  }
   state.count += 1;
   if (state.timer !== null) {
     clearTimeout(state.timer);
@@ -218,8 +236,7 @@ export function handleSpeedButtonClick(ctx: AppContext, speed: number): void {
 
 /**
  * Compute the speed to apply when a new <video> attaches.
- * Priority: smart (one-shot) -> per-content memory (FEAT-015, when
- * enabled) -> current (if rememberSpeed) -> default.
+ * Priority: smart (one-shot) -> current (if rememberSpeed) -> default.
  */
 export function pickInitialSpeed(ctx: AppContext): number {
   const smart = ctx.speedStore.smart();

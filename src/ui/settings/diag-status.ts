@@ -61,7 +61,9 @@ function projectReport(ctx: AppContext): DiagViewModel {
     };
   }
 
-  // Audit 2026-05-09 Q4: defensive try/catch around isHealthy().
+  // Audit 2026-05-09 Q4: defensive try/catch — a thrown isHealthy()
+  // (e.g. healthChecker not yet initialised) used to crash the entire
+  // diag-status update, leaving the panel showing stale info.
   let healthy = false;
   try {
     healthy = ctx.diagnostics.isHealthy();
@@ -93,7 +95,9 @@ function projectReport(ctx: AppContext): DiagViewModel {
   // visible line break (audit B3.1).
   const detail =
     issues.length > 0 ? issues.map((s) => `• ${s}`).join('\n') : t('diag.status.try_again');
-  // Audit 2026-05-09 Q2: pluralized key.
+  // Audit 2026-05-09 Q2: pluralized key. The single-issue branch above
+  // already returns separately; this branch handles count !== 1, but
+  // we still pick `.other` defensively.
   const issuesCountKey =
     issues.length === 1 ? 'diag.status.issues_count.one' : 'diag.status.issues_count.other';
   return {

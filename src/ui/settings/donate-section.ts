@@ -49,8 +49,12 @@ const USDT_TRC20: CryptoMethod = {
 };
 
 async function copyToClipboard(text: string, i18n: Translator): Promise<void> {
-  // Audit 2026-05-09 M4: navigator.clipboard.writeText rejects in some
-  // Firefox MV3 builds. Fall back to legacy execCommand via hidden textarea.
+  // Audit 2026-05-09 M4: Firefox MV3 + some Edge builds reject
+  // navigator.clipboard.writeText() in content-script context unless
+  // a recent user gesture is in scope (and even then, the
+  // dom.events.asyncClipboard.writeText pref can disable it). Fall
+  // back to the legacy execCommand path via a hidden textarea — that
+  // path works in every browser back to Chrome 43 / Firefox 41.
   if (await tryAsyncClipboard(text)) {
     showNotification(i18n.t('toast.address_copied'), {
       kind: 'success',
@@ -78,7 +82,7 @@ async function tryAsyncClipboard(text: string): Promise<boolean> {
       return true;
     }
   } catch {
-    /* fall through */
+    /* fall through to execCommand */
   }
   return false;
 }
@@ -87,6 +91,9 @@ function tryExecCommandClipboard(text: string): boolean {
   try {
     const ta = document.createElement('textarea');
     ta.value = text;
+    // Hide visually but keep selectable. position:fixed avoids the
+    // page scrolling to the textarea, which a tall absolute element
+    // would otherwise trigger.
     ta.style.cssText =
       'position:fixed; top:0; left:0; width:1px; height:1px; opacity:0; padding:0; border:0; margin:0;';
     ta.setAttribute('readonly', '');

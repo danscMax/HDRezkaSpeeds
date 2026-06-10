@@ -101,6 +101,10 @@ function buildChecks(deps: ReportDeps): HealthChecks {
     container_inserted: !!panel,
     container_visible: !!(panel instanceof HTMLElement && panel.offsetParent !== null),
     // Audit 2026-05-09 perf O11: scope to the panel root when available.
+    // The previous `document.querySelectorAll('.speed-button')` walked
+    // the entire DOM on every health tick + every settings-modal
+    // rerender. Falling back to document is fine when the panel itself
+    // is missing (it gives 0, which is the right value).
     speed_button_count: panel
       ? panel.querySelectorAll('.speed-button').length
       : document.querySelectorAll('.speed-button').length,

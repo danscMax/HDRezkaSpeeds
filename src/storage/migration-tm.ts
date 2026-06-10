@@ -75,8 +75,12 @@ export async function runTmMigration(
     const rawSettings = readLocalStorageSafely(keys.settings, result.errors);
     if (rawSettings != null) {
       // Audit 2026-05-11 W1.4 (SEC-002): page localStorage is attacker-
-      // controlled; cap JSON.parse input at 256 KB to avoid main-thread
-      // freezes from malicious multi-MB payloads on first install.
+      // controlled (hostile site can pre-populate the migration key with
+      // a 5 MB blob); JSON.parse of huge inputs blocks the main thread
+      // for tens of ms during bootstrap. Realistic settings size is
+      // <2 KB; 256 KB is a generous cap that rejects only malicious
+      // payloads while leaving headroom for legitimate large preset
+      // lists.
       if (rawSettings.length > 256 * 1024) {
         result.errors.push(
           `${keys.settings}: payload exceeds 256 KB (${rawSettings.length} bytes), skipping`,

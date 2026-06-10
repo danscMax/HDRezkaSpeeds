@@ -99,7 +99,8 @@ export function createKillSwitch(ctx: AppContext): KillSwitch {
     const merged = { ...(live ?? {}), ...patch };
     // Audit 2026-05-11 W1.3 (SEC2-001): `healing` is now a declared
     // Settings field with its own sub-validator in sanitizePatch — the
-    // patch reaches disk and survives page reloads.
+    // patch reaches disk and survives page reloads. Previously the
+    // sanitizer dropped it silently, breaking defense-in-depth toggles.
     try {
       await ctx.settingsStore.update({ healing: merged });
     } catch (e) {

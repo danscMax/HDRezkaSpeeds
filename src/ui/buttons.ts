@@ -65,10 +65,13 @@ export function renderButtonsRow(opts: ButtonsRowOptions): HTMLElement {
   );
 }
 
-// Audit 2026-05-11 W6.5 (PERF-010): row state cache + direct-child
-// iteration. Skips DOM mutation entirely when current/pinned didn't
-// change. ratechange events (HLS quality switches, self-write echoes)
-// hammer these refresh functions; no-op short-circuit pays for itself.
+// Audit 2026-05-11 W6.5 (PERF-010): cache the previously-active /
+// previously-pinned values on the row element itself so a no-op
+// refresh (which happens on every ratechange — HLS quality switches,
+// self-write echoes) short-circuits before any DOM mutation. The
+// classes are toggled by walking the row's direct children once
+// instead of a fresh querySelectorAll per call — modal-open settings
+// rerenders, ratechange events, and refreshButtons all hit this.
 type RowState = Element & {
   __vsLastCurrent?: number;
   __vsLastPinned?: number | null;
@@ -84,6 +87,7 @@ export function refreshActiveButton(row: Element, current: number): void {
     return;
   }
   rowState.__vsLastCurrent = current;
+  // Walk direct children (not querySelectorAll over the whole subtree).
   for (const child of Array.from(row.children)) {
     if (!child.classList.contains(BTN_CLASS)) continue;
     const speedAttr = child.getAttribute('data-vs-speed');
@@ -100,6 +104,7 @@ export function refreshPinnedButton(row: Element, pinned: number | null): void {
   const rowState = row as RowState;
   const prev = rowState.__vsLastPinned;
   if (prev !== undefined) {
+    // No-change short-circuit covers both null↔null and same-value cases.
     if (prev === null && pinned === null) return;
     if (prev !== null && pinned !== null && isSameSpeed(prev, pinned)) return;
   }
@@ -118,9 +123,3 @@ function isSameSpeed(a: number, b: number): boolean {
   // (1.0 + 0.1 × 5 = 1.4999...x) — audit C2.3.
   return Math.abs(a - b) < 0.01;
 }
-
-/**
- * Render a speed value as a button label: integers get "2x", fractions
- * get the minimal decimal form ("1.5x", "1.25x"). Avoids visual noise
- * like "1.00x" or "1.50x" while keeping precision for the in-between values.
- */

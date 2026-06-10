@@ -44,9 +44,11 @@ function isHotkey(value: unknown): value is Hotkey {
  */
 export function normalizeHotkeys(raw: unknown, defaults: Hotkey[]): Hotkey[] {
   if (Array.isArray(raw)) {
-    // Audit 2026-05-11 W1.4 (SEC-001): cap to 16 so a hostile
-    // localStorage migration cannot push a 10k-element hotkeys array
-    // into storage. 16 is well above any real user's needs.
+    // Audit 2026-05-11 W1.4 (SEC-001): cap to MAX_HOTKEYS so a hostile
+    // localStorage migration (page-controlled origin) cannot push a
+    // 10k-element hotkeys array into storage — every panel rerender
+    // would scale linearly with the count. 16 is well above any real
+    // user's needs (typical: 1-2 combos per action).
     const valid = raw.filter(isHotkey).slice(0, 16);
     return valid.length > 0 ? valid : defaults;
   }

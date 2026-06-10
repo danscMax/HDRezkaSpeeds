@@ -133,13 +133,15 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
 
       if (key === 'playerContainer') {
         // Audit 2026-05-09 perf P2: walk ancestors of <video> instead of
-        // scanning every div/section/article on the page. O(depth) vs the
-        // previous O(n_elements) × O(subtree-query) pattern.
+        // scanning every div/section/article on the page (each requiring
+        // a nested .querySelector('video') call). On YouTube the previous
+        // implementation iterated 800-2000+ outer nodes × an inner subtree
+        // query — a CPU spike during cold load. Ancestor walk is O(depth).
         const video = doc.querySelector('video');
         if (!video) return null;
         const candidates: Array<{ el: HTMLElement; area: number }> = [];
         let node: Element | null = video.parentElement;
-        let safety = 32;
+        let safety = 32; // guard against pathological trees
         while (node && safety-- > 0) {
           if (node === doc.body) break;
           if (node instanceof HTMLElement) {
@@ -151,6 +153,7 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
           }
           node = node.parentElement;
         }
+        // Smallest containing-video ancestor = tightest wrapper.
         candidates.sort((a, b) => a.area - b.area);
         return candidates[0]?.el ?? null;
       }
@@ -208,8 +211,12 @@ export function createDiscoveryEngine(deps: DiscoveryEngineDeps): DiscoveryEngin
         if (el && ok(key, el)) {
           const sigNow = cache.buildSignature(el);
           // Audit 2026-05-09 sec C12: require strict signature equality.
-          // Empty signature stays tolerant for legacy cached entries
-          // written before signature tracking landed.
+          // The previous `!hit.signature || sigNow === hit.signature`
+          // accepted entries with a NON-empty signature that differed from
+          // the current one — after a YouTube DOM rerender the old element
+          // would slip through and stale until the cache eventually
+          // bumpFailure'd it. Empty signature stays tolerant for legacy
+          // cached entries written before signature tracking landed.
           const sigOk = !hit.signature || sigNow === hit.signature;
           if (sigOk) {
             cache.bumpSuccess(key);

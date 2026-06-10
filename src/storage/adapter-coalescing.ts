@@ -5,12 +5,15 @@
  * flood the underlying storage at 60–120+ writes/sec. Each write is a
  * separate IPC round-trip to the extension service worker plus a disk
  * flush; collapsing bursts into one write per coalesce window cuts
- * IPC + disk-IO cost by orders of magnitude.
+ * IPC + disk-IO cost by orders of magnitude on the slider-drag /
+ * hotkey-repeat paths.
  *
  * Audit 2026-05-11 W5.8 (PLAT-007): the earlier "120-writes-per-
- * minute Chrome quota" justification was wrong. That quota applies
- * to `chrome.storage.sync` only — `.local` (what we use) has only a
- * size cap. Coalescing is still valuable for IPC/disk amortization.
+ * minute Chrome quota" justification was wrong. That quota
+ * (MAX_WRITE_OPERATIONS_PER_MINUTE = 120) applies to
+ * `chrome.storage.sync` ONLY. `chrome.storage.local` has only a size
+ * cap (10 MB by default). Coalescing is still valuable for IPC/disk
+ * amortization, but it isn't quota-protection.
  *
  * This wrapper buffers writes per-key for `flushMs` (default 200ms) and
  * collapses bursts into a single underlying `set()`. Last write wins.
@@ -29,9 +32,12 @@ export interface CoalescingOptions {
   flushMs?: number;
   /**
    * Audit 2026-05-11 W2.1 (REL-004): per-key write-error surface.
-   * Coalesced writes are best-effort by design, but previously ALL
-   * errors were silently swallowed. This callback is invoked once
-   * per failed flush so the host can log / throttle telemetry.
+   * Coalesced writes are best-effort by design (quota-exceeded during
+   * a slider drag isn't worth retrying), but previously ALL errors
+   * were silently swallowed — speedStore reported success while
+   * disk diverged. This callback is invoked once per failed flush so
+   * the host can log/throttle telemetry. Default no-op preserves
+   * existing behavior for callers that don't opt in.
    */
   onWriteError?: (key: string, err: unknown) => void;
 }
@@ -63,8 +69,10 @@ export function createCoalescingAdapter(
     const batch = Array.from(pending.entries());
     pending.clear();
     const writes = batch.map(([key, value]) =>
-      // Fire writes in parallel; failures are independent. Surface
-      // non-benign rejects via onWriteError.
+      // Fire writes in parallel; failures are independent. Each
+      // adapter.set already swallows context-invalidated and other
+      // benign cases. Surface non-benign rejects via onWriteError
+      // so callers can log / increment HealthChecker counters.
       inner.set(key, value).catch((err) => {
         if (onWriteError) {
           try {
@@ -91,8 +99,9 @@ export function createCoalescingAdapter(
       return flushBatch();
     },
     async get<T>(key: string, defaultValue: T): Promise<T> {
-      // Audit 2026-05-11 W5.7: pending only holds real values now
-      // (remove() no longer queues a sentinel).
+      // Audit 2026-05-11 W5.7: pending no longer holds PENDING_SENTINEL
+      // (remove() no longer queues). A pending entry is always a real
+      // value waiting to flush.
       if (pending.has(key)) return pending.get(key) as T;
       return inner.get<T>(key, defaultValue);
     },
@@ -104,13 +113,15 @@ export function createCoalescingAdapter(
 
     async remove(key: string): Promise<void> {
       // Audit 2026-05-11 W5.7 (PERF-012): drop the queued write for
-      // this key (if any) and forward to inner.remove directly. The
-      // previous code flushed ALL pending writes under one await —
-      // turning unrelated fire-and-forget writes into blocking
-      // writes whenever a remove overlapped them. The other pending
-      // writes either fire on the next scheduled flush or after
-      // this remove resolves; no behavior change for them.
+      // this key (if any) and forward to inner.remove(key) directly.
+      // The previous implementation flushed ALL pending writes under
+      // one await — turning a fire-and-forget speedStore write into
+      // a blocking write whenever a remove happened to overlap. The
+      // other pending writes either fire on the next scheduled flush
+      // (no behavior change) or after this remove resolves.
       pending.delete(key);
+      // Keep the existing flush timer running if other keys are still
+      // pending; only schedule one if remove leaves writes orphaned.
       if (pending.size > 0 && flushTimer === null) {
         scheduleFlush();
       }

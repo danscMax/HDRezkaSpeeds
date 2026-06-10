@@ -168,11 +168,17 @@ export function createSelectorCache(
     get(key: SelectorKey): CacheEntry | null {
       const entry = memCache.get(key);
       if (!entry) return null;
-      // Audit 2026-05-11 W5.4 (REL-009): expire entries whose
-      // valid_until has passed. Falls through to selector tables /
-      // heuristics to rebuild fresh.
+      // Audit 2026-05-11 W5.4 (REL-009): TTL was written but never
+      // read. Stale entries (the site changed selectors a week ago,
+      // but our cache keeps validating because bumpSuccess slides
+      // valid_until forward) used to live forever. Expire entries
+      // whose valid_until has passed AND whose last bumpSuccess
+      // didn't refresh them — the next resolve falls through to
+      // selector tables / heuristics and rebuilds a fresh entry.
       if (entry.valid_until && Date.now() > entry.valid_until) {
         memCache.delete(key);
+        // Schedule a persist so the disk mirror stays in sync; not
+        // awaited because get() is sync.
         persist();
         return null;
       }

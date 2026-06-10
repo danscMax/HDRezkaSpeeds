@@ -9,7 +9,7 @@
  */
 
 import { h } from './dom-h';
-// formatSliderLabel uses the shared formatter (audit 2026-05-09 Q6).
+// formatSliderLabel is the shared formatter (audit 2026-05-09 Q6).
 import { formatSpeed as formatSliderLabel } from './format';
 
 const CONTAINER_CLASS = 'speed-slider-container';

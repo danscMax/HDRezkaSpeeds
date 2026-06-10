@@ -58,18 +58,23 @@ const STYLE: Record<LogLevel, { glyph: string; color: string; method: 'log' | 'w
   };
 
 /**
- * Audit 2026-05-11 W6.4 (PERF-007): convert a detail arg to a
+ * Audit 2026-05-11 W6.4 (PERF-007): convert a single detail arg to a
  * human-readable string for the history buffer. Primitives pass
  * through; Error gets message+stack; DOM Element renders as a tag-
- * summary; objects/arrays JSON.stringify with circular-ref guard.
+ * summary; objects/arrays JSON.stringify (with circular-ref guard).
+ * The goal is "diagnostic-report-readable, GC-friendly", not a
+ * full structured serializer.
  */
 function snapshotForHistory(value: unknown): unknown {
+  // Primitives — keep as-is. JSON serialization later handles them.
   if (value === null || value === undefined) return value;
   const t = typeof value;
   if (t === 'string' || t === 'number' || t === 'boolean' || t === 'bigint') return value;
   if (value instanceof Error) {
     return `${value.name}: ${value.message}${value.stack ? `\n${value.stack}` : ''}`;
   }
+  // DOM elements: tag + id + classes — enough to identify in a bug
+  // report, none of the live tree.
   if (typeof Element !== 'undefined' && value instanceof Element) {
     const id = value.id ? `#${value.id}` : '';
     const cls =
@@ -78,6 +83,8 @@ function snapshotForHistory(value: unknown): unknown {
         : '';
     return `<${value.tagName.toLowerCase()}${id}${cls}>`;
   }
+  // Objects / arrays / functions — JSON.stringify with circular guard.
+  // Functions stringify to undefined (skipped by JSON); good enough.
   try {
     const seen = new WeakSet<object>();
     return JSON.stringify(value, (_k, v) => {
@@ -134,7 +141,12 @@ export function createLogger(opts: LoggerOptions = {}): ExtendedLogger {
 
     // Audit 2026-05-11 W6.4 (PERF-007): stringify non-primitive
     // details at capture time so the circular buffer doesn't pin
-    // live DOM nodes / large objects beyond their natural GC.
+    // live references (especially DOM nodes from
+    // `logger.debug('matched', el)` patterns). The history is for
+    // diagnostic exports — human-readable strings, not live
+    // debugging. Without this fix, 200 entries × ~1 retained DOM
+    // node per entry blocks up to 200 detached nodes from GC after
+    // a long session.
     const snapshotDetails = details === null ? null : details.map(snapshotForHistory);
     buffer[head] = { ts: Date.now(), level, message, details: snapshotDetails };
     head = (head + 1) % maxHistory;
@@ -145,8 +157,10 @@ export function createLogger(opts: LoggerOptions = {}): ExtendedLogger {
     const prefix = `%c${emoji} [${scriptName}] ${style.glyph} ${level.toUpperCase()} [${ts}] ${message}`;
     const css = `color: ${style.color}; font-weight: bold;`;
 
-    // Live console gets original refs (so DevTools can inspect); only
-    // the history buffer holds the stringified snapshots.
+    // Use the level-appropriate console method so DevTools' filter
+    // checkboxes work as users expect. Live console gets the ORIGINAL
+    // refs (so DevTools' object-inspector lets the dev drill in);
+    // only the history buffer holds the stringified snapshots.
     if (details) {
       console[style.method](prefix, css, ...(details as unknown[]));
     } else {
