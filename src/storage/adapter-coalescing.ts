@@ -36,38 +36,60 @@ export interface CoalescingOptions {
   onWriteError?: (key: string, err: unknown) => void;
 }
 
+export interface CoalescingAdapter extends StorageAdapter {
+  /**
+   * Flush every buffered write immediately, bypassing the coalesce
+   * window. Wired to `pagehide` by the host: without it a write that
+   * lands <flushMs before navigation (e.g. double-click "save as
+   * default" followed by an instant reload) silently evaporates.
+   */
+  flushNow(): Promise<void>;
+}
+
 export function createCoalescingAdapter(
   inner: StorageAdapter,
   opts: CoalescingOptions = {},
-): StorageAdapter {
+): CoalescingAdapter {
   const flushMs = opts.flushMs ?? 200;
   const onWriteError = opts.onWriteError;
   const pending = new Map<string, unknown>();
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
+  function flushBatch(): Promise<void> {
+    if (flushTimer !== null) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    const batch = Array.from(pending.entries());
+    pending.clear();
+    const writes = batch.map(([key, value]) =>
+      // Fire writes in parallel; failures are independent. Surface
+      // non-benign rejects via onWriteError.
+      inner.set(key, value).catch((err) => {
+        if (onWriteError) {
+          try {
+            onWriteError(key, err);
+          } catch {
+            /* swallow — callback's own throw must not crash flush */
+          }
+        }
+      }),
+    );
+    return Promise.all(writes).then(() => undefined);
+  }
+
   function scheduleFlush(): void {
     if (flushTimer !== null) return;
     flushTimer = setTimeout(() => {
       flushTimer = null;
-      const batch = Array.from(pending.entries());
-      pending.clear();
-      for (const [key, value] of batch) {
-        // Fire writes in parallel; failures are independent. Surface
-        // non-benign rejects via onWriteError.
-        void inner.set(key, value).catch((err) => {
-          if (onWriteError) {
-            try {
-              onWriteError(key, err);
-            } catch {
-              /* swallow — callback's own throw must not crash flush */
-            }
-          }
-        });
-      }
+      void flushBatch();
     }, flushMs);
   }
 
   return {
+    flushNow(): Promise<void> {
+      return flushBatch();
+    },
     async get<T>(key: string, defaultValue: T): Promise<T> {
       // Audit 2026-05-11 W5.7: pending only holds real values now
       // (remove() no longer queues a sentinel).

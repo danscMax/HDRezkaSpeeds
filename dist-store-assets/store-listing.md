@@ -43,12 +43,16 @@ WHAT IT DOES
 - Configurable hotkeys (default Alt+Period / Alt+Comma — i.e. Alt+. /
   Alt+,) — assign multiple combinations per action so a remote and a
   keyboard can both trigger speed changes.
-- In-player gear menu with four tabs:
+- In-player gear menu with five tabs:
   - General: slider position (right / below / inside player), language
     switch (English / Russian), preset chips grouped by range
     (slower than 1×, 1×–2×, faster than 2×), behaviour toggles.
   - Shortcuts: rebind speed-up / speed-down, add additional combos,
     reset to defaults.
+  - Mirrors: HDRezka domains rotate constantly — add your own mirror
+    domains and the extension works on them too. One click on the
+    toolbar icon adds the site you're on; access is granted per-domain
+    via the standard browser permission prompt.
   - Diagnostics: copy a structured report for bug submissions; clear
     cached selectors if a site update breaks the panel.
   - Support: feedback form (sends to the developer's Telegram via a
@@ -87,8 +91,9 @@ first run; switch any time from the gear menu.
 
 COMPATIBILITY
 
-Works on the official HDRezka site and the mirror domains you've
-granted access to in your browser's site settings.
+Works on all known HDRezka mirrors out of the box, plus any mirror
+domain you add yourself in the Mirrors tab (access is requested
+per-domain via the standard browser permission prompt).
 ```
 
 ### Russian translation
@@ -112,11 +117,16 @@ HDRezka.
 - Настраиваемые горячие клавиши (по умолчанию Alt+Period / Alt+Comma
   — то есть Alt+. / Alt+,) — можно назначить несколько комбинаций на
   одно действие (клавиатура + пульт ДУ).
-- Меню настроек на шестерёнке с четырьмя вкладками:
+- Меню настроек на шестерёнке с пятью вкладками:
   - «Общие»: положение ползунка, язык интерфейса, кнопки скорости
     сгруппированы по диапазонам (медленнее 1×, 1×–2×, быстрее 2×).
   - «Клавиши»: переназначение хоткеев, дополнительные комбинации,
     сброс к умолчанию.
+  - «Зеркала»: домены HDRezka постоянно меняются — добавьте свои
+    зеркала, и расширение заработает и на них. Один клик по иконке
+    в тулбаре добавляет сайт, на котором вы находитесь; доступ
+    выдаётся отдельно на каждый домен через стандартный запрос
+    разрешения браузера.
   - «Диагностика»: скопировать отчёт для бага, очистить кеш
     селекторов.
   - «Поддержать»: форма обратной связи (отправляется в Telegram
@@ -145,8 +155,10 @@ HDRezka.
 
 СОВМЕСТИМОСТЬ
 
-Работает на официальном сайте HDRezka и на тех зеркалах, которые
-вы разрешили в настройках доступа к сайтам в браузере.
+Работает на всех известных зеркалах HDRezka из коробки, а также на
+любых зеркалах, которые вы добавите сами на вкладке «Зеркала»
+(доступ запрашивается отдельно на каждый домен через стандартный
+запрос разрешения браузера).
 ```
 
 ---
@@ -162,8 +174,11 @@ HDRezka.
 
 | Permission | Why |
 |---|---|
-| `storage` | Persist user preferences (selected speed, hotkeys, language, slider position, preset list) so they survive page reloads and browser restarts. |
+| `storage` | Persist user preferences (selected speed, hotkeys, language, slider position, preset list, user-added mirror list) so they survive page reloads and browser restarts. |
 | `host_permissions` (HDRezka mirrors) | Inject the speed-control UI on the supported HDRezka mirrors. The extension never reads page content beyond the player container and never sends any data off-device. |
+| `scripting` | Register the extension's own bundled content script on mirror domains the user adds in the Mirrors tab (`scripting.registerContentScripts`). No remote code, no arbitrary injection — the registered file is the same content script declared in the manifest. |
+| `activeTab` | Read the active tab's URL when the popup is opened so the "Add current site as a mirror" button can offer the right domain, and reload that tab on the user's click after access is granted. |
+| `optional_host_permissions: *://*/*` | HDRezka mirror domains rotate constantly. New mirrors the user adds are requested individually at runtime via `permissions.request` behind an explicit user gesture (per-domain browser prompt). Nothing is granted silently at install. |
 
 ---
 

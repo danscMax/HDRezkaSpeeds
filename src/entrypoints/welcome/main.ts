@@ -391,7 +391,11 @@ function renderRealPanel(): HTMLElement {
     h(
       'button',
       {
-        class: label === ACTIVE ? 'real-pill active' : 'real-pill',
+        // VIS-009: the active pill also carries the pinned (saved-default)
+        // marker so newcomers see the bookmark + halo exactly as the real
+        // panel renders a saved speed — previously the replica never
+        // showed the pinned state at all.
+        class: label === ACTIVE ? 'real-pill active pinned' : 'real-pill',
         tabindex: -1,
         'data-ann-group': 'clicks',
       },

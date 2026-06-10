@@ -8,30 +8,13 @@
  * the isolated world (sites/hdrezka.ts).
  */
 import { defineContentScript } from 'wxt/utils/define-content-script';
+import { builtinMatchPatterns } from '../sites/mirror-hosts';
 
 export default defineContentScript({
-  matches: [
-    '*://*.hdrezka.ag/*',
-    '*://hdrezka.ag/*',
-    '*://*.rezka.ag/*',
-    '*://rezka.ag/*',
-    '*://*.hdrezka.me/*',
-    '*://hdrezka.me/*',
-    '*://*.hdrezka.co/*',
-    '*://hdrezka.co/*',
-    '*://*.hdrezka.website/*',
-    '*://hdrezka.website/*',
-    '*://*.hdrezka.cm/*',
-    '*://hdrezka.cm/*',
-    '*://*.hdrezka-home.tv/*',
-    '*://hdrezka-home.tv/*',
-    '*://*.rezkify.com/*',
-    '*://rezkify.com/*',
-    '*://*.rezkery.com/*',
-    '*://rezkery.com/*',
-    '*://*.kinopub.me/*',
-    '*://kinopub.me/*',
-  ],
+  // Built-in mirrors only (src/sites/mirror-hosts.ts). User-added mirrors
+  // are served by a dynamic registration of this same built file — see
+  // reconcileMirrorScripts() in entrypoints/background.ts.
+  matches: builtinMatchPatterns(),
   runAt: 'document_idle',
   allFrames: false,
   async main(ctx) {

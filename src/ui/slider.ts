@@ -100,10 +100,22 @@ export function updateSliderFill(input: HTMLInputElement): void {
   const value_ = container.querySelector<HTMLElement>(`.${VALUE_CLASS}`);
   if (value_) {
     value_.textContent = text;
-    value_.style.left = `${percent.toFixed(2)}%`;
+    // VIS-005: clamp the tooltip inside the container. It's centred via
+    // translateX(-50%), so at percent≈0/100 half of it used to bleed
+    // past the slider edges (clipped by the player frame on narrow
+    // layouts). Clamp in px when geometry is measurable; fall back to
+    // the raw percent in detached/zero-width states (initial render).
+    const cw = (container as HTMLElement).offsetWidth;
+    const tw = value_.offsetWidth;
+    if (cw > 0 && tw > 0 && tw < cw) {
+      const half = tw / 2;
+      const px = Math.min(cw - half, Math.max(half, (percent / 100) * cw));
+      value_.style.left = `${px.toFixed(1)}px`;
+    } else {
+      value_.style.left = `${percent.toFixed(2)}%`;
+    }
   }
 }
-
 
 /**
  * Imperative setter -- updates value + fill + label without firing the

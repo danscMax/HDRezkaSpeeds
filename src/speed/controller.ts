@@ -47,6 +47,15 @@ function applyToVideo(ctx: AppContext, speed: number): boolean {
     return false;
   }
   try {
+    // FEAT-013: honour the pitch preference on every write — the site
+    // player can recreate/reset the element between our writes, so
+    // setting it once at attach time is not enough. Browsers default
+    // preservesPitch to true; only an explicit false flips it.
+    try {
+      el.preservesPitch = ctx.settingsStore.getKey('preservePitch') !== false;
+    } catch {
+      /* property is settable in all modern engines; ignore exotic ones */
+    }
     // Mark the upcoming ratechange as ours. The watchdog in src/index.ts
     // checks `__vsSelfWriteAt` and skips revert when within grace window.
     (el as HTMLVideoElement & { __vsSelfWriteAt?: number }).__vsSelfWriteAt =
@@ -114,7 +123,17 @@ export async function setTemporary(
   applyToVideo(ctx, validSpeed);
   ctx.ui.refreshButtons(validSpeed, opts);
   ctx.ui.refreshSlider(validSpeed);
+  rememberPerContent(ctx, validSpeed);
   ctx.logger.debug('controller.setTemporary', validSpeed);
+}
+
+/** FEAT-015: record the user's explicit choice into the per-content
+ *  memory map (keyed by HDRezka title / YT channel) when the feature is
+ *  enabled. Fire-and-forget — losing one write is harmless. */
+function rememberPerContent(ctx: AppContext, speed: number): void {
+  if (ctx.settingsStore.getKey('rememberPerVideo') !== true) return;
+  if (!ctx.speedStore.activeMemoryKey()) return;
+  void ctx.speedStore.rememberForActive(speed);
 }
 
 /**
@@ -148,6 +167,7 @@ export async function setGlobal(
   applyToVideo(ctx, validSpeed);
   ctx.ui.refreshButtons(validSpeed, opts);
   ctx.ui.refreshSlider(validSpeed);
+  rememberPerContent(ctx, validSpeed);
   ctx.ui.showNotification(ctx.i18n.t('toast.speed_global', { speed: validSpeed }), 'success');
   ctx.logger.debug('controller.setGlobal', validSpeed);
 }
@@ -198,11 +218,16 @@ export function handleSpeedButtonClick(ctx: AppContext, speed: number): void {
 
 /**
  * Compute the speed to apply when a new <video> attaches.
- * Priority: smart (one-shot) -> current (if rememberSpeed) -> default.
+ * Priority: smart (one-shot) -> per-content memory (FEAT-015, when
+ * enabled) -> current (if rememberSpeed) -> default.
  */
 export function pickInitialSpeed(ctx: AppContext): number {
   const smart = ctx.speedStore.smart();
   if (smart !== null) return smart;
+  if (ctx.settingsStore.getKey('rememberPerVideo') === true) {
+    const remembered = ctx.speedStore.activeMemory();
+    if (remembered !== null) return remembered;
+  }
   if (ctx.settingsStore.getKey('rememberSpeed') === true) {
     return ctx.speedStore.current();
   }

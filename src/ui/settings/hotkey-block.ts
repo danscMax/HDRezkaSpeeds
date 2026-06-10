@@ -12,7 +12,13 @@ import type { Hotkey } from '../../storage/types';
 import { h } from '../dom-h';
 import { type IconName, vsIcon } from '../icons';
 
-export type HotkeyAction = 'speedUp' | 'speedDown';
+export type HotkeyAction =
+  | 'speedUp'
+  | 'speedDown'
+  | 'resetSpeed'
+  | 'toggleLast'
+  | 'seekForward'
+  | 'seekBack';
 
 export function generateHotkeyBlock(
   action: HotkeyAction,

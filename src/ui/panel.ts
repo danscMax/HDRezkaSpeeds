@@ -19,13 +19,14 @@ import {
   setGlobal,
   setTemporary,
 } from '../speed/controller';
+import type { AddMirrorResult } from '../storage/mirrors-store';
 import { refreshActiveButton, refreshPinnedButton, renderButtonsRow } from './buttons';
 import { vsFilledGearIcon, vsIcon } from './icons';
 import { disposeNotificationStack } from './notifications';
 import { disposeSpeedPopup } from './popup';
 import { refreshDiagnosticStatus } from './settings/diag-status';
 import { attachSettingsHandlers } from './settings/handlers';
-import { type ActiveTab, renderSettingsMenu } from './settings/modal';
+import { type ActiveTab, type MirrorsViewModel, renderSettingsMenu } from './settings/modal';
 import { renderSlider, setSliderRange, setSliderValue, updateSliderFill } from './slider';
 
 /** Diag-action sink. The orchestrator passes a real implementation that
@@ -63,6 +64,20 @@ export interface PanelHandle {
   dispose: () => void;
 }
 
+/** User-mirrors surface for the in-player Mirrors tab. The orchestrator
+ *  owns the storage-backed snapshot; the panel renders synchronously
+ *  from `getViewModel()` and kicks `refresh()` on gear open. */
+export interface PanelMirrors {
+  /** Sync snapshot for the current render. */
+  getViewModel(): MirrorsViewModel;
+  /** Re-read the store + permission status. Resolves true on change. */
+  refresh(): Promise<boolean>;
+  add(rawInput: string): Promise<AddMirrorResult>;
+  remove(host: string): Promise<void>;
+  /** Replace the whole list (settings import; raw = untrusted JSON). */
+  replaceAll(hosts: unknown): Promise<void>;
+}
+
 export interface CreatePanelOptions {
   ctx: AppContext;
   scriptVersion: string;
@@ -73,6 +88,9 @@ export interface CreatePanelOptions {
   killSwitch?: KillSwitchControl;
   /** Diagnostic action sink. Defaults to no-ops when not provided. */
   diagActions?: DiagActions;
+  /** User-mirrors wiring. Absent in the userscript build — the Mirrors
+   *  tab is hidden there (TM @match governs where the script runs). */
+  mirrors?: PanelMirrors;
 }
 
 export function createPanel(opts: CreatePanelOptions): PanelHandle {
@@ -80,6 +98,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   const bounds = speedBoundsFor(ctx.site);
   const killSwitch = opts.killSwitch;
   const diagActions = opts.diagActions;
+  const mirrorsOpt = opts.mirrors;
 
   /**
    * Resolve the current preset list. User can customise via Settings →
@@ -185,6 +204,30 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       void setGlobal(ctx, speed);
     }
   });
+
+  // FEAT-016: "finish N min earlier" badge. Lives INSIDE the buttons row
+  // so the bottom-layout grid areas stay untouched; re-appended after
+  // every presets rebuild (replaceChildren wipes it).
+  const timeSaved = document.createElement('span');
+  timeSaved.className = 'vs-time-saved';
+  timeSaved.style.display = 'none';
+  const updateTimeSaved = (speed: number): void => {
+    const v = ctx.discovery.resolve('video') as HTMLVideoElement | null;
+    const dur = v && Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
+    if (!dur || !(speed > 1.02)) {
+      timeSaved.style.display = 'none';
+      return;
+    }
+    const savedSec = dur * (1 - 1 / speed);
+    const value =
+      savedSec >= 60
+        ? `${Math.round(savedSec / 60)}${ctx.i18n.t('time.min_suffix')}`
+        : `${Math.round(savedSec)}${ctx.i18n.t('time.sec_suffix')}`;
+    timeSaved.textContent = `−${value}`;
+    timeSaved.title = ctx.i18n.t('panel.time_saved.tip', { value });
+    timeSaved.style.display = '';
+  };
+  buttonsRow.appendChild(timeSaved);
 
   root.appendChild(buttonsRow);
   root.appendChild(sliderContainer);
@@ -384,6 +427,15 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       settingsMenu.setAttribute('aria-hidden', 'false');
       gearBtn.setAttribute('aria-expanded', 'true');
       adjustMenuPosition();
+      // Refresh the user-mirrors snapshot (storage list + permission
+      // status from the background) and repaint if it changed while the
+      // menu was closed. First paint uses the cached snapshot, so the
+      // menu never blocks on the round-trip.
+      if (mirrorsOpt) {
+        void mirrorsOpt.refresh().then((changed) => {
+          if (changed && isMenuOpen()) rerenderSettings();
+        });
+      }
     }
   });
 
@@ -397,7 +449,9 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   });
 
   // Audit 2026-05-09 MAJOR-UI: Escape closes the menu (a11y / standard
-  // dialog convention).
+  // dialog convention). UX-030: Tab is trapped inside the open dialog —
+  // without the trap, keyboard focus silently wandered into the host
+  // page behind the menu and the user lost track of it.
   ctx.cleanup.addEventListener(
     document,
     'keydown',
@@ -409,6 +463,29 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
         ev.preventDefault();
         closeMenu();
         gearBtn.focus();
+        return;
+      }
+      if (ev.key === 'Tab') {
+        const focusables = settingsMenu.querySelectorAll<HTMLElement>(
+          'button, [href], input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0]!;
+        const last = focusables[focusables.length - 1]!;
+        const active = document.activeElement;
+        // Focus outside the dialog (e.g. still on the gear) — pull it in.
+        if (!(active instanceof HTMLElement) || !settingsMenu.contains(active)) {
+          ev.preventDefault();
+          first.focus();
+          return;
+        }
+        if (ev.shiftKey && active === first) {
+          ev.preventDefault();
+          last.focus();
+        } else if (!ev.shiftKey && active === last) {
+          ev.preventDefault();
+          first.focus();
+        }
       }
     },
     { capture: true },
@@ -431,7 +508,6 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     menuRegistry = new CleanupRegistry();
     const menuCtx: AppContext = { ...ctx, cleanup: menuRegistry };
 
-
     settingsMenu.replaceChildren(
       renderSettingsMenu({
         settings: ctx.settingsStore.get(),
@@ -445,6 +521,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
         // healthcheck state -- regression M8.
         discoveryEnabled: killSwitch ? killSwitch.isDiscoveryEnabled() : true,
         healthCheckEnabled: killSwitch ? killSwitch.isHealthCheckEnabled() : true,
+        mirrors: mirrorsOpt?.getViewModel(),
       }),
     );
 
@@ -504,6 +581,17 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
             void killSwitch.setHealthCheckEnabled(on);
           }
         : undefined,
+      // In-player surface manages the LIST only; permission grant/reload
+      // live in the popup (permissions API is unreachable from content
+      // scripts), so grant/reloadCurrentTab stay undefined here.
+      mirrors: mirrorsOpt
+        ? {
+            add: (raw) => mirrorsOpt.add(raw),
+            remove: (host) => mirrorsOpt.remove(host),
+            list: () => mirrorsOpt.getViewModel().userHosts,
+            replaceAll: (hosts) => mirrorsOpt.replaceAll(hosts),
+          }
+        : undefined,
     });
 
     refreshDiagnosticStatus(settingsMenu, menuCtx);
@@ -519,6 +607,13 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   function applyLayoutImpl(): void {
     const pos = ctx.settingsStore.getKey('sliderPosition');
     root.dataset.vsSliderPosition = pos;
+    // UX-031: compact mode — CSS keys off this attribute to collapse the
+    // panel to [current speed][gear].
+    if (ctx.settingsStore.getKey('compactMode') === true) {
+      root.dataset.vsCompact = '1';
+    } else {
+      delete root.dataset.vsCompact;
+    }
 
     const chrome =
       ctx.discovery.resolve('rightControls') || ctx.discovery.resolve('controlsContainer');
@@ -562,6 +657,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   // against `lastPos` avoids re-running applyLayout on every unrelated
   // setting toggle (rememberSpeed, language, hotkeys, ...).
   let lastPos = ctx.settingsStore.getKey('sliderPosition');
+  let lastCompact = ctx.settingsStore.getKey('compactMode') === true;
   let lastPresetsKey = JSON.stringify(ctx.settingsStore.getKey('speedPresets') ?? []);
   let lastRange = initialRange;
   const offSubscribe = ctx.settingsStore.subscribe((next) => {
@@ -571,6 +667,12 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       // Audit 2026-05-10: layout switch can move the gear button — reset
       // so adjustMenuPosition picks fresh flip from the new geometry.
       frozenFlipY = null;
+    }
+    // UX-031: compact toggled from the popup (or import) — reflect it
+    // without requiring a navigation.
+    if ((next.compactMode === true) !== lastCompact) {
+      lastCompact = next.compactMode === true;
+      applyLayoutImpl();
     }
     // Speed-buttons row is reactive on speedPresets — when the user
     // toggles a speed in Settings → General we need to rebuild the row's
@@ -587,6 +689,8 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
         buttonTitle: ctx.i18n.t('panel.button.tooltip'),
       });
       buttonsRow.replaceChildren(...Array.from(fresh.childNodes));
+      // FEAT-016: the badge is a child of the row — re-append after wipe.
+      buttonsRow.appendChild(timeSaved);
     }
     // Slider range reactive on sliderMin/sliderMax — re-resolve and
     // patch the live <input> in-place. Cheap (no rebuild) and preserves
@@ -614,9 +718,11 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       // change so a fresh setGlobal() (double-click) lights up the
       // matching pill within the same frame.
       refreshPinnedButton(buttonsRow, computePinnedSpeed());
+      updateTimeSaved(speed);
     },
     refreshSlider(speed) {
       setSliderValue(sliderContainer, speed);
+      updateTimeSaved(speed);
     },
     /** Public API: rerender the modal IF it's currently visible. Called
      *  by the health-checker subscriber in index.ts on every report; we

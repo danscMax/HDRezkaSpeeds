@@ -3,7 +3,7 @@
  * tweak settings without opening a video.
  *
  * Architecture:
- *   - Detect the active tab via browser.tabs.query (no broad `tabs`
+ *   - Inspect the active tab via browser.tabs.query (no broad `tabs`
  *     permission needed; URL access uses the activeTab grant from the
  *     toolbar click). Audit H9.
  *   - Build a popup-flavoured AppContext: real SettingsStore + SpeedStore
@@ -12,8 +12,12 @@
  *   - Render the SAME settings modal template via renderSettingsMenu, but
  *     the diagnostics tab swaps in a "view diagnostics in the player"
  *     hint because there's no video / health-checker context here.
- *   - SettingsStore.subscribe() on storage.onChanged would be ideal; for
- *     now the popup mirrors content-script writes by re-init on focus.
+ *   - The popup ALWAYS bootstraps (Site is a single-member union): on an
+ *     unsupported tab it opens straight on the Mirrors tab so the user
+ *     can add the site they're looking at as a mirror. The popup is also
+ *     the only surface that can grant host permissions (0.5.0) — the
+ *     in-player menu manages the mirror list but can't call
+ *     permissions.request from a content script.
  */
 
 import { browser } from 'wxt/browser';
@@ -22,10 +26,23 @@ import type { AppContext } from '../../app/context';
 import type { DiagnosticsPort, DiscoveryPort, Site, UiPort } from '../../app/ports';
 import { storageKeysFor } from '../../config';
 import type { DiagnosticReport } from '../../health/types';
-import { detectBrowserLang } from '../../i18n/detect';
 import { createTranslator } from '../../i18n/translator';
 import { detectSite } from '../../sites/detect';
+import {
+  BUILTIN_MIRROR_HOSTS,
+  isCoveredByHostList,
+  originPatternsFor,
+} from '../../sites/mirror-hosts';
 import { createBrowserStorageAdapter } from '../../storage/adapter';
+import {
+  addUserMirror,
+  MAX_USER_MIRRORS,
+  MIRRORS_STORAGE_KEY,
+  normalizeMirrorInput,
+  readUserMirrors,
+  removeUserMirror,
+  replaceUserMirrors,
+} from '../../storage/mirrors-store';
 import { createSettingsStore } from '../../storage/settings-store';
 import { createSpeedStore } from '../../storage/speed-store';
 import {
@@ -36,6 +53,7 @@ import {
   showNotification,
 } from '../../ui';
 import { h } from '../../ui/dom-h';
+import type { MirrorsViewModel } from '../../ui/settings/modal';
 import { createLogger } from '../../utils/logger';
 
 declare const __VS_VERSION__: string | undefined;
@@ -84,6 +102,7 @@ function renderInitialShell(host: HTMLElement): void {
         h('div', { class: 'vs-skel-pill' }),
         h('div', { class: 'vs-skel-pill' }),
         h('div', { class: 'vs-skel-pill' }),
+        h('div', { class: 'vs-skel-pill' }),
       ),
       h(
         'div',
@@ -101,20 +120,17 @@ function renderInitialShell(host: HTMLElement): void {
 }
 
 async function bootstrapPopup(host: HTMLElement): Promise<void> {
-  // 1. Detect which site the active tab is on. activeTab grant from the
-  //    toolbar click gives us URL access for THIS click only.
-  const detected = await detectActiveTabSite();
-  if (!detected) {
-    renderNoSitePlaceholder(host);
-    return;
-  }
-  const site: Site = detected;
+  // 1. Inspect the active tab. activeTab grant from the toolbar click
+  //    gives us URL access for THIS click only. Site is a single-member
+  //    union ('hdrezka'), so the popup always bootstraps with it — the
+  //    tab info only decides the initial tab (Mirrors on unsupported
+  //    hosts) and the "Add current site" CTA.
+  const activeTabInfo = await detectActiveTab();
+  const site: Site = 'hdrezka';
 
-  // Tag <html> with the active-tab site so the cascading menu styles
-  // (active pills, toggles, segmented control) use the per-site accent
-  // — red on YouTube, blue on RuTube. Mirrors the in-player .vs-panel
-  // [data-vs-site] approach. Without this attribute the popup falls back
-  // to the YouTube-red default declared at :root.
+  // Tag <html> with the site so the cascading menu styles (active pills,
+  // toggles, segmented control) use the per-site accent. Mirrors the
+  // in-player .vs-panel [data-vs-site] approach.
   document.documentElement.dataset.vsSite = site;
 
   // 2. Build the popup-flavoured context.
@@ -123,6 +139,80 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
   const speedStore = createSpeedStore(adapter);
   await settingsStore.init(site);
   await speedStore.init(site);
+
+  // 2a. User-mirrors view model. The popup owns permission management:
+  //     status is read directly via browser.permissions (no background
+  //     round-trip needed in an extension page).
+  let mirrorsVm: MirrorsViewModel = {
+    builtinHosts: BUILTIN_MIRROR_HOSTS,
+    userHosts: [],
+    status: {},
+    builtinStatus: {},
+    canManagePermissions: true,
+    maxMirrors: MAX_USER_MIRRORS,
+  };
+
+  function hasOriginPermission(hostName: string): Promise<boolean> {
+    return browser.permissions
+      .contains({ origins: originPatternsFor(hostName) })
+      .catch(() => false);
+  }
+
+  function requestOriginPermission(hostName: string): Promise<boolean> {
+    return browser.permissions
+      .request({ origins: originPatternsFor(hostName) })
+      .catch((e: unknown) => {
+        console.warn('[HDREZKA-POPUP] permissions.request failed', e);
+        return false;
+      });
+  }
+
+  /** "Add current site" CTA state, derived from the active tab + list. */
+  function computeCurrentHost(
+    userHosts: readonly string[],
+    status: Record<string, boolean>,
+  ): MirrorsViewModel['currentHost'] {
+    if (!activeTabInfo.hostname || !activeTabInfo.isHttp) return undefined;
+    const norm = normalizeMirrorInput(activeTabInfo.hostname);
+    if (!norm.ok) return undefined;
+    if (isCoveredByHostList(norm.host, BUILTIN_MIRROR_HOSTS)) return undefined;
+    const covering = userHosts.find((u) => norm.host === u || norm.host.endsWith(`.${u}`));
+    if (covering) {
+      // Already a mirror. When access is granted the content script only
+      // loads on the NEXT navigation — offer a one-click tab reload.
+      return { host: norm.host, eligible: false, offerReload: status[covering] === true };
+    }
+    if (userHosts.length >= MAX_USER_MIRRORS) {
+      return { host: norm.host, eligible: false, offerReload: false };
+    }
+    return { host: norm.host, eligible: true, offerReload: false };
+  }
+
+  async function refreshMirrorsVm(): Promise<void> {
+    const userHosts = await readUserMirrors(adapter);
+    const status: Record<string, boolean> = {};
+    const builtinStatus: Record<string, boolean> = {};
+    await Promise.all([
+      ...userHosts.map(async (hostName) => {
+        status[hostName] = await hasOriginPermission(hostName);
+      }),
+      // Built-ins too: Firefox doesn't auto-grant host permissions added
+      // by an extension update (bug 1893232) — show the re-grant chip.
+      ...BUILTIN_MIRROR_HOSTS.map(async (hostName) => {
+        builtinStatus[hostName] = await hasOriginPermission(hostName);
+      }),
+    ]);
+    mirrorsVm = {
+      builtinHosts: BUILTIN_MIRROR_HOSTS,
+      userHosts,
+      status,
+      builtinStatus,
+      canManagePermissions: true,
+      maxMirrors: MAX_USER_MIRRORS,
+      currentHost: computeCurrentHost(userHosts, status),
+    };
+  }
+  await refreshMirrorsVm();
 
   const logger = createLogger({ scriptName: 'HDREZKA-POPUP' });
   const cleanup = new CleanupRegistry();
@@ -177,8 +267,14 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
     document.documentElement.dataset.vsTheme = persistedTheme;
   }
 
-  // 4. Render. activeTab persists across re-renders.
-  let activeTab: ActiveTab = 'general';
+  // 4. Render. activeTab persists across re-renders. On a tab that is
+  //    neither a built-in nor a user mirror, open straight on Mirrors —
+  //    that's the "I'm on a new mirror, make it work" entry point.
+  const tabSupported =
+    activeTabInfo.staticSite !== null ||
+    (activeTabInfo.hostname !== null &&
+      isCoveredByHostList(activeTabInfo.hostname, mirrorsVm.userHosts));
+  let activeTab: ActiveTab = tabSupported ? 'general' : 'mirrors';
   function rerender(): void {
     const menu = h(
       'div',
@@ -192,6 +288,7 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
         // KillSwitch flags are content-script-side; popup just shows them.
         discoveryEnabled: true,
         healthCheckEnabled: true,
+        mirrors: mirrorsVm,
       }),
     );
     // Show the "open the player to run diagnostics" hint only on the
@@ -208,6 +305,51 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
           ctx.i18n.t('diag.popup_hint'),
         ),
       );
+    }
+    // FEAT-021: quick speed row — change the video's speed right from
+    // the toolbar without opening the in-player menu. Only rendered on
+    // supported tabs; buttons highlight once the live speed is known.
+    if (tabSupported) {
+      const presets = settingsStore.getKey('speedPresets') ?? [];
+      if (presets.length > 0) {
+        const quickRow = h(
+          'div',
+          { class: 'vs-popup-quick', title: ctx.i18n.t('popup.quick.tip') },
+          ...presets.map((s) =>
+            h(
+              'button',
+              { type: 'button', class: 'speed-button vs-popup-quick-btn', 'data-vs-speed': s },
+              `${s}x`,
+            ),
+          ),
+        );
+        const highlight = (speed: number | null): void => {
+          for (const b of quickRow.querySelectorAll<HTMLButtonElement>('.vs-popup-quick-btn')) {
+            const v = parseFloat(b.dataset.vsSpeed ?? '');
+            b.classList.toggle(
+              'active',
+              speed !== null && Number.isFinite(v) && Math.abs(v - speed) < 0.005,
+            );
+          }
+        };
+        quickRow.addEventListener('click', (event) => {
+          const btn = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>(
+            '.vs-popup-quick-btn',
+          );
+          if (!btn) return;
+          const speed = parseFloat(btn.dataset.vsSpeed ?? '');
+          if (!Number.isFinite(speed)) return;
+          void sendSpeedMessage({ type: 'vs:set-speed', speed }).then((applied) => {
+            if (applied === null) {
+              ui.showNotification(ctx.i18n.t('popup.quick.no_video'), 'info');
+            } else {
+              highlight(applied);
+            }
+          });
+        });
+        void sendSpeedMessage({ type: 'vs:get-speed' }).then(highlight);
+        children.push(quickRow);
+      }
     }
     children.push(menu);
     host.replaceChildren(...children);
@@ -256,6 +398,55 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
         // misclick, no confirm dialog feels safe to ship here.
         ui.showNotification(ctx.i18n.t('diag.popup_hint'), 'info');
       },
+      mirrors: {
+        add: async (raw) => {
+          // Validate against the in-memory snapshot SYNCHRONOUSLY so
+          // permissions.request below is the first await — Firefox only
+          // honours the request inside the user-input handler, and the
+          // click's transient activation must not be burned on storage
+          // reads first.
+          const norm = normalizeMirrorInput(raw);
+          if (!norm.ok) return norm;
+          if (isCoveredByHostList(norm.host, BUILTIN_MIRROR_HOSTS)) {
+            return { ok: false, reason: 'builtin' };
+          }
+          if (isCoveredByHostList(norm.host, mirrorsVm.userHosts)) {
+            return { ok: false, reason: 'duplicate' };
+          }
+          if (mirrorsVm.userHosts.length >= MAX_USER_MIRRORS) {
+            return { ok: false, reason: 'limit' };
+          }
+          // Denied permission still adds the mirror (same behaviour as
+          // the in-player surface) — the row's badge + grant button make
+          // the missing access visible and recoverable.
+          await requestOriginPermission(norm.host);
+          const res = await addUserMirror(adapter, norm.host);
+          await refreshMirrorsVm();
+          return res;
+        },
+        remove: async (hostName) => {
+          // Background revokes the origin permission + unregisters the
+          // dynamic script off storage.onChanged.
+          await removeUserMirror(adapter, hostName);
+          await refreshMirrorsVm();
+        },
+        grant: async (hostName) => {
+          const granted = await requestOriginPermission(hostName);
+          await refreshMirrorsVm();
+          return granted;
+        },
+        reloadCurrentTab: () => {
+          if (activeTabInfo.tabId !== null) {
+            void browser.tabs.reload(activeTabInfo.tabId).catch(() => {});
+            window.close();
+          }
+        },
+        list: () => mirrorsVm.userHosts,
+        replaceAll: async (hosts) => {
+          await replaceUserMirrors(adapter, hosts);
+          await refreshMirrorsVm();
+        },
+      },
     });
 
     // Force a fresh check on Diagnostics tab open (not get-status) so
@@ -294,6 +485,8 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
   const settingsKeys = new Set([
     storageKeysFor('hdrezka').settings,
     storageKeysFor('hdrezka').speed,
+    // Mirrors list edits arrive from the in-player gear menu too.
+    MIRRORS_STORAGE_KEY,
   ]);
   let pendingRerender: ReturnType<typeof setTimeout> | null = null;
   const storageListener = (changes: Record<string, unknown>): void => {
@@ -301,11 +494,12 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
     const changedKeys = Object.keys(changes);
     if (!changedKeys.some((k) => settingsKeys.has(k))) return;
     // Coalesce bursts from a single user action (settings update + speed
-    // update arriving in the same frame) into one rerender.
+    // update arriving in the same frame) into one rerender. The mirrors
+    // snapshot re-derives first so the Mirrors tab never paints stale.
     if (pendingRerender !== null) clearTimeout(pendingRerender);
     pendingRerender = setTimeout(() => {
       pendingRerender = null;
-      rerender();
+      void refreshMirrorsVm().then(rerender);
     }, 50);
   };
   browser.storage.local.onChanged.addListener(storageListener);
@@ -317,66 +511,59 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
   rerender();
 }
 
-async function detectActiveTabSite(): Promise<Site | null> {
+interface ActiveTabInfo {
+  tabId: number | null;
+  /** Lowercased (punycoded by URL) hostname; null when unreadable or
+   *  the tab is not an http(s) page. */
+  hostname: string | null;
+  isHttp: boolean;
+  /** Built-in mirror detection result for the hostname. */
+  staticSite: Site | null;
+}
+
+/**
+ * Inspect the active tab. activeTab (granted by the toolbar click) makes
+ * the URL readable on arbitrary pages; on chrome:// / about: / extension
+ * pages we still get the tab id but report no hostname.
+ *
+ * Strategy ladder, in order of authority (audit 0.2.0):
+ *   1) {active:true, currentWindow:true} — THE tab the user was looking
+ *      at when they clicked the toolbar button.
+ *   2) {active:true, lastFocusedWindow:true} — covers the dev case where
+ *      the popup is opened directly as chrome-extension://…/popup.html.
+ */
+async function detectActiveTab(): Promise<ActiveTabInfo> {
+  const none: ActiveTabInfo = { tabId: null, hostname: null, isHttp: false, staticSite: null };
   try {
     const ourPopupPrefix = browser.runtime.getURL('/popup.html');
-    const matches = (t: { url?: string }): boolean => {
-      if (!t.url || t.url.startsWith(ourPopupPrefix)) return false;
-      try {
-        return detectSite(new URL(t.url).hostname) !== null;
-      } catch {
-        return false;
-      }
-    };
-
-    // Strategy ladder, in order of authority:
-    //   1) The toolbar popup runs in `currentWindow` and resolves to the
-    //      window that owns the toolbar button. {active:true, currentWindow:true}
-    //      gives us THE tab the user was looking at when they clicked.
-    //      Earlier we used `tabs.query({})` and `.find()` which matched
-    //      any supported tab in any window — on a multi-window setup with
-    //      both YouTube and RuTube open it locked onto whichever Chrome
-    //      enumerated first (audit 0.2.0).
-    //   2) `lastFocusedWindow:true` covers the dev-tab case (popup opened
-    //      directly as `chrome-extension://<id>/popup.html` for testing).
-    //   3) Last-resort fallback to any supported tab in any window — at
-    //      least gives the user *some* settings rather than the empty-
-    //      placeholder when both windows have the popup-as-page URL active.
     const queries = [
       { active: true, currentWindow: true },
       { active: true, lastFocusedWindow: true },
-      {},
     ] as const;
     for (const q of queries) {
       const tabs = await browser.tabs.query(q);
-      const hit = tabs.find(matches);
-      if (hit?.url) return detectSite(new URL(hit.url).hostname);
+      const tab = tabs.find((t) => !t.url?.startsWith(ourPopupPrefix)) ?? tabs[0];
+      if (!tab) continue;
+      const tabId = typeof tab.id === 'number' ? tab.id : null;
+      if (!tab.url) return { ...none, tabId };
+      try {
+        const u = new URL(tab.url);
+        const isHttp = u.protocol === 'http:' || u.protocol === 'https:';
+        const hostname = isHttp ? u.hostname.toLowerCase() : null;
+        return {
+          tabId,
+          hostname,
+          isHttp,
+          staticSite: hostname ? detectSite(hostname) : null,
+        };
+      } catch {
+        return { ...none, tabId };
+      }
     }
-    return null;
   } catch {
-    return null;
+    // tabs.query rejected — fall through to "nothing known".
   }
-}
-
-function renderNoSitePlaceholder(host: HTMLElement): void {
-  // Falls back to the user's browser language because we can't read settings
-  // without knowing the site (settings are per-site).
-  const lang = detectBrowserLang();
-  const t = createTranslator(lang).t;
-  const subline =
-    lang === 'ru'
-      ? 'Откройте HDRezka, чтобы открыть настройки.'
-      : 'Open HDRezka to access settings.';
-  host.replaceChildren(
-    h(
-      'div',
-      { class: 'vs-popup-empty' },
-      h('span', { class: 'vs-popup-empty-title' }, 'HDRezka Speed Controller'),
-      ' ',
-      t('tabs.general.tip'),
-      h('div', { style: 'margin-top:12px;font-size:11px;opacity:0.55;' }, subline),
-    ),
-  );
+  return none;
 }
 
 /**
@@ -407,6 +594,25 @@ async function sendToActiveTab(message: {
   } catch {
     // No content script in active tab, or message channel closed —
     // both legit (popup opened off a video page).
+    return null;
+  }
+}
+
+/** FEAT-021: speed read/write channel for the popup quick-actions row. */
+async function sendSpeedMessage(message: {
+  type: 'vs:get-speed' | 'vs:set-speed';
+  speed?: number;
+}): Promise<number | null> {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tabId = tabs[0]?.id;
+    if (typeof tabId !== 'number') return null;
+    const res = (await browser.tabs.sendMessage(tabId, message)) as
+      | { ok: boolean; speed?: number }
+      | undefined;
+    if (!res?.ok || typeof res.speed !== 'number') return null;
+    return res.speed;
+  } catch {
     return null;
   }
 }

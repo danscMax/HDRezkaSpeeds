@@ -96,6 +96,18 @@ body {
   width: 100%;
   min-width: 420px;
 }
+/* FEAT-021: quick speed row above the settings menu. Reuses the
+   in-player .speed-button pill styling injected by injectStyles(). */
+.vs-popup-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px 4px;
+}
+.vs-popup-quick .vs-popup-quick-btn {
+  min-width: 44px;
+  padding: 0 10px;
+}
 /* WebKit browsers (Chrome, Edge) need explicit ::-webkit-scrollbar rules;
    `scrollbar-width: thin` alone is a Firefox-only hint. */
 html::-webkit-scrollbar,

@@ -23,12 +23,18 @@ Bilingual interface (English / Russian). No ads, no telemetry.
 - Click = temporary speed for this video. Double-click = save as default.
 - Configurable hotkeys (default `Ctrl+C` +0.1 / `Ctrl+V` −0.1). Supports
   multiple combos per action (keyboard + remote).
-- In-player gear menu: General / Shortcuts / Diagnostics tabs.
+- In-player gear menu: General / Shortcuts / Mirrors / Diagnostics tabs.
 - Toolbar popup mirrors the in-player menu.
 - Auto-follows HDRezka's light / dark theme toggle.
-- Supports all known mirrors: `hdrezka.ag`, `rezka.ag`, `hdrezka.me`,
-  `hdrezka.co`, `hdrezka.website`, `hdrezka.cm`, `hdrezka-home.tv`,
-  `rezkify.com`, `rezkery.com`, `kinopub.me`.
+- Supports all known mirrors out of the box: `hdrezka.ag`, `rezka.ag`,
+  `hdrezka.me`, `hdrezka.co`, `hdrezka.website`, `hdrezka.cm`,
+  `hdrezka-home.tv`, `rezkify.com`, `rezkery.com`, `kinopub.me`,
+  `standby-rezka.tv`.
+- **Custom mirrors** — HDRezka domains rotate constantly, so you can add
+  your own: open a new mirror, click the toolbar icon and hit
+  "Add … as a mirror" (or type the domain manually in the Mirrors tab).
+  The browser asks for permission for that site only; the list is stored
+  locally, survives updates, and travels with settings export/import.
 
 ### Reliability
 
@@ -75,7 +81,20 @@ npm run dev             # Chrome MV3 with hot reload
 npm run dev:firefox     # Firefox MV3 with hot reload
 npm run typecheck       # tsc --noEmit
 npm run test            # vitest unit tests
+npm run test:smoke      # Playwright extension smoke (needs `npx wxt build` first)
 ```
+
+### Maintenance & twin sync
+
+This project shares most of `src/` with the sibling
+[VideoSpeeds](https://github.com/danscMax/VideoSpeeds) extension
+(YouTube + RuTube) by copy-paste. Before each release:
+
+1. `npm run drift` — compares the shared core against the sibling
+   checkout (`../VideoSpeeds` by default) and lists drifted files.
+2. Port bug fixes in shared modules (`discovery/`, `storage/`, `speed/`,
+   `health/`, `ui/`, `i18n/` framework) to the twin unless site-specific.
+3. `npm run typecheck && npm test` in BOTH repos.
 
 ### Project layout
 
@@ -129,13 +148,21 @@ GPL-3.0-or-later. See [LICENSE](./LICENSE).
 - Настраиваемые горячие клавиши (по умолчанию `Ctrl+C` +0.1 /
   `Ctrl+V` −0.1). Можно назначить несколько комбинаций на одно
   действие (клавиатура + пульт).
-- Меню на шестерёнке: вкладки «Общие» / «Клавиши» / «Диагностика».
+- Меню на шестерёнке: вкладки «Общие» / «Клавиши» / «Зеркала» /
+  «Диагностика».
 - Иконка в тулбаре открывает то же меню без открытия видео.
 - Автоматически следует за темой HDRezka — переключение светлый/
   тёмный режим панель подхватывает «на лету».
-- Поддержка всех известных зеркал: `hdrezka.ag`, `rezka.ag`,
-  `hdrezka.me`, `hdrezka.co`, `hdrezka.website`, `hdrezka.cm`,
-  `hdrezka-home.tv`, `rezkify.com`, `rezkery.com`, `kinopub.me`.
+- Поддержка всех известных зеркал из коробки: `hdrezka.ag`,
+  `rezka.ag`, `hdrezka.me`, `hdrezka.co`, `hdrezka.website`,
+  `hdrezka.cm`, `hdrezka-home.tv`, `rezkify.com`, `rezkery.com`,
+  `kinopub.me`, `standby-rezka.tv`.
+- **Свои зеркала** — домены HDRezka постоянно меняются, поэтому
+  зеркала можно добавлять самому: откройте новое зеркало, кликните
+  по иконке расширения и нажмите «Добавить … как зеркало» (или
+  введите домен вручную на вкладке «Зеркала»). Браузер запросит
+  доступ только к этому сайту; список хранится локально, переживает
+  обновления и переносится вместе с экспортом/импортом настроек.
 
 ### Надёжность
 

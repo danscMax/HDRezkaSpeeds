@@ -44,10 +44,14 @@ export function showNotification(text: string, opts: NotificationOptions = {}): 
   const stack = ensureStack(opts.playerContainer ?? null);
 
   const toast = document.createElement('div');
+  // VIS-010: 0.92 alpha + a kind-tinted hairline border. At 0.85 the blob
+  // melted into near-black player backgrounds and the dot was the only
+  // separation cue.
   toast.style.cssText = `
-    background: rgba(0, 0, 0, 0.85) !important;
+    background: rgba(8, 8, 10, 0.92) !important;
     backdrop-filter: blur(10px) !important;
     -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid ${dotColor}66 !important;
     border-radius: 8px !important;
     padding: 8px 14px !important;
     color: white !important;

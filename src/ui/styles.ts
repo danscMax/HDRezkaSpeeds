@@ -312,10 +312,7 @@ export function installThemeWatcher(
       return;
     }
     if (attempt < COLD_LOAD_DELAYS.length) {
-      ctx.cleanup.setTimeout(
-        () => tryDetectThemeClass(attempt + 1),
-        COLD_LOAD_DELAYS[attempt]!,
-      );
+      ctx.cleanup.setTimeout(() => tryDetectThemeClass(attempt + 1), COLD_LOAD_DELAYS[attempt]!);
     } else {
       // Last attempt — even if class never appeared, run reapply once
       // so luminance fallback still gets a shot.
@@ -399,7 +396,10 @@ html[data-vs-theme="dark"] {
   --vs-menu-button-bg-hover: rgba(255, 255, 255, 0.10);
   --vs-menu-button-border: rgba(255, 255, 255, 0.10);
   --vs-menu-track-bg: rgba(255, 255, 255, 0.04);
-  --vs-menu-scrollbar: rgba(255, 255, 255, 0.18);
+  /* VIS-004: 0.18 was ~2.5:1 against the menu surface — users missed
+     that the body scrolls at all. 0.28 reads at a comfortable ~3.5:1. */
+  --vs-menu-scrollbar: rgba(255, 255, 255, 0.28);
+  --vs-menu-fade-shadow: rgba(0, 0, 0, 0.45);
   --vs-menu-shadow-1: 0 20px 60px -10px rgba(0, 0, 0, 0.7);
   --vs-menu-shadow-2: 0 8px 24px -6px rgba(0, 0, 0, 0.5);
   /* Active state — calmer than .speed-button.active (which uses the
@@ -436,7 +436,8 @@ html[data-vs-theme="light"] {
   --vs-menu-button-bg-hover: rgba(0, 0, 0, 0.09);
   --vs-menu-button-border: rgba(0, 0, 0, 0.12);
   --vs-menu-track-bg: rgba(0, 0, 0, 0.05);
-  --vs-menu-scrollbar: rgba(0, 0, 0, 0.20);
+  --vs-menu-scrollbar: rgba(0, 0, 0, 0.30);
+  --vs-menu-fade-shadow: rgba(0, 0, 0, 0.14);
   --vs-menu-shadow-1: 0 20px 60px -10px rgba(0, 0, 0, 0.18);
   --vs-menu-shadow-2: 0 8px 24px -6px rgba(0, 0, 0, 0.10);
   /* Same site-aware gradient on light theme. White on #cc0000 gives
@@ -732,6 +733,13 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
      switch to white so the bookmark stays readable. */
   background-color: #fff;
 }
+/* VIS-007: on the dark theme the accent bookmark sits on a dark
+   translucent pill and almost vanishes — the halo glow carried the
+   whole signal. A near-white icon keeps the "saved" mark legible at a
+   glance; the halo still ties it to the accent palette. */
+html[data-vs-theme="dark"] .speed-button.pinned:not(.active)::after {
+  background-color: rgba(255, 255, 255, 0.88);
+}
 .speed-button {
   position: relative;
   min-width: 56px;
@@ -799,6 +807,37 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   transition: 0s;
 }
 
+/* VIS-002: visible keyboard-focus ring (WCAG 2.4.7). All interactive
+   panel/menu controls had outline:none (or browser default stripped
+   by host-page resets) with no replacement — Tab navigation gave no
+   visual cue at all. :focus-visible keeps mouse clicks clean. */
+.speed-button:focus-visible,
+.vs-pin-button:focus-visible,
+.vs-gear-button:focus-visible,
+.vs-tab:focus-visible,
+.vs-preset-pill:focus-visible,
+.vs-segmented-option:focus-visible,
+.vs-icon-button:focus-visible,
+.vs-action:focus-visible,
+.vs-add-button:focus-visible,
+.vs-reset-link:focus-visible,
+.vs-feedback-cta:focus-visible,
+.vs-donate-toggle:focus-visible,
+.vs-donate-cloudtips:focus-visible,
+.vs-preset-custom-add:focus-visible {
+  outline: 2px solid var(--vs-accent, #00a1db);
+  outline-offset: 2px;
+}
+.speed-slider:focus-visible {
+  outline: none;
+}
+.speed-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5), 0 0 0 3px rgba(var(--vs-accent-rgb), 0.45);
+}
+.speed-slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5), 0 0 0 3px rgba(var(--vs-accent-rgb), 0.45);
+}
+
 /* Slider sits between the buttons and the gear. The original userscript
    used a 300px container; we let it stretch on the modern wide YouTube
    layout (flex: 1) but keep a min-width so it doesn't collapse. Thumb
@@ -852,8 +891,12 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   box-shadow: 0 1px 4px rgba(0,0,0,0.5);
   transition: transform 0.15s ease;
 }
+/* VIS-010: accent halo around the enlarged thumb — the bare 1.4× scale
+   of a white dot was easy to miss on bright video frames; the ring also
+   signals "grabbable" before the user starts dragging. */
 .speed-slider-container:hover .speed-slider::-webkit-slider-thumb {
   transform: scale(1.4);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5), 0 0 0 3px rgba(var(--vs-accent-rgb), 0.30);
 }
 .speed-slider::-moz-range-thumb {
   width: 12px;
@@ -863,9 +906,11 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   border: none;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  transition: transform 0.15s ease;
 }
 .speed-slider-container:hover .speed-slider::-moz-range-thumb {
   transform: scale(1.4);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5), 0 0 0 3px rgba(var(--vs-accent-rgb), 0.30);
 }
 /* Static left-of-slider label. Hidden by default; only shown when the
    slider is mounted into player chrome (vs-slider-in-chrome). In panel
@@ -962,6 +1007,55 @@ html[data-vs-theme="light"] .speed-value::after {
 .vs-pin-button:active {
   transform: scale(0.92);
 }
+
+/* FEAT-016: "finish N min earlier" badge inside the buttons row. */
+.vs-time-saved {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vs-text-dim);
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}
+
+/* UX-031: compact mode — the panel collapses to [active speed][gear].
+   When no preset matches the current speed (custom slider value), all
+   buttons stay visible via the :has() guard so the row never goes
+   empty. Slider + pin are hidden either way; the gear menu remains the
+   escape hatch to turn compact off. */
+.vs-panel[data-vs-compact="1"] .speed-slider-container,
+.vs-panel[data-vs-compact="1"] .vs-pin-button,
+.vs-panel[data-vs-compact="1"] .vs-time-saved {
+  display: none !important;
+}
+.vs-panel[data-vs-compact="1"] .speed-buttons-row:has(.speed-button.active)
+  .speed-button:not(.active) {
+  display: none;
+}
+
+/* UX-026: inline field-error ring. Paired with aria-invalid set by
+   flagInvalid() in settings/handlers.ts; cleared on the next input. */
+.vs-input-error {
+  border-color: #f44336 !important;
+  background: rgba(244, 67, 54, 0.08) !important;
+}
+
+/* UX-030: tiny Esc keycap badge in the modal header. */
+.vs-menu-esc {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid var(--vs-menu-input-border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 9px;
+  color: var(--vs-text-dim);
+  user-select: none;
+}
+.vs-menu-esc + .vs-menu-help { margin-left: 8px; }
 
 /* Gear -- circular icon button. Matches the original userscript
    .settings-button (28x28 circle, 16px SVG, rotates 60deg on hover). */
@@ -1154,6 +1248,18 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--vs-menu-scrollbar) transparent;
+  /* VIS-004: scrolling shadows (Lea Verou technique). Edge shadows
+     appear only when content continues past the visible area; the
+     cover layers (background-attachment: local) scroll with content
+     and hide the shadow at the actual top/bottom of the scroll range.
+     Gives a passive "there is more below" cue without JS. */
+  background:
+    linear-gradient(var(--vs-menu-bg) 30%, transparent) top / 100% 24px,
+    linear-gradient(transparent, var(--vs-menu-bg) 70%) bottom / 100% 24px,
+    radial-gradient(farthest-side at 50% 0, var(--vs-menu-fade-shadow), transparent) top / 100% 10px,
+    radial-gradient(farthest-side at 50% 100%, var(--vs-menu-fade-shadow), transparent) bottom / 100% 10px;
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
 }
 .vs-menu-body::-webkit-scrollbar {
   width: 6px;
@@ -1219,6 +1325,7 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   flex-shrink: 0;
 }
 .vs-tab {
+  position: relative;
   padding: 6px 6px;
   background: transparent;
   border: none;
@@ -1229,29 +1336,42 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   font-weight: 500;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   white-space: nowrap;
   /* flex: 1 1 0 distributes the tab strip width evenly across the
-     four tabs; min-width:0 + overflow:hidden lets text crop cleanly
-     instead of spilling past the flex-box. The active-state
-     border-bottom now matches the visible tab width, so the
-     underline reads correctly under the label even on narrow popups
-     where four-tab layout would otherwise overflow the 340px / 380px
-     menu frame. */
+     tabs; min-width:0 + overflow:hidden lets text crop cleanly
+     instead of spilling past the flex-box. */
   flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
-  transition: color 160ms ease, opacity 160ms ease, border-color 160ms ease;
+  transition: color 160ms ease, opacity 160ms ease;
 }
 .vs-tab:hover { opacity: 0.85; }
 .vs-tab[aria-selected="true"] {
   opacity: 1;
-  /* Bold-weight + accent underline. Earlier the only signal was the
+  /* Bold-weight + accent indicator. Earlier the only signal was the
      1px accent underline + opacity diff — not a strong enough non-
      colour cue (audit MAJ-8). Bold makes the active tab readable
      even in deuteranopia simulation. */
   font-weight: 700;
-  border-bottom: 2px solid var(--vs-accent, #ff0000);
+}
+/* VIS-003: a short centred indicator pill instead of border-bottom.
+   The border spanned the tab's whole flex cell — on narrow popups it
+   read as a detached stripe wider than the label — and it also added
+   2px to the active tab's height, nudging the whole strip. The
+   ::after pill keeps a constant strip height and visually hugs the
+   label regardless of cell width (Material 3 idiom). */
+.vs-tab[aria-selected="true"]::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(28px, 70%);
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--vs-accent, #ff0000);
 }
 .vs-tab[aria-selected="true"] svg { color: var(--vs-accent, #ff0000); }
 
@@ -1363,7 +1483,10 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
 }
 .vs-preset-pill.active {
   background: var(--vs-menu-active-bg);
-  border-color: transparent;
+  /* VIS-008: the 0.35-alpha glow alone barely separates an active pill
+     from the dark menu surface; the translucent accent ring makes the
+     selected state readable at a glance without raising glow alpha. */
+  border-color: rgba(var(--vs-accent-rgb), 0.55);
   color: var(--vs-menu-active-fg);
   font-weight: 600;
   box-shadow: var(--vs-menu-active-glow);
@@ -1891,6 +2014,107 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   background: var(--vs-bg-track);
   border-color: var(--vs-menu-input-border);
 }
+
+/* ------------------------------------------------------------------ */
+/* Mirrors tab (0.5.0 user-defined mirrors)                            */
+/* ------------------------------------------------------------------ */
+.vs-mirror-cta {
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 8px 10px;
+}
+.vs-mirror-count {
+  margin-left: 6px;
+  font-weight: 400;
+  opacity: 0.7;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.vs-mirror-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.vs-mirror-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--vs-menu-input-border);
+  border-radius: 6px;
+  background: var(--vs-menu-input-bg);
+}
+.vs-mirror-host {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+/* Status dot: green = origin permission granted, amber = missing,
+   gray = unknown (in-player surface before the background replies). */
+.vs-mirror-status {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9e9e9e;
+}
+.vs-mirror-status[data-state='active'] { background: #34c759; }
+.vs-mirror-status[data-state='no-access'] { background: #ff9f0a; }
+.vs-mirror-grant {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid var(--vs-accent, #ff0000);
+  border-radius: 5px;
+  color: var(--vs-accent, #ff0000);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: background 140ms ease, color 140ms ease;
+}
+.vs-mirror-grant:hover { background: var(--vs-menu-button-bg-hover); }
+.vs-mirror-hint-warn {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #ff9f0a;
+}
+.vs-mirror-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.vs-mirror-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--vs-menu-input-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--vs-text-dim);
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+.vs-mirror-chip-action {
+  cursor: pointer;
+  color: var(--vs-text-primary);
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.vs-mirror-chip-action:hover {
+  background: var(--vs-menu-button-bg-hover);
+  border-color: var(--vs-accent, #ff0000);
+}
+/* 5 tabs (General/Keys/Mirrors/Diagnostics/Support) need a slightly
+   tighter strip than the original 4-tab layout; labels still crop via
+   the existing flex 1 1 0 + overflow rule on .vs-tab. */
+.vs-tabs { gap: 2px; }
+.vs-tab { padding: 6px 4px; }
 
 /* Mobile / narrow desktop window adjustments. Mirror .user.js:2855-2860
    and 3769-3792. The chrome-mounted slider shrinks to 100px so it

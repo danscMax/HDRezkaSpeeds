@@ -71,6 +71,39 @@ export function captureHotkey(event: KeyboardEvent): Hotkey {
   };
 }
 
+/**
+ * UX-024: combos the browser or OS already claims. Binding one still
+ * works (we run at capture phase and preventDefault), but the user
+ * loses the native action everywhere the extension is active — worth
+ * a heads-up toast at capture time, not a hard block.
+ */
+const RESERVED_CTRL_CODES = new Set([
+  'KeyC', // copy
+  'KeyV', // paste
+  'KeyX', // cut
+  'KeyA', // select all
+  'KeyZ', // undo
+  'KeyY', // redo
+  'KeyT', // new tab
+  'KeyW', // close tab
+  'KeyN', // new window
+  'KeyR', // reload
+  'KeyF', // find
+  'KeyP', // print
+  'KeyS', // save
+  'KeyL', // focus address bar
+  'KeyD', // bookmark
+]);
+
+export function isBrowserReservedCombo(hotkey: Hotkey): boolean {
+  if (hotkey.key === 'F5') return true;
+  if (!hotkey.ctrl || hotkey.alt || hotkey.meta) return false;
+  // Ctrl+Shift+T / N / W are also browser-level (reopen tab, incognito,
+  // close window); plain Ctrl+<letter> covers the rest.
+  if (hotkey.shift) return ['KeyT', 'KeyN', 'KeyW'].includes(hotkey.key);
+  return RESERVED_CTRL_CODES.has(hotkey.key);
+}
+
 /** True if a single Hotkey definition matches the live event.
  *
  * Refuses to match when `hotkey.key` is an empty string. An empty key

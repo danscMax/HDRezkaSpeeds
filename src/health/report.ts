@@ -61,16 +61,27 @@ export function buildReport(deps: ReportDeps): DiagnosticReport {
   };
 }
 
+/** REL-035: one throwing probe must not take down the whole report —
+ *  the health checker's subscriber chain dies with it and the gear
+ *  indicator never updates again. Failed probes read as "not found". */
+function safeProbe<T>(probe: () => T, fallback: T): T {
+  try {
+    return probe();
+  } catch {
+    return fallback;
+  }
+}
+
 function buildChecks(deps: ReportDeps): HealthChecks {
   const { ctx, discovery, meter } = deps;
   const panelSel = deps.panelSelector ?? PANEL_SEL;
 
-  const videoEl = ctx.discovery.resolve('video') as HTMLVideoElement | null;
+  const videoEl = safeProbe(() => ctx.discovery.resolve('video'), null) as HTMLVideoElement | null;
   // Skip cache for the structural probes -- the report should reflect the
   // live DOM, not what we cached before the page reflowed.
-  const playerR = discovery.resolve('playerContainer', { skipCache: true });
-  const infoR = discovery.resolve('infoElem', { skipCache: true });
-  const panel = document.querySelector(panelSel);
+  const playerR = safeProbe(() => discovery.resolve('playerContainer', { skipCache: true }), null);
+  const infoR = safeProbe(() => discovery.resolve('infoElem', { skipCache: true }), null);
+  const panel = safeProbe(() => document.querySelector(panelSel), null);
 
   const expected = ctx.speedStore.smart() ?? ctx.speedStore.current();
   const playbackStarted = !!(videoEl?.played && videoEl.played.length > 0);
@@ -82,7 +93,10 @@ function buildChecks(deps: ReportDeps): HealthChecks {
     video_ready: videoEl ? videoEl.readyState >= 1 || !!videoEl.currentSrc : false,
     playback_started: playbackStarted,
     playerContainer_found: !!playerR?.element,
-    playerContainer_valid: !!(playerR?.element && Validators.playerContainer(playerR.element).ok),
+    playerContainer_valid: safeProbe(
+      () => !!(playerR?.element && Validators.playerContainer(playerR.element).ok),
+      false,
+    ),
     infoElem_found: !!infoR?.element,
     container_inserted: !!panel,
     container_visible: !!(panel instanceof HTMLElement && panel.offsetParent !== null),

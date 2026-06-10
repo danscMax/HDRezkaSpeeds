@@ -204,6 +204,8 @@ function sanitizePatch(
     out.sliderPosition = safe.sliderPosition;
   }
   if (typeof safe.rememberSpeed === 'boolean') out.rememberSpeed = safe.rememberSpeed;
+  if (typeof safe.compactMode === 'boolean') out.compactMode = safe.compactMode;
+  if (typeof safe.rememberPerVideo === 'boolean') out.rememberPerVideo = safe.rememberPerVideo;
   if (
     typeof safe.language === 'string' &&
     (SUPPORTED_LANGS as readonly string[]).includes(safe.language)
@@ -211,10 +213,25 @@ function sanitizePatch(
     out.language = safe.language as Lang;
   }
   if (safe.hotkeys && typeof safe.hotkeys === 'object' && !Array.isArray(safe.hotkeys)) {
-    const hk = safe.hotkeys as { speedUp?: unknown; speedDown?: unknown };
+    const hk = safe.hotkeys as {
+      speedUp?: unknown;
+      speedDown?: unknown;
+      resetSpeed?: unknown;
+      toggleLast?: unknown;
+      seekForward?: unknown;
+      seekBack?: unknown;
+    };
     out.hotkeys = {
       speedUp: normalizeHotkeys(hk.speedUp, defaults.hotkeys.speedUp),
       speedDown: normalizeHotkeys(hk.speedDown, defaults.hotkeys.speedDown),
+      // FEAT-011/012/014: optional actions normalise to [] (not the
+      // defaults) when absent — a pre-0.5 stored blob simply doesn't
+      // have them, and resurrecting defaults here would re-add combos
+      // the user may have deliberately removed.
+      resetSpeed: normalizeHotkeys(hk.resetSpeed, defaults.hotkeys.resetSpeed ?? []),
+      toggleLast: normalizeHotkeys(hk.toggleLast, defaults.hotkeys.toggleLast ?? []),
+      seekForward: normalizeHotkeys(hk.seekForward, defaults.hotkeys.seekForward ?? []),
+      seekBack: normalizeHotkeys(hk.seekBack, defaults.hotkeys.seekBack ?? []),
     };
   }
   // speedPresets — array of finite numbers in (0, 10] (10x is the soft
@@ -271,6 +288,26 @@ function sanitizePatch(
   ) {
     out.sliderMin = undefined;
     out.sliderMax = undefined;
+  }
+  // FEAT-013: preserve-pitch toggle.
+  if (typeof safe.preservePitch === 'boolean') out.preservePitch = safe.preservePitch;
+  // FEAT-014: seek step in seconds, integers 1..120.
+  if (
+    typeof safe.seekSeconds === 'number' &&
+    Number.isFinite(safe.seekSeconds) &&
+    safe.seekSeconds >= 1 &&
+    safe.seekSeconds <= 120
+  ) {
+    out.seekSeconds = Math.round(safe.seekSeconds);
+  }
+  // FEAT-017: volume boost multiplier, 1.0..3.0.
+  if (
+    typeof safe.volumeBoost === 'number' &&
+    Number.isFinite(safe.volumeBoost) &&
+    safe.volumeBoost >= 1 &&
+    safe.volumeBoost <= 3
+  ) {
+    out.volumeBoost = Math.round(safe.volumeBoost * 100) / 100;
   }
   // lastSeenTheme — only accept the two valid string values; anything
   // else means a corrupt write or a stale shape from an older version.

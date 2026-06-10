@@ -4,6 +4,106 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.5.0] — 2026-06-10
+
+### Added
+
+- **Quick-action hotkeys.** Reset to 1× (default Alt+0), toggle between
+  the last two speeds, and seek ±N seconds (N configurable 1–120 s) —
+  all rebindable in Settings → Shortcuts, where the hotkey speed step
+  (0.01–1.0) is now also editable.
+- **Per-title speed memory** (opt-in, Settings → Behavior): each
+  movie/series remembers its own speed (one entry per HDRezka title id,
+  so every episode of a show shares it). LRU-capped at 200 titles.
+- **Preserve-pitch toggle** — turn it off for natural "vinyl" pitch
+  shift at non-1× speeds.
+- **Volume boost** (100–300%, Web Audio) with an explicit caveat for
+  CORS-restricted players.
+- **Compact panel mode** — collapses the row to the active speed button
+  plus the gear.
+- **"Finish N min earlier" badge** next to the speed buttons at >1×.
+- **Popup quick actions** — preset speed buttons at the top of the
+  toolbar popup apply to the video in the current tab.
+- **Preset profiles** — one-click Movies / Lectures / Minimal button
+  sets in Settings → General.
+- **Playwright smoke test** (`npm run test:smoke`) and a twin-drift
+  checker (`npm run drift`) comparing the shared core with VideoSpeeds;
+  new `docs/CAVEATS.md` + `docs/SOURCE_SUBMISSION.md`.
+
+### Changed
+
+- Settings modal: short centred tab indicator (replaces the full-width
+  underline that also nudged the strip height), brighter scrollbar +
+  scroll-edge fades, visible keyboard-focus rings on all controls,
+  "Press keys…" placeholder while capturing a hotkey, Esc badge in the
+  header, focus is trapped inside the open dialog.
+- Click-vs-double-click semantics are now explained inline in Settings
+  (previously only in each button's hover tooltip); the Diagnostics tab
+  starts with a one-line explanation of what the check verifies.
+- Reserved browser combos (Ctrl+C/V, F5, …) warn at capture time;
+  partial resets ask for confirmation only when they would discard
+  customisation; invalid fields get an inline red ring; settings import
+  shows a summary preview before applying; feedback opened from the
+  Diagnostics tab pre-attaches the report.
+- Toasts: tinted hairline border + higher-contrast background; pinned
+  bookmark is near-white on dark pills; slider thumb gets an accent halo
+  on hover/focus; the floating slider tooltip is clamped to the
+  container; the welcome replica now shows the pinned state and a
+  breathing slider thumb.
+
+### Fixed
+
+- A speed saved by double-click no longer evaporates when the page is
+  reloaded within the 200 ms write-coalescing window (pending writes
+  flush on `pagehide`).
+- One throwing probe or render no longer kills the health watchdog for
+  the rest of the page (subscriber + report probes are isolated).
+- Rate-meter no longer counts player lifecycle noise (transitions
+  through rate 0) toward the "rate storm" threshold.
+- Storage write failures (quota, dead context) now surface as a one-time
+  toast instead of disappearing silently; the same applies to a video
+  element that never appears (retry budget exhausted).
+- Self-write grace window is robust against timer glitches after
+  suspend/resume.
+
+### Added (mirrors)
+
+- **User-defined mirrors.** HDRezka domains rotate constantly; users can
+  now add their own mirror domains at runtime instead of waiting for an
+  extension update. New "Mirrors" tab in both the toolbar popup and the
+  in-player gear menu: add/remove domains, per-mirror permission badge,
+  one-click "Add current site as a mirror" in the popup. The list lives
+  in `browser.storage.local` (`hdrezka-user-mirrors`, max 30 hosts,
+  hostnames normalized/punycoded) and is included in settings
+  export/import. The background service worker owns a single dynamic
+  `scripting.registerContentScripts` registration covering all granted
+  user hosts and reconciles it on storage changes, permission changes,
+  extension updates (Chrome wipes dynamic scripts on update) and browser
+  startup. Permission grants happen only in the popup — content scripts
+  can't call `permissions.request`; the in-player tab manages the list
+  and shows a "grant via the toolbar icon" hint.
+- **New built-in mirror: `standby-rezka.tv`** (host_permissions,
+  content-script matches, `detectSite`). Note: the existing
+  `rezka.[tld]` wildcard in `detectSite` did not match it — the
+  hyphenated prefix breaks the dot-anchor — so it is listed explicitly.
+
+### Permissions (store-review notes)
+
+- `scripting` — dynamic content-script registration for user-added
+  mirror hosts. No code injection beyond the extension's own bundled
+  content script.
+- `activeTab` — lets the popup read the active tab's URL for the
+  "Add current site as a mirror" button and reload that tab on request.
+  No install-time warning.
+- `optional_host_permissions: ['*://*/*']` — user-added mirrors are
+  requested per-host at runtime via `permissions.request` behind an
+  explicit user gesture; nothing is granted silently at install.
+- Chrome may temporarily disable the extension after this update until
+  the user re-approves the new `standby-rezka.tv` host permission.
+  Firefox does not auto-grant host permissions added by an update
+  (bug 1893232) — the popup shows a re-grant button for built-in
+  mirrors that lack access.
+
 ## [0.4.3] — 2026-05-11
 
 ### Bug fix

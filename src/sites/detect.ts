@@ -4,9 +4,13 @@
  * case the script ends up on an unrelated host (defensive — the manifest
  * already restricts matches).
  *
- * Supported HDRezka mirrors match the host_permissions list in
- * wxt.config.ts: the canonical .ag plus historical/regional .me, .co,
- * .website, .cm, .tv, plus rezkify / rezkery / kinopub aliases.
+ * Supported HDRezka mirrors match BUILTIN_MIRROR_HOSTS in
+ * sites/mirror-hosts.ts (the manifest host_permissions source): the
+ * canonical .ag plus historical/regional .me, .co, .website, .cm, .tv,
+ * standby-rezka.tv, plus rezkify / rezkery / kinopub aliases. Keep the
+ * regexes below in sync when that list changes. User-added mirrors are
+ * NOT detected here — bootstrap() falls back to the mirrors store when
+ * this returns null.
  */
 
 import type { Site } from '../app/ports';
@@ -22,6 +26,9 @@ export function detectSite(host: string = safeHostname()): Site | null {
     /(?:^|\.)hdrezka\.(?:ag|me|co|website|cm)$/.test(h) ||
     /(?:^|\.)rezka\.(?:ag|me|co|website|cm)$/.test(h) ||
     /(?:^|\.)hdrezka-home\.tv$/.test(h) ||
+    // standby-rezka.tv: the `rezka.[tld]` wildcard below does NOT match it
+    // (hyphenated prefix breaks the `(?:^|\.)` anchor), so list explicitly.
+    /(?:^|\.)standby-rezka\.tv$/.test(h) ||
     /(?:^|\.)rezkify\.com$/.test(h) ||
     /(?:^|\.)rezkery\.com$/.test(h) ||
     /(?:^|\.)kinopub\.me$/.test(h) ||
@@ -52,6 +59,17 @@ export function detectSite(host: string = safeHostname()): Site | null {
  */
 export function isHDRezkaVideoPath(pathname: string = safePathname()): boolean {
   return /\.html$/i.test(pathname);
+}
+
+/**
+ * FEAT-015: stable per-title key for the speed-memory map. HDRezka URLs
+ * embed a numeric title id (`/series/<genre>/12345-slug.html`) that stays
+ * the same across every episode/season of a show — so remembering by id
+ * gives "per-series memory" for free. Returns null on unrecognised paths.
+ */
+export function extractHDRezkaTitleId(pathname: string = safePathname()): string | null {
+  const m = /\/(\d+)-[^/]*\.html$/i.exec(pathname);
+  return m ? (m[1] ?? null) : null;
 }
 
 function safeHostname(): string {

@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  type DictKey,
-  I18N_DICT,
-  type Lang,
-  SUPPORTED_LANGS,
-} from '../../src/i18n/dict';
 import { detectBrowserLang } from '../../src/i18n/detect';
+import { type DictKey, I18N_DICT, type Lang, SUPPORTED_LANGS } from '../../src/i18n/dict';
 import { createTranslator, escHtml } from '../../src/i18n/translator';
 
 const EN_KEYS = Object.keys(I18N_DICT.en) as DictKey[];
@@ -71,7 +66,7 @@ describe('createTranslator()', () => {
     expect(t.t('toast.speed_global', { speed: 1.5 })).toBe('Speed 1.5x saved as default');
     expect(t.t('diag.status.last_check', { time: '12:34' })).toBe('Last check: 12:34');
     // Audit 2026-05-09 added explicit plural variants — callers pick
-     // .one vs .other at the call site.
+    // .one vs .other at the call site.
     expect(t.t('diag.status.issues_count.other', { count: 3 })).toBe('3 issues found');
     expect(t.t('diag.status.issues_count.one', { count: 1 })).toBe('1 issue found');
   });

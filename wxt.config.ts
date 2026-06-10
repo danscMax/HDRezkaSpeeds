@@ -1,5 +1,6 @@
 import { defineConfig } from 'wxt';
 import pkg from './package.json' with { type: 'json' };
+import { builtinMatchPatterns } from './src/sites/mirror-hosts';
 
 // WXT config: builds Chrome MV3 + Firefox MV3 from the same source.
 // Browser-specific manifest tweaks are handled via the `manifest` callback below.
@@ -38,30 +39,18 @@ export default defineConfig({
       'Adds speed buttons, slider, and hotkeys to HDRezka video player. Bilingual interface (English/Russian).',
     version: pkg.version,
     author: 'MaxScorpy',
-    permissions: ['storage'],
-    // Full set of HDRezka mirrors known from the original userscript.
-    host_permissions: [
-      '*://*.hdrezka.ag/*',
-      '*://hdrezka.ag/*',
-      '*://*.rezka.ag/*',
-      '*://rezka.ag/*',
-      '*://*.hdrezka.me/*',
-      '*://hdrezka.me/*',
-      '*://*.hdrezka.co/*',
-      '*://hdrezka.co/*',
-      '*://*.hdrezka.website/*',
-      '*://hdrezka.website/*',
-      '*://*.hdrezka.cm/*',
-      '*://hdrezka.cm/*',
-      '*://*.hdrezka-home.tv/*',
-      '*://hdrezka-home.tv/*',
-      '*://*.rezkify.com/*',
-      '*://rezkify.com/*',
-      '*://*.rezkery.com/*',
-      '*://rezkery.com/*',
-      '*://*.kinopub.me/*',
-      '*://kinopub.me/*',
-    ],
+    // - storage:   settings/presets/user mirrors in browser.storage.local.
+    // - scripting: dynamic content-script registration for user-added
+    //              mirror hosts (background reconcile).
+    // - activeTab: lets the popup read the active tab's URL for the
+    //              "Add current site as mirror" button (granted on toolbar
+    //              click, no install-time warning).
+    permissions: ['storage', 'scripting', 'activeTab'],
+    // Full set of built-in HDRezka mirrors (src/sites/mirror-hosts.ts).
+    host_permissions: builtinMatchPatterns(),
+    // User-added mirrors are requested at runtime (permissions.request from
+    // the popup, user-gesture-gated) — never granted silently at install.
+    optional_host_permissions: ['*://*/*'],
     ...(browser === 'firefox'
       ? {
           browser_specific_settings: {

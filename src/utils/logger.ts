@@ -72,9 +72,10 @@ function snapshotForHistory(value: unknown): unknown {
   }
   if (typeof Element !== 'undefined' && value instanceof Element) {
     const id = value.id ? `#${value.id}` : '';
-    const cls = value.className && typeof value.className === 'string'
-      ? `.${value.className.split(/\s+/).filter(Boolean).slice(0, 3).join('.')}`
-      : '';
+    const cls =
+      value.className && typeof value.className === 'string'
+        ? `.${value.className.split(/\s+/).filter(Boolean).slice(0, 3).join('.')}`
+        : '';
     return `<${value.tagName.toLowerCase()}${id}${cls}>`;
   }
   try {
@@ -134,8 +135,7 @@ export function createLogger(opts: LoggerOptions = {}): ExtendedLogger {
     // Audit 2026-05-11 W6.4 (PERF-007): stringify non-primitive
     // details at capture time so the circular buffer doesn't pin
     // live DOM nodes / large objects beyond their natural GC.
-    const snapshotDetails =
-      details === null ? null : details.map(snapshotForHistory);
+    const snapshotDetails = details === null ? null : details.map(snapshotForHistory);
     buffer[head] = { ts: Date.now(), level, message, details: snapshotDetails };
     head = (head + 1) % maxHistory;
     if (count < maxHistory) count++;

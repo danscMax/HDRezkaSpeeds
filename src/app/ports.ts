@@ -55,6 +55,11 @@ export interface SpeedStore {
   smart(): number | null;
   setCurrent(speed: number): Promise<void>;
   setSmart(speed: number | null): Promise<void>;
+  /** FEAT-015: per-content speed memory (HDRezka title / YT channel). */
+  setActiveMemoryKey(key: string | null): void;
+  activeMemoryKey(): string | null;
+  activeMemory(): number | null;
+  rememberForActive(speed: number): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------

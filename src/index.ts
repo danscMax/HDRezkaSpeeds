@@ -37,8 +37,9 @@ import { reportToClipboardText } from './health/report';
 import type { DiagnosticReport } from './health/types';
 import { detectBrowserLang } from './i18n/detect';
 import { createTranslator } from './i18n/translator';
-import { detectSite, isHDRezkaVideoPath } from './sites/detect';
+import { detectSite, extractHDRezkaTitleId, isHDRezkaVideoPath } from './sites/detect';
 import { bootstrapHDRezkaSite, patchPlyrLocalStorage } from './sites/hdrezka';
+import { BUILTIN_MIRROR_HOSTS, isCoveredByHostList } from './sites/mirror-hosts';
 import {
   applyTransient,
   pickInitialSpeed,
@@ -47,14 +48,24 @@ import {
 } from './speed/controller';
 import { matchesHotkeyArray } from './speed/hotkeys';
 import { createRatechangeMeter } from './speed/meter';
+import { applyVolumeBoost } from './speed/volume-boost';
 import { createBrowserStorageAdapter, type StorageAdapter } from './storage/adapter';
-import { runTmMigration } from './storage/migration-tm';
 import { createCoalescingAdapter } from './storage/adapter-coalescing';
+import { runTmMigration } from './storage/migration-tm';
+import {
+  addUserMirror,
+  MAX_USER_MIRRORS,
+  readUserMirrors,
+  removeUserMirror,
+  replaceUserMirrors,
+} from './storage/mirrors-store';
 import { createSettingsStore } from './storage/settings-store';
 import { createSpeedStore } from './storage/speed-store';
 import { createPanel, createUiPort, injectStyles, insertPanel, installThemeWatcher } from './ui';
 import { showNotification } from './ui/notifications';
+import type { PanelMirrors } from './ui/panel';
 import { installFullscreenReparent } from './ui/popup';
+import type { MirrorsViewModel } from './ui/settings/modal';
 import { createLogger } from './utils/logger';
 import {
   detectAndClaim,
@@ -76,8 +87,26 @@ export async function bootstrap(
   wxtCtx: ContentScriptContext,
   options: BootstrapOptions = {},
 ): Promise<void> {
-  // 0. Site detection.
-  const site = detectSite();
+  // Storage adapter — created BEFORE site detection because the
+  // user-mirrors fallback below needs a storage read. (Used to live in
+  // step 2; hoisting is side-effect-free, the adapter holds no state.)
+  const adapter = options.adapter ?? createBrowserStorageAdapter();
+
+  // 0. Site detection. Static built-ins first; on a miss the host may be
+  //    a user-added mirror — those pages are reached via the dynamically
+  //    registered content script (background.ts) whose matches mirror the
+  //    stored list, so the storage check below is the authoritative gate.
+  let site = detectSite();
+  if (!site) {
+    try {
+      const userMirrors = await readUserMirrors(adapter);
+      if (isCoveredByHostList(location.hostname.toLowerCase(), userMirrors)) {
+        site = 'hdrezka';
+      }
+    } catch {
+      // Storage unreachable — treat as unsupported.
+    }
+  }
   if (!site) {
     console.info('[HDREZKA-SPEEDS] unsupported host, bootstrap aborted');
     return;
@@ -119,23 +148,34 @@ export async function bootstrap(
   const logger = createLogger({ scriptName: 'HDREZKA-SPEEDS' });
   logger.info(`bootstrap site=${site} version=${SCRIPT_VERSION}`);
 
-  // 2. Storage stores.
-  const adapter = options.adapter ?? createBrowserStorageAdapter();
+  // 2. Storage stores (adapter hoisted above step 0).
   const settingsStore = createSettingsStore(adapter);
   // Audit 2026-05-09 perf O1: coalesce speedStore writes (hotkey repeat,
   // slider drag) into a 200ms window. Audit 2026-05-11 W2.1 (REL-004):
   // surface coalesced write errors so quota-exceeded / runtime-invalidated
   // failures don't disappear silently.
-  const speedStore = createSpeedStore(
-    createCoalescingAdapter(adapter, {
-      flushMs: 200,
-      onWriteError: (key, err) => {
-        logger.warn(`speedStore coalesced write failed for ${key}`, err);
-      },
-    }),
-  );
+  // REL-033/038 (2026-06-10): keep a handle on the coalescing adapter so
+  // pending writes can be flushed on pagehide, and surface write failures
+  // to the user (once per page) instead of only logging them.
+  let notifyStorageWriteError: (() => void) | null = null;
+  const coalescedSpeedAdapter = createCoalescingAdapter(adapter, {
+    flushMs: 200,
+    onWriteError: (key, err) => {
+      logger.warn(`speedStore coalesced write failed for ${key}`, err);
+      notifyStorageWriteError?.();
+    },
+  });
+  const speedStore = createSpeedStore(coalescedSpeedAdapter);
   await settingsStore.init(site);
   await speedStore.init(site);
+  // FEAT-015: per-title memory key — the numeric HDRezka id is stable
+  // across every episode of a show, so this gives per-series memory.
+  speedStore.setActiveMemoryKey(extractHDRezkaTitleId(location.pathname));
+  // Without this, a double-click "save as default" followed by an instant
+  // reload (within the 200 ms coalesce window) silently loses the write.
+  cleanup.addEventListener(window, 'pagehide', () => {
+    void coalescedSpeedAdapter.flushNow();
+  });
 
   // 3. Discovery.
   // killSwitch is declared early (TDZ guard, audit 2026-05-09 sec C6) so
@@ -231,11 +271,94 @@ export async function bootstrap(
     trip: () => void killSwitch.trip(),
   };
 
+  // 6a. User-mirrors surface for the Mirrors tab. Extension build only:
+  //     `options.adapter` is the userscript marker (GM storage injected),
+  //     and in Tampermonkey the @match list — not extension permissions —
+  //     governs where the script runs, so the tab would only mislead.
+  let panelMirrors: PanelMirrors | undefined;
+  if (!options.adapter) {
+    const vm: MirrorsViewModel = {
+      builtinHosts: BUILTIN_MIRROR_HOSTS,
+      userHosts: [],
+      status: null,
+      builtinStatus: null,
+      canManagePermissions: false,
+      maxMirrors: MAX_USER_MIRRORS,
+    };
+    // Permission status lives behind the background SW: content scripts
+    // can't call browser.permissions. Failure leaves status=null and the
+    // UI renders "unknown" badges.
+    const fetchStatus = async (): Promise<{
+      status: Record<string, boolean>;
+      builtinStatus: Record<string, boolean> | null;
+    } | null> => {
+      try {
+        const { browser: br } = await import('wxt/browser');
+        const res = (await br.runtime.sendMessage({ type: 'mirrors:get-status' })) as
+          | {
+              ok?: boolean;
+              status?: Record<string, boolean>;
+              builtinStatus?: Record<string, boolean>;
+            }
+          | undefined;
+        if (res?.ok && res.status) {
+          return { status: res.status, builtinStatus: res.builtinStatus ?? null };
+        }
+      } catch {
+        // SW unreachable / userscript shim — keep "unknown".
+      }
+      return null;
+    };
+    const refreshMirrors = async (): Promise<boolean> => {
+      let changed = false;
+      try {
+        const hosts = await readUserMirrors(adapter);
+        if (JSON.stringify(hosts) !== JSON.stringify(vm.userHosts)) {
+          vm.userHosts = hosts;
+          changed = true;
+        }
+      } catch {
+        // Keep the stale list.
+      }
+      const st = await fetchStatus();
+      if (
+        st &&
+        (JSON.stringify(st.status) !== JSON.stringify(vm.status) ||
+          JSON.stringify(st.builtinStatus) !== JSON.stringify(vm.builtinStatus))
+      ) {
+        vm.status = st.status;
+        vm.builtinStatus = st.builtinStatus;
+        changed = true;
+      }
+      return changed;
+    };
+    // Warm the snapshot so the first gear-open paints real data.
+    void refreshMirrors();
+    panelMirrors = {
+      getViewModel: () => vm,
+      refresh: refreshMirrors,
+      add: async (raw) => {
+        const res = await addUserMirror(adapter, raw);
+        if (res.ok) await refreshMirrors();
+        return res;
+      },
+      remove: async (host) => {
+        await removeUserMirror(adapter, host);
+        await refreshMirrors();
+      },
+      replaceAll: async (hosts) => {
+        await replaceUserMirrors(adapter, hosts);
+        await refreshMirrors();
+      },
+    };
+  }
+
   // 7. Inject styles, build panel, build real UiPort.
   injectStyles(site);
   const panel = createPanel({
     ctx,
     scriptVersion: SCRIPT_VERSION,
+    mirrors: panelMirrors,
     killSwitch: {
       isDiscoveryEnabled: () => killSwitch.isDiscoveryEnabled(),
       isHealthCheckEnabled: () => killSwitch.isHealthCheckEnabled(),
@@ -281,6 +404,20 @@ export async function bootstrap(
   });
   ctx.ui = realUi;
   cleanup.add(() => panel.dispose());
+
+  // REL-038: real UI exists now — arm the storage-write-failure toast.
+  // Shown at most once per page load to avoid a toast storm when the
+  // adapter is persistently broken (quota exceeded, dead SW).
+  let storageErrorToastShown = false;
+  notifyStorageWriteError = () => {
+    if (storageErrorToastShown) return;
+    storageErrorToastShown = true;
+    try {
+      ctx.ui.showNotification(ctx.i18n.t('toast.storage_write_failed'), 'warn');
+    } catch {
+      /* notification is best-effort */
+    }
+  };
 
   const offSettingsSub = settingsStore.subscribe((next) => {
     // Audit 2026-05-09 MAJOR-bootstrap: also force a panel rerender so
@@ -359,6 +496,8 @@ export async function bootstrap(
   attachToVideo(ctx, meter, attachCleanup);
 
   // 11. Hotkey listener (global, capture so it wins over the page).
+  // FEAT-012: per-page memory for the toggle-last-speed hotkey.
+  let toggleLastSpeed: number | null = null;
   ctx.cleanup.addEventListener(
     document,
     'keydown',
@@ -374,15 +513,47 @@ export async function bootstrap(
       // branch only.
       const speedUp = matchesHotkeyArray(ev, hk.speedUp);
       const speedDown = !speedUp && matchesHotkeyArray(ev, hk.speedDown);
-      if (!speedUp && !speedDown) return;
+      const reset = !speedUp && !speedDown && matchesHotkeyArray(ev, hk.resetSpeed);
+      const toggle = !speedUp && !speedDown && !reset && matchesHotkeyArray(ev, hk.toggleLast);
+      const seekFwd =
+        !speedUp && !speedDown && !reset && !toggle && matchesHotkeyArray(ev, hk.seekForward);
+      const seekBack =
+        !speedUp &&
+        !speedDown &&
+        !reset &&
+        !toggle &&
+        !seekFwd &&
+        matchesHotkeyArray(ev, hk.seekBack);
+      if (!speedUp && !speedDown && !reset && !toggle && !seekFwd && !seekBack) return;
       const step = settingsStore.getKey('speedStep') ?? SPEED_STEP;
       const v = ctx.discovery.resolve('video') as HTMLVideoElement | null;
+      if (!v) return;
+      ev.preventDefault();
       if (speedUp) {
-        ev.preventDefault();
-        if (v) void setTemporary(ctx, v.playbackRate + step);
+        void setTemporary(ctx, v.playbackRate + step);
       } else if (speedDown) {
-        ev.preventDefault();
-        if (v) void setTemporary(ctx, v.playbackRate - step);
+        void setTemporary(ctx, v.playbackRate - step);
+      } else if (reset) {
+        // FEAT-011: one keypress back to normal speed (temporary — the
+        // saved default is untouched, same semantics as a button click).
+        toggleLastSpeed = v.playbackRate;
+        void setTemporary(ctx, 1);
+      } else if (toggle) {
+        // FEAT-012: swap current ↔ remembered. First press with no
+        // memory falls back to 1×.
+        const target = toggleLastSpeed ?? 1;
+        toggleLastSpeed = v.playbackRate;
+        void setTemporary(ctx, target);
+      } else if (seekFwd || seekBack) {
+        // FEAT-014: relative seek. Clamp into [0, duration].
+        const span = settingsStore.getKey('seekSeconds') ?? 10;
+        const delta = seekFwd ? span : -span;
+        try {
+          const dur = Number.isFinite(v.duration) ? v.duration : Number.POSITIVE_INFINITY;
+          v.currentTime = Math.min(Math.max(0, v.currentTime + delta), dur);
+        } catch (e) {
+          ctx.logger.warn('hotkey seek failed', e);
+        }
       }
     },
     { capture: true },
@@ -402,6 +573,8 @@ export async function bootstrap(
       delete (v as HTMLVideoElement & { __vsAttached?: boolean }).__vsAttached;
     }
     void ctx.speedStore.setSmart(null);
+    // FEAT-015: bf-cache/popstate can land on a different title.
+    ctx.speedStore.setActiveMemoryKey(extractHDRezkaTitleId(location.pathname));
 
     panel.element.parentElement?.removeChild(panel.element);
     scheduleInsertWithRetry(panel.element, ctx);
@@ -493,8 +666,15 @@ export async function bootstrap(
   healthChecker.start();
   cleanup.add(
     healthChecker.subscribe((report) => {
-      panel.rerenderSettings();
-      panel.setGearWarning(!report.healthy);
+      // REL-035: a throw inside the render path must not kill the
+      // subscription — otherwise one bad rerender silences the health
+      // indicator (gear dot) for the rest of the page lifetime.
+      try {
+        panel.rerenderSettings();
+        panel.setGearWarning(!report.healthy);
+      } catch (e) {
+        logger.warn('health subscriber render failed', e);
+      }
       logger.debug('health:', report.healthy ? 'ok' : 'warn');
     }),
   );
@@ -509,7 +689,7 @@ export async function bootstrap(
   const onPopupMessage = async (
     msg: unknown,
     sender?: { id?: string; tab?: { id?: number } },
-  ): Promise<{ ok: boolean; report?: DiagnosticReport; error?: string }> => {
+  ): Promise<{ ok: boolean; report?: DiagnosticReport; error?: string; speed?: number }> => {
     // Sender validation (audit 2026-05-09 sec C4): reject messages from
     // foreign extensions and from in-page content scripts. ourRuntimeId
     // is captured below when the listener is installed.
@@ -539,6 +719,33 @@ export async function bootstrap(
           // ok=true and the user would think the purge succeeded.
           await cache.purgeAll();
           return Promise.resolve({ ok: true });
+        }
+        // FEAT-021: popup quick actions — read/apply the live speed of
+        // the video in THIS tab without opening the in-player menu.
+        case 'vs:get-speed': {
+          const v = ctx.discovery.resolve('video') as HTMLVideoElement | null;
+          if (!(v instanceof HTMLVideoElement)) {
+            return Promise.resolve({ ok: false, error: 'no_video' });
+          }
+          return Promise.resolve({
+            ok: true,
+            speed: v.playbackRate,
+          } as { ok: boolean; speed?: number });
+        }
+        case 'vs:set-speed': {
+          const speed = (msg as { speed?: unknown }).speed;
+          if (typeof speed !== 'number' || !Number.isFinite(speed)) {
+            return Promise.resolve({ ok: false, error: 'bad_speed' });
+          }
+          const v = ctx.discovery.resolve('video') as HTMLVideoElement | null;
+          if (!(v instanceof HTMLVideoElement)) {
+            return Promise.resolve({ ok: false, error: 'no_video' });
+          }
+          await setTemporary(ctx, speed);
+          return Promise.resolve({ ok: true, speed: v.playbackRate } as {
+            ok: boolean;
+            speed?: number;
+          });
         }
         default:
           return Promise.resolve({ ok: false, error: 'unknown_type' });
@@ -702,6 +909,13 @@ function attachToVideo(
     // is bounded.
     if (attempt >= 20) {
       ctx.logger.warn('attachToVideo: gave up after 20 attempts; will re-arm on next reattach');
+      // REL-039: tell the user instead of failing silently. The retry
+      // budget spans ~80 s, so this only fires on genuinely broken pages.
+      try {
+        ctx.ui.showNotification(ctx.i18n.t('panel.video_not_found'), 'warn');
+      } catch {
+        /* notification is best-effort */
+      }
       return;
     }
     const delay = Math.min(5000, Math.round(500 * 1.2 ** attempt));
@@ -714,13 +928,25 @@ function attachToVideo(
 
   void ctx.speedStore.setSmart(null);
 
+  // FEAT-017: re-apply the user's volume boost to the fresh element.
+  // No-op (and no audio graph) while the setting sits at 100%.
+  const boost = ctx.settingsStore.getKey('volumeBoost');
+  if (typeof boost === 'number' && boost > 1.001) {
+    applyVolumeBoost(v, boost, ctx.logger);
+  }
+
   let lastSrc = v.currentSrc || v.src || '';
   let isSelfWrite = false;
 
   const isFreshSelfWrite = (): boolean => {
     const ts = (v as Branded).__vsSelfWriteAt ?? 0;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    return now - ts < SELF_WRITE_GRACE_MS;
+    // REL-036: bound the delta on both sides. A timer glitch (suspend /
+    // resume, clock source change) can make `now - ts` negative or huge;
+    // either way the stamp is not "fresh", so fall through to the normal
+    // revert path instead of treating a foreign write as ours.
+    const delta = now - ts;
+    return delta >= 0 && delta < SELF_WRITE_GRACE_MS;
   };
 
   const apply = (reason: string): void => {
@@ -757,7 +983,11 @@ function attachToVideo(
   let prev = v.playbackRate;
   cleanup.addEventListener(v, 'ratechange', () => {
     const next = v.playbackRate;
-    if (!isSelfWrite && !isFreshSelfWrite()) {
+    // REL-034: transitions through rate=0 are player lifecycle noise
+    // (HLS buffering, pause mechanics), not the site fighting our speed.
+    // Counting them inflates perMinute() and can trip the rate-storm
+    // check on perfectly healthy pages.
+    if (!isSelfWrite && !isFreshSelfWrite() && prev > 0 && next > 0) {
       meter.tick(prev, next);
     }
     prev = next;
