@@ -50,10 +50,14 @@ test.describe('extension smoke', () => {
         waitUntil: 'domcontentloaded',
         timeout: 30_000,
       });
-      // content_scripts run at document_idle; allow the page to settle.
-      await page.waitForTimeout(4_000);
-
-      const initBanner = logs.find((l) => l.includes('[HDREZKA-SPEEDS]'));
+      // content_scripts run at document_idle, which on a slow runner can
+      // land well past a fixed 4 s pause — poll for the banner instead.
+      const deadline = Date.now() + 25_000;
+      let initBanner: string | undefined;
+      while (!initBanner && Date.now() < deadline) {
+        initBanner = logs.find((l) => l.includes('[HDREZKA-SPEEDS]'));
+        if (!initBanner) await page.waitForTimeout(500);
+      }
       expect(initBanner, `expected [HDREZKA-SPEEDS] log, saw:\n${logs.join('\n')}`).toBeDefined();
     } finally {
       await ctx.close();
