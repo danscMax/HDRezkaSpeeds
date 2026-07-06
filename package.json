@@ -26,7 +26,7 @@
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.16",
+    "@biomejs/biome": "^2.5.2",
     "@playwright/test": "^1.60.0",
     "@vitest/coverage-v8": "^4.1.6",
     "@vitest/ui": "^4.1.5",
