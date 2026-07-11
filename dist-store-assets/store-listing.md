@@ -11,24 +11,30 @@ sections come first (canonical), Russian translations follow.
 
 ## Short description (max 132 characters)
 
-> Speed buttons, slider and customizable hotkeys for HDRezka videos.
-> Bilingual EN/RU. No ads, no tracking.
+Benefit-first: the first line is what a searcher sees before "read more".
 
-(127 characters.)
+> Speed up HDRezka movies and shows — speed buttons under the player,
+> a slider, and hotkeys. Bilingual EN/RU, no ads, no tracking.
+
+(128 characters.)
 
 ### Russian translation
 
-> Кнопки скорости, ползунок и горячие клавиши для видео HDRezka.
-> Двуязычный EN/RU. Без рекламы и трекинга.
+> Ускоряйте фильмы и сериалы на HDRezka: кнопки скорости под плеером,
+> ползунок и горячие клавиши. Без рекламы и трекинга.
+
+(119 characters.)
 
 ---
 
 ## Detailed description (under 16,000 characters)
 
 ```
-HDRezka Speed Controller adds an always-visible row of speed buttons, a
-fine-grained slider, and customizable keyboard shortcuts to the HDRezka
-video player.
+Watch movies and shows on HDRezka at your own pace. HDRezka Speed
+Controller puts a row of speed buttons right under the player, so a
+slow scene or a long episode plays faster — and a single click brings
+it back to normal. A fine-grained slider and customizable keyboard
+shortcuts give you exact control.
 
 WHAT IT DOES
 
@@ -99,9 +105,11 @@ per-domain via the standard browser permission prompt).
 ### Russian translation
 
 ```
-HDRezka Speed Controller добавляет всегда видимую панель кнопок
-скорости, точный ползунок и настраиваемые горячие клавиши в плеер
-HDRezka.
+Смотрите фильмы и сериалы на HDRezka в своём темпе. HDRezka Speed
+Controller ставит ряд кнопок скорости прямо под плеером: затянутая
+сцена или длинная серия идут быстрее, а один клик возвращает обычную
+скорость. Точный ползунок и настраиваемые горячие клавиши дают полный
+контроль.
 
 ЧТО УМЕЕТ
 
