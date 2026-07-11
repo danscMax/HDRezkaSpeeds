@@ -7,6 +7,8 @@
 
 [English](#english) | [Русский](#russian)
 
+![Speed buttons docked under the HDRezka player — click a preset and the video speeds up](dist-store-assets/social/demo.gif)
+
 ---
 
 <a id="english"></a>
