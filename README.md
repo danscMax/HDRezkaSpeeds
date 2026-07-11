@@ -1,5 +1,10 @@
 # HDRezka Speed Controller
 
+[![Firefox Add-on](https://img.shields.io/amo/v/hdrezka-speed-controller?label=Firefox%20Add-on&logo=firefoxbrowser)](https://addons.mozilla.org/firefox/addon/hdrezka-speed-controller/)
+[![Users](https://img.shields.io/amo/users/hdrezka-speed-controller?label=users)](https://addons.mozilla.org/firefox/addon/hdrezka-speed-controller/)
+<!-- TODO: add the Chrome Web Store badge once the listing is public:
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/EXTENSION_ID?label=Chrome%20Web%20Store&logo=googlechrome)](https://chromewebstore.google.com/detail/EXTENSION_ID) -->
+
 [English](#english) | [Русский](#russian)
 
 ---
@@ -21,8 +26,8 @@ Bilingual interface (English / Russian). No ads, no telemetry.
 - Slider for in-between values, with a coloured fill that tracks the
   current speed.
 - Click = temporary speed for this video. Double-click = save as default.
-- Configurable hotkeys (default `Ctrl+C` +0.1 / `Ctrl+V` −0.1). Supports
-  multiple combos per action (keyboard + remote).
+- Configurable hotkeys (default `Alt+.` +0.1 / `Alt+,` −0.1, `Alt+0`
+  resets to 1x). Supports multiple combos per action (keyboard + remote).
 - In-player gear menu: General / Shortcuts / Mirrors / Diagnostics tabs.
 - Toolbar popup mirrors the in-player menu.
 - Auto-follows HDRezka's light / dark theme toggle.
@@ -145,9 +150,9 @@ GPL-3.0-or-later. See [LICENSE](./LICENSE).
   отражающей текущую скорость.
 - Один клик — временная скорость для этого видео. Двойной клик —
   сохранить как основную.
-- Настраиваемые горячие клавиши (по умолчанию `Ctrl+C` +0.1 /
-  `Ctrl+V` −0.1). Можно назначить несколько комбинаций на одно
-  действие (клавиатура + пульт).
+- Настраиваемые горячие клавиши (по умолчанию `Alt+.` +0.1 /
+  `Alt+,` −0.1, `Alt+0` сбрасывает на 1x). Можно назначить несколько
+  комбинаций на одно действие (клавиатура + пульт).
 - Меню на шестерёнке: вкладки «Общие» / «Клавиши» / «Зеркала» /
   «Диагностика».
 - Иконка в тулбаре открывает то же меню без открытия видео.
