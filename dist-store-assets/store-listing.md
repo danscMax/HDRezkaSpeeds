@@ -46,9 +46,9 @@ WHAT IT DOES
 - Single-click on a button = temporary speed for this video only.
   Double-click = save as the default for new videos. The saved speed
   is marked with a small accent dot in the corner of its button.
-- Configurable hotkeys (default Alt+Period / Alt+Comma — i.e. Alt+. /
-  Alt+,) — assign multiple combinations per action so a remote and a
-  keyboard can both trigger speed changes.
+- Configurable hotkeys — assign multiple combinations per action so a
+  remote and a keyboard can both trigger speed changes. Rebind them and
+  set the step size in Settings → Keys.
 - In-player gear menu with five tabs:
   - General: slider position (right / below / inside player), language
     switch (English / Russian), preset chips grouped by range
@@ -122,9 +122,9 @@ Controller ставит ряд кнопок скорости прямо под �
 - Один клик по кнопке — временная скорость для этого видео. Двойной
   клик — сделать скоростью по умолчанию для новых видео. Сохранённая
   кнопка отмечена маленькой точкой в углу.
-- Настраиваемые горячие клавиши (по умолчанию Alt+Period / Alt+Comma
-  — то есть Alt+. / Alt+,) — можно назначить несколько комбинаций на
-  одно действие (клавиатура + пульт ДУ).
+- Настраиваемые горячие клавиши — можно назначить несколько комбинаций
+  на одно действие (клавиатура + пульт ДУ), переназначить их и задать
+  шаг в настройках, вкладка «Клавиши».
 - Меню настроек на шестерёнке с пятью вкладками:
   - «Общие»: положение ползунка, язык интерфейса, кнопки скорости
     сгруппированы по диапазонам (медленнее 1×, 1×–2×, быстрее 2×).
