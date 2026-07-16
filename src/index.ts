@@ -581,8 +581,21 @@ export async function bootstrap(
     else v.addEventListener('loadedmetadata', doSeek, { once: true });
   };
 
+  // #4: only record the last-known-good host once a REAL <video> has
+  // attached, NOT merely on a site/signature match. In auto-follow mode a
+  // false-positive signature on a non-rezka video page would otherwise
+  // poison the popup's "Open HDRezka" target with a junk domain. Guarded to
+  // one write per page load.
+  let lastHostWritten = false;
+
   const resumeHooks: ResumeHooks = {
     onVideoReady(v, attachCleanup) {
+      if (!lastHostWritten) {
+        lastHostWritten = true;
+        // Fire-and-forget; junk hosts are dropped inside the writer.
+        void writeLastWorkingHost(adapter, location.hostname);
+      }
+
       const titleId = extractHDRezkaTitleId(location.pathname);
       if (!titleId) return;
 
@@ -946,10 +959,9 @@ export async function bootstrap(
     }
   });
 
-  // Remember where we successfully activated so the popup's "Open HDRezka"
-  // can jump straight to the last-known-good mirror when no rezka tab is
-  // open. Fire-and-forget; junk hosts are dropped inside the writer.
-  void writeLastWorkingHost(adapter, location.hostname);
+  // Note: the last-known-good host (for the popup's "Open HDRezka") is
+  // written from the video-attach path (resumeHooks.onVideoReady, #4), not
+  // here — a signature match alone must not record the host.
 
   logger.info('bootstrap complete');
 }
@@ -964,36 +976,35 @@ export async function bootstrap(
  * Resolves instantly when the signature is already present, so a real rezka
  * page pays no delay; only auto-follow hosts ever reach this.
  */
-function awaitHDRezkaSignature(
-  wxtCtx: ContentScriptContext,
-  budgetMs = 3000,
-  stepMs = 250,
-): Promise<boolean> {
+function awaitHDRezkaSignature(wxtCtx: ContentScriptContext, budgetMs = 2500): Promise<boolean> {
   if (looksLikeHDRezka()) return Promise.resolve(true);
   return new Promise<boolean>((resolve) => {
-    let elapsed = 0;
     let settled = false;
+    let observer: MutationObserver | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const finish = (value: boolean): void => {
       if (settled) return;
       settled = true;
+      observer?.disconnect();
+      if (timer !== null) clearTimeout(timer);
       resolve(value);
     };
-    const timer = setInterval(() => {
-      if (settled) {
-        clearInterval(timer);
-        return;
-      }
-      if (looksLikeHDRezka()) {
-        clearInterval(timer);
-        finish(true);
-        return;
-      }
-      elapsed += stepMs;
-      if (elapsed >= budgetMs) {
-        clearInterval(timer);
-        finish(false);
-      }
-    }, stepMs);
+    // Re-check on DOM mutations instead of polling on a fixed interval:
+    // resolves the instant HDRezka's player markers land, and costs nothing
+    // while the DOM is quiet. Bursts are coalesced into one check per frame
+    // (mirrors the new-video scan in sites/hdrezka.ts).
+    let scanQueued = false;
+    observer = new MutationObserver(() => {
+      if (scanQueued) return;
+      scanQueued = true;
+      requestAnimationFrame(() => {
+        scanQueued = false;
+        if (!settled && looksLikeHDRezka()) finish(true);
+      });
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    // Fallback deadline: a genuine non-rezka page never matches, so bail.
+    timer = setTimeout(() => finish(false), budgetMs);
     // A mid-wait navigation / HMR must not hang bootstrap or let it continue
     // on a dead context — resolve false so the caller aborts cleanly.
     wxtCtx.onInvalidated(() => finish(false));
