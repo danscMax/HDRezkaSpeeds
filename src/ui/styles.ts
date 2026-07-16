@@ -2157,7 +2157,8 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
    gradient, slider fill etc. stay; only fades/slides/pulses go. */
 @media (prefers-reduced-motion: reduce) {
   .vs-panel *, .vs-panel,
-  .settings-menu *, .settings-menu {
+  .settings-menu *, .settings-menu,
+  #speed-popup, #speed-notifications, #speed-notifications * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

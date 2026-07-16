@@ -32,7 +32,7 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { storageKeysFor } from '../config';
-import { BUILTIN_MIRROR_HOSTS, originPatternsFor } from '../sites/mirror-hosts';
+import { builtinMatchPatterns, BUILTIN_MIRROR_HOSTS, originPatternsFor } from '../sites/mirror-hosts';
 import { createBrowserStorageAdapter } from '../storage/adapter';
 import { MIRRORS_STORAGE_KEY, readUserMirrors, sanitizeMirrorList } from '../storage/mirrors-store';
 
@@ -97,12 +97,6 @@ export default defineBackground(() => {
     }
   }
 
-  /** Is the opt-in "work on any mirror" flag set in the settings blob? */
-  async function autoFollowEnabled(): Promise<boolean> {
-    const s = await adapter.get<{ autoFollowMirrors?: unknown } | null>(SETTINGS_STORAGE_KEY, null);
-    return !!(s && typeof s === 'object' && s.autoFollowMirrors === true);
-  }
-
   /**
    * Register/unregister the broad auto-follow content script. Active only
    * when the user opted in AND granted the broad host permission — the same
@@ -110,9 +104,19 @@ export default defineBackground(() => {
    * via looksLikeHDRezka(). Independent of the user-mirrors registration.
    */
   async function reconcileAutoFollowScript(): Promise<void> {
-    const wantActive =
-      (await autoFollowEnabled()) &&
-      (await browser.permissions.contains({ origins: [BROAD_ORIGIN] }));
+    const blob = await adapter.get<Record<string, unknown> | null>(SETTINGS_STORAGE_KEY, null);
+    const enabled = !!(blob && typeof blob === 'object' && blob.autoFollowMirrors === true);
+    const hasBroad = await browser.permissions.contains({ origins: [BROAD_ORIGIN] });
+
+    // Broad permission revoked from the browser UI while the flag is still on
+    // — the toggle would keep showing "on" but auto-follow is dead. Reset the
+    // flag so the popup reflects reality (this write's storage.onChanged
+    // refreshes the UI; the re-entrant reconcile is a no-op once enabled=false).
+    if (enabled && !hasBroad && blob) {
+      await adapter.set(SETTINGS_STORAGE_KEY, { ...blob, autoFollowMirrors: false });
+    }
+
+    const wantActive = enabled && hasBroad;
     const existing = await browser.scripting.getRegisteredContentScripts({
       ids: [AUTO_FOLLOW_SCRIPT_ID],
     });
@@ -124,10 +128,22 @@ export default defineBackground(() => {
       return;
     }
 
+    // Exclude hosts already covered by the static manifest registration
+    // (built-in mirrors) and the user-mirrors dynamic script, so a rezka host
+    // isn't matched twice. The boot guard blocks a second bootstrap, but the
+    // broad script would otherwise still parse content.js again and re-add
+    // top-level listeners on the happy path.
+    const userHosts = await readUserMirrors(adapter);
+    const excludeMatches = [
+      ...builtinMatchPatterns(),
+      ...userHosts.flatMap((h) => originPatternsFor(h)),
+    ];
+
     const script = {
       id: AUTO_FOLLOW_SCRIPT_ID,
       js: [CONTENT_SCRIPT_FILE],
       matches: [BROAD_ORIGIN],
+      excludeMatches,
       runAt: 'document_idle' as const,
       allFrames: false,
       persistAcrossSessions: true,

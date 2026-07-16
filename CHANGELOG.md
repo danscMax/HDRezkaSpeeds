@@ -31,6 +31,22 @@ versioning is [SemVer](https://semver.org/).
   of the absolute 10x cap — the slider spans exactly the buttons out of the
   box. Set an explicit range in Settings → Slider range to override.
 
+### Fixed
+
+- **Auto-follow no longer double-loads on rezka pages.** The broad content
+  script now excludes built-in and user-mirror hosts (`excludeMatches`), so a
+  known mirror isn't matched by two registrations at once.
+- **Turning off all-sites access from the browser now switches the toggle
+  off too.** Revoking the broad permission externally used to leave "Work on
+  any mirror" showing on while it was actually dead.
+- **Toasts and the speed popup respect `prefers-reduced-motion`** — no more
+  slide-in for users who asked to reduce motion.
+- **Feedback diagnostic snapshot minimized** — dropped the raw settings blob,
+  `navigator.languages`, and `devicePixelRatio` in favour of a small
+  whitelisted subset. `PRIVACY.md` corrected to match the actual snapshot, the
+  name-or-signature mirror matching, and the fact that the IP is HMAC-keyed
+  and never stored.
+
 ## [0.5.3] — 2026-07-10
 
 ### Fixed

@@ -45,7 +45,7 @@ want to send it to the developer.
 |---|---|
 | `storage` | Persist your settings between sessions. |
 | `host_permissions` (HDRezka mirrors) | Inject the speed-control UI into the HDRezka video player. The extension does not run on any other site. |
-| `*://*/*` (optional — "Auto-follow mirrors") | **Off by default.** Only if you turn on Settings → Mirrors → "Work on any HDRezka mirror" and accept the browser prompt. It lets the extension recognise HDRezka on any new mirror domain by the player's DOM signature (not the domain name), so a moved site keeps working without a store update. The content script self-bails on non-HDRezka pages, and you can revoke this anytime from the browser's extension settings. |
+| `*://*/*` (optional — "Auto-follow mirrors") | **Off by default.** Only if you turn on Settings → Mirrors → "Work on any HDRezka mirror" and accept the browser prompt. It lets the extension recognise HDRezka on a new mirror domain — by the domain name (an `hdrezka.*`/`rezka.*` pattern) or by the player's DOM signature — so a moved site keeps working without a store update. The content script self-bails on pages that are neither, and you can revoke this anytime from the browser's extension settings. |
 
 The **"Open HDRezka"** button (popup → Mirrors) sends a `HEAD` reachability
 probe to your known mirror domains **only** when you click it, and only if the
@@ -69,18 +69,22 @@ The extension ships a "Send feedback" button (Settings → Diagnostics).
 Clicking it opens an in-extension form. Nothing is sent until you press
 "Submit". When you do:
 
-- Your message, optional reply email, optional diagnostic snapshot
-  (anonymous: domain + page path with no query string, browser, viewport,
-  panel state), and your IP address are POSTed to a Cloudflare Worker
-  the developer hosts at `speeds-feedback.matsiyak.workers.dev`.
-- The Worker validates the payload, rate-limits to 5 submissions per
-  IP per hour, and forwards the message to the developer's personal
-  Telegram chat via the Telegram Bot API.
+- Your message, optional reply email, and optional diagnostic snapshot are
+  POSTed to a Cloudflare Worker the developer hosts at
+  `speeds-feedback.matsiyak.workers.dev`. The snapshot is anonymous and
+  minimized: extension version, browser, viewport size, current playback
+  speed, UI language, and a few non-identifying settings (slider position and
+  a couple of toggles). It contains **no** page URL, domain, or path.
+- The Worker validates the payload, rate-limits to 5 submissions per hour,
+  and forwards the message to the developer's personal Telegram chat via the
+  Telegram Bot API.
 - No third-party analytics, no email-marketing service, no ticketing
   vendor. The Worker source is in
   [`cloudflare-worker/`](./cloudflare-worker/) and is the only network
   hop between your browser and the developer.
-- The IP address is used solely for rate limiting, stored in
+- The extension never sends your IP address. Cloudflare adds it as the
+  connecting-IP header for rate limiting, and the Worker stores only a keyed
+  hash (HMAC) of it — never the address itself — as a rate-limit key in
   Cloudflare KV with a 1-hour TTL, then automatically deleted.
 
 If you do not provide a reply email, the developer cannot contact you
@@ -143,7 +147,7 @@ issue, если хотите отправить разработчику.
 |---|---|
 | `storage` | Сохранять ваши настройки между сессиями. |
 | `host_permissions` (зеркала HDRezka) | Встраивать панель управления скоростью в плеер HDRezka. Расширение не работает на других сайтах. |
-| `*://*/*` (опционально — «Автозеркала») | **По умолчанию выключено.** Только если вы включите Настройки → Зеркала → «Работать на любом зеркале HDRezka» и подтвердите запрос браузера. Позволяет распознавать HDRezka на любом новом домене по DOM-сигнатуре плеера (а не по имени домена), чтобы переехавший сайт продолжал работать без обновления в сторе. На не-HDRezka страницах контент-скрипт сразу выходит; право можно отозвать в любой момент в настройках расширения браузера. |
+| `*://*/*` (опционально — «Автозеркала») | **По умолчанию выключено.** Только если вы включите Настройки → Зеркала → «Работать на любом зеркале HDRezka» и подтвердите запрос браузера. Позволяет распознавать HDRezka на новом домене — по имени домена (шаблон `hdrezka.*`/`rezka.*`) или по DOM-сигнатуре плеера — чтобы переехавший сайт продолжал работать без обновления в сторе. На страницах, которые ни то, ни другое, контент-скрипт сразу выходит; право можно отозвать в любой момент в настройках расширения браузера. |
 
 Кнопка **«Открыть HDRezka»** (попап → Зеркала) отправляет `HEAD`-запрос-проверку
 доступности на ваши известные домены-зеркала **только** при вашем клике и только
@@ -168,20 +172,23 @@ issue, если хотите отправить разработчику.
 Диагностика). По клику открывается форма внутри расширения. Ничего
 не отправляется, пока вы не нажмёте «Отправить». При нажатии:
 
-- Ваше сообщение, опционально email для ответа, опционально
-  диагностический снимок (анонимный: домен + путь страницы без
-  query-string, браузер, размер окна, состояние панели), а также
-  ваш IP-адрес отправляются POST-запросом на Cloudflare Worker,
-  который автор хостит на `speeds-feedback.matsiyak.workers.dev`.
-- Worker валидирует payload, ограничивает скорость до 5 отправок
-  с одного IP в час, и пересылает сообщение в личный Telegram-чат
-  автора через Telegram Bot API.
+- Ваше сообщение, опционально email для ответа и опционально
+  диагностический снимок отправляются POST-запросом на Cloudflare Worker,
+  который автор хостит на `speeds-feedback.matsiyak.workers.dev`. Снимок
+  анонимный и минимизированный: версия расширения, браузер, размер окна,
+  текущая скорость воспроизведения, язык интерфейса и несколько
+  неидентифицирующих настроек (положение ползунка и пара переключателей).
+  В нём **нет** URL, домена или пути страницы.
+- Worker валидирует payload, ограничивает до 5 отправок в час и пересылает
+  сообщение в личный Telegram-чат автора через Telegram Bot API.
 - Никакой сторонней аналитики, никакого email-маркетинга, никаких
   тикет-сервисов. Исходник Worker'а лежит в
   [`cloudflare-worker/`](./cloudflare-worker/) — это единственный
   сетевой узел между вашим браузером и автором.
-- IP-адрес используется только для rate-limit, хранится в
-  Cloudflare KV с TTL 1 час, после чего автоматически удаляется.
+- Расширение никогда не отправляет ваш IP-адрес. Cloudflare добавляет его
+  как connecting-IP для rate-limit, а Worker хранит только его ключевой хеш
+  (HMAC) — не сам адрес — как ключ лимита в Cloudflare KV с TTL 1 час, после
+  чего автоматически удаляется.
 
 Если email для ответа не указан — автор не сможет вам ответить,
 но сообщение всё равно прочитает.

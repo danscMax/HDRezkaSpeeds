@@ -340,23 +340,36 @@ async function collectDiagnostics(): Promise<string> {
     null,
   );
 
+  // Data minimization: send only what's useful to reproduce a bug. The raw
+  // settings blob (hotkeys, mirror list, …), navigator.languages (an ordered
+  // fingerprint) and devicePixelRatio were more than needed — replaced with a
+  // whitelisted settings subset and a single `language`.
   const snapshot = {
     extension: FEEDBACK_APP_ID,
     version: SCRIPT_VERSION,
     timestamp: new Date().toISOString(),
-    viewport: {
-      width: window.innerWidth,
-      height: window.innerHeight,
-      dpr: window.devicePixelRatio,
-    },
+    viewport: { width: window.innerWidth, height: window.innerHeight },
     language: navigator.language,
-    languages: navigator.languages,
-    settings: settings ?? null,
+    settings: pickSettings(settings),
     speed: speed ?? null,
     browser: detectBrowser(),
   };
 
   return JSON.stringify(snapshot, null, 2);
+}
+
+/** Whitelisted, non-identifying settings fields for the diagnostic snapshot. */
+function pickSettings(s: Partial<Settings> | null): Record<string, unknown> | null {
+  if (!s || typeof s !== 'object') return null;
+  return {
+    sliderPosition: s.sliderPosition,
+    compactMode: s.compactMode,
+    rememberPerVideo: s.rememberPerVideo,
+    preservePitch: s.preservePitch,
+    autoFollowMirrors: s.autoFollowMirrors,
+    presetCount: Array.isArray(s.speedPresets) ? s.speedPresets.length : undefined,
+    healing: s.healing,
+  };
 }
 
 function detectBrowser(): string {

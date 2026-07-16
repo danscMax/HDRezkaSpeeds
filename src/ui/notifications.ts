@@ -43,6 +43,14 @@ export function showNotification(text: string, opts: NotificationOptions = {}): 
 
   const stack = ensureStack(opts.playerContainer ?? null);
 
+  // The toast lives outside .vs-panel/.settings-menu and carries an inline
+  // `transition …!important`, so the stylesheet's reduced-motion block can't
+  // reach it — guard the slide/fade in JS instead (a11y). Appears/disappears
+  // instantly when the user asked for reduced motion.
+  const reduceMotion =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   const toast = document.createElement('div');
   // VIS-010: 0.92 alpha + a kind-tinted hairline border. At 0.85 the blob
   // melted into near-black player backgrounds and the dot was the only
@@ -65,9 +73,9 @@ export function showNotification(text: string, opts: NotificationOptions = {}): 
     pointer-events: auto !important;
     white-space: nowrap !important;
     max-width: min(80vw, 480px) !important;
-    opacity: 0;
-    transform: translateX(20px);
-    transition: opacity 0.25s ease, transform 0.25s ease !important;
+    opacity: ${reduceMotion ? '1' : '0'};
+    transform: ${reduceMotion ? 'none' : 'translateX(20px)'};
+    transition: ${reduceMotion ? 'none' : 'opacity 0.25s ease, transform 0.25s ease'} !important;
   `;
 
   // Text comes from i18n -- already plain text by the M3 contract.
