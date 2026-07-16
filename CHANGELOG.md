@@ -41,6 +41,11 @@ versioning is [SemVer](https://semver.org/).
   of a 3-second toast that vanished before it could be read. When the speed
   panel can't attach, or no video is ever found, the message and its recovery
   action stay put until dismissed.
+- **Auto-follow is far lighter on unrelated sites.** With "Work on any HDRezka
+  mirror" enabled, every page you visited used to parse the whole ~219 KB
+  extension just to bail on non-HDRezka pages. Now a tiny ~4 KB "sniffer" does
+  the HDRezka check, and the full script is loaded only once a page is actually
+  recognised as HDRezka.
 - **Clearer "playing vs saved" speed buttons.** The saved-default button used a
   large blurry accent halo that competed with the currently-playing button for
   attention (worst on the dark theme). It's now a crisp accent outline plus a

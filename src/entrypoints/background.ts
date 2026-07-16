@@ -53,6 +53,14 @@ const SETTINGS_STORAGE_KEY = storageKeysFor('hdrezka').settings;
  */
 const CONTENT_SCRIPT_FILE = 'content-scripts/content.js';
 
+/**
+ * Built output of the tiny auto-follow sniffer entrypoint
+ * (src/entrypoints/sniffer.content.ts). WXT names a `<x>.content.ts`
+ * entrypoint `content-scripts/<x>.js`; `registration: 'runtime'` keeps it out
+ * of the manifest so we register it broadly here only when opted in.
+ */
+const SNIFFER_SCRIPT_FILE = 'content-scripts/sniffer.js';
+
 export default defineBackground(() => {
   const adapter = createBrowserStorageAdapter();
 
@@ -107,10 +115,12 @@ export default defineBackground(() => {
   }
 
   /**
-   * Register/unregister the broad auto-follow content script. Active only
-   * when the user opted in AND granted the broad host permission — the same
-   * self-bailing content.js runs everywhere and exits on non-HDRezka pages
-   * via looksLikeHDRezka(). Independent of the user-mirrors registration.
+   * Register/unregister the broad auto-follow SNIFFER. Active only when the
+   * user opted in AND granted the broad host permission. Instead of loading
+   * the full ~219 KB content script on every page (which self-bailed on
+   * non-HDRezka pages), the tiny sniffer runs everywhere, and on a signature
+   * hit asks us to executeScript the real script into just that tab (see the
+   * 'auto-follow:inject' handler). Independent of the user-mirrors registration.
    */
   async function reconcileAutoFollowScript(): Promise<void> {
     const blob = await adapter.get<Record<string, unknown> | null>(SETTINGS_STORAGE_KEY, null);
@@ -138,10 +148,10 @@ export default defineBackground(() => {
     }
 
     // Exclude hosts already covered by the static manifest registration
-    // (built-in mirrors) and the user-mirrors dynamic script, so a rezka host
-    // isn't matched twice. The boot guard blocks a second bootstrap, but the
-    // broad script would otherwise still parse content.js again and re-add
-    // top-level listeners on the happy path.
+    // (built-in mirrors) and the user-mirrors dynamic script — the full
+    // content.js already runs there, so the sniffer must not also fire and
+    // executeScript a duplicate. (The boot guard would block the second
+    // bootstrap, but skipping the redundant sniffer + injection is cleaner.)
     const userHosts = await readUserMirrors(adapter);
     const excludeMatches = [
       ...builtinMatchPatterns(),
@@ -150,7 +160,7 @@ export default defineBackground(() => {
 
     const script = {
       id: AUTO_FOLLOW_SCRIPT_ID,
-      js: [CONTENT_SCRIPT_FILE],
+      js: [SNIFFER_SCRIPT_FILE],
       matches: [BROAD_ORIGIN],
       excludeMatches,
       runAt: 'document_idle' as const,
@@ -163,6 +173,28 @@ export default defineBackground(() => {
     } else {
       await browser.scripting.registerContentScripts([script]);
     }
+  }
+
+  /**
+   * FEAT-019/#10: inject the full content script into a tab the sniffer
+   * flagged as HDRezka. Re-checks the opt-in flag + broad grant — the message
+   * crosses a trust boundary, even though the sniffer's own registration
+   * already implies both. The page-level boot guard makes a duplicate inject a
+   * no-op, so we don't track per-tab injection state.
+   */
+  async function injectFullScript(tabId: number): Promise<void> {
+    const blob = await adapter.get<Record<string, unknown> | null>(SETTINGS_STORAGE_KEY, null);
+    const enabled = !!(blob && typeof blob === 'object' && blob.autoFollowMirrors === true);
+    if (!enabled) return;
+    const hasBroad = await browser.permissions.contains({ origins: [BROAD_ORIGIN] });
+    if (!hasBroad) return;
+    // executeScript's `files` is typed as a leading-slash public path (unlike
+    // registerContentScripts' `js`), so this literal — not CONTENT_SCRIPT_FILE.
+    await browser.scripting
+      .executeScript({ target: { tabId }, files: ['/content-scripts/content.js'] })
+      .catch((e: unknown) => {
+        console.warn('[HDREZKA-SPEEDS] auto-follow inject failed (tab %d)', tabId, e);
+      });
   }
 
   /** Both dynamic registrations reconciled together (idempotent). */
@@ -289,6 +321,13 @@ export default defineBackground(() => {
           // Tab gone / action API unavailable — best-effort.
         });
       }
+      return undefined;
+    }
+    // FEAT-019/#10: the broadly-registered sniffer asks us to inject the full
+    // content script into its own tab once it confirmed the HDRezka signature.
+    if (m.type === 'auto-follow:inject') {
+      const tabId = sender.tab?.id;
+      if (typeof tabId === 'number') void injectFullScript(tabId);
       return undefined;
     }
     if (m.type !== 'open-extension-page') return undefined;
