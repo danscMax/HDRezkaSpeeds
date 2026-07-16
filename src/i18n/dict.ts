@@ -301,12 +301,17 @@ export const I18N_DICT = {
     // exhausted. The page kept the player container under wraps for ~30s
     // (slow CDN, unusual layout, kill-switch tripped); user gets a hint
     // instead of a silently broken extension.
-    'panel.insertion_failed': 'Could not insert the speed panel — try reloading the page.',
+    'panel.insertion_failed': 'Could not insert the speed panel.',
 
     // panel.video_not_found -- attachToVideo exhausted its retry budget:
     // the page looks like a video page but no <video> ever appeared.
-    'panel.video_not_found':
-      'Video player not found — speed control is unavailable. Try reloading the page.',
+    'panel.video_not_found': 'Video player not found — speed control is unavailable.',
+
+    // FEAT-018: resume ("continue where you left off") chip + shared
+    // action-chip button labels. resume.chip's {time} is M:SS / H:MM:SS.
+    'resume.chip': 'Continue from {time}',
+    'chip.reload': 'Reload',
+    'chip.dismiss': 'Dismiss',
 
     // toast.storage_write_failed -- a coalesced storage write rejected
     // (quota / invalidated context). Shown once per page so the user
@@ -677,12 +682,15 @@ export const I18N_DICT = {
       'Настройки из предыдущей установки Tampermonkey успешно импортированы.',
 
     // panel.insertion_failed
-    'panel.insertion_failed':
-      'Не удалось вставить панель скоростей — попробуйте перезагрузить страницу.',
+    'panel.insertion_failed': 'Не удалось вставить панель скоростей.',
 
     // panel.video_not_found
-    'panel.video_not_found':
-      'Видеоплеер не найден — управление скоростью недоступно. Попробуйте перезагрузить страницу.',
+    'panel.video_not_found': 'Видеоплеер не найден — управление скоростью недоступно.',
+
+    // FEAT-018: resume-чип + подписи кнопок action-чипа.
+    'resume.chip': 'Продолжить с {time}',
+    'chip.reload': 'Обновить',
+    'chip.dismiss': 'Закрыть',
 
     // toast.storage_write_failed
     'toast.storage_write_failed':

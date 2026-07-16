@@ -28,13 +28,13 @@ describe('vsIcon()', () => {
   });
 
   it('exposes ICON_NAMES with the full set', () => {
-    // 29 icons: 22 from the original userscript + globe (language
+    // 30 icons: 22 from the original userscript + globe (language
     // switcher) + heart (donate tab) + external-link (donate links)
     // + help-circle (welcome page link in modal header) + mail
     // (feedback CTA, added in 0.2.x feedback flow) + bookmark
     // (pin/save-as-default button, added in 0.3.15) + clock
-    // (FEAT-016 time-saved badge, added in 0.6.x).
-    expect(ICON_NAMES.length).toBe(29);
+    // (time-saved badge, added in 0.6.x) + play (resume chip, 0.6.x).
+    expect(ICON_NAMES.length).toBe(30);
     expect(ICON_NAMES).toContain('globe');
     expect(ICON_NAMES).toContain('settings');
     expect(ICON_NAMES).toContain('heart');
@@ -43,6 +43,7 @@ describe('vsIcon()', () => {
     expect(ICON_NAMES).toContain('mail');
     expect(ICON_NAMES).toContain('bookmark');
     expect(ICON_NAMES).toContain('clock');
+    expect(ICON_NAMES).toContain('play');
   });
 
   it('every icon name renders without throwing and yields an SVGElement', () => {

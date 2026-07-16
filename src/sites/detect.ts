@@ -102,6 +102,33 @@ export function extractHDRezkaTitleId(pathname: string = safePathname()): string
   return m ? (m[1] ?? null) : null;
 }
 
+/**
+ * FEAT-018: episode-granular resume key. The title id alone is per-SERIES
+ * (every episode of a show shares one URL — HDRezka swaps episodes via AJAX
+ * without changing the path), which is right for speed memory but WRONG for
+ * resume: episode 2 would be offered episode 1's position. Compose the
+ * active season/episode into the key so each episode resumes independently.
+ *
+ * HDRezka marks the current episode with `.b-simple_episode__item.active`,
+ * carrying `data-season_id` / `data-episode_id` (verified against the HDRezka
+ * scraper ecosystem + the HDrezka-Improvement userscript, 2026-07). A movie
+ * has no episode list, so this falls back to the bare title id.
+ */
+export function extractHDRezkaEpisodeKey(titleId: string, doc: Document = document): string {
+  try {
+    const active = doc.querySelector('.b-simple_episode__item.active');
+    if (active) {
+      const season = active.getAttribute('data-season_id') ?? '';
+      const episode = active.getAttribute('data-episode_id') ?? '';
+      if (season && episode) return `${titleId}:s${season}e${episode}`;
+      if (episode) return `${titleId}:e${episode}`;
+    }
+  } catch {
+    // Malformed selector engine / detached doc — fall back to per-title.
+  }
+  return titleId;
+}
+
 function safeHostname(): string {
   try {
     return location.hostname;

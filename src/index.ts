@@ -39,6 +39,7 @@ import { detectBrowserLang } from './i18n/detect';
 import { createTranslator } from './i18n/translator';
 import {
   detectSite,
+  extractHDRezkaEpisodeKey,
   extractHDRezkaTitleId,
   isHDRezkaVideoPath,
   looksLikeHDRezka,
@@ -57,6 +58,13 @@ import { applyVolumeBoost } from './speed/volume-boost';
 import { createBrowserStorageAdapter, type StorageAdapter } from './storage/adapter';
 import { createCoalescingAdapter } from './storage/adapter-coalescing';
 import { writeLastWorkingHost } from './storage/last-host-store';
+import {
+  clearPosition,
+  formatClock,
+  isResumeworthy,
+  readPosition,
+  writePosition,
+} from './storage/last-position-store';
 import { runTmMigration } from './storage/migration-tm';
 import {
   addUserMirror,
@@ -68,7 +76,7 @@ import {
 import { createSettingsStore } from './storage/settings-store';
 import { createSpeedStore } from './storage/speed-store';
 import { createPanel, createUiPort, injectStyles, insertPanel, installThemeWatcher } from './ui';
-import { showNotification } from './ui/notifications';
+import { showActionChip, showNotification } from './ui/notifications';
 import type { PanelMirrors } from './ui/panel';
 import { installFullscreenReparent } from './ui/popup';
 import type { MirrorsViewModel } from './ui/settings/modal';
@@ -555,12 +563,79 @@ export async function bootstrap(
   //      restore on the next page load.
   patchPlyrLocalStorage(ctx);
 
+  // FEAT-018: "continue where you left off". Tracks the play position per
+  // title (throttled) and, on a fresh page, offers a durable resume chip.
+  // Threaded into attachToVideo so it re-arms cleanly on every episode
+  // change / <video> replacement via the per-attach cleanup registry.
+  const seekVideoTo = (v: HTMLVideoElement, seconds: number): void => {
+    const doSeek = (): void => {
+      try {
+        const dur = Number.isFinite(v.duration) ? v.duration : Number.POSITIVE_INFINITY;
+        v.currentTime = Math.min(Math.max(0, seconds), dur);
+      } catch (e) {
+        ctx.logger.warn('resume: seek failed', e);
+      }
+    };
+    // Seeking before metadata is a no-op on HLS/Plyr — gate on readyState.
+    if (v.readyState >= 1) doSeek();
+    else v.addEventListener('loadedmetadata', doSeek, { once: true });
+  };
+
+  const resumeHooks: ResumeHooks = {
+    onVideoReady(v, attachCleanup) {
+      const titleId = extractHDRezkaTitleId(location.pathname);
+      if (!titleId) return;
+
+      // (a) Track progress — one write per ~5s; drop the entry once finished
+      //     so a future visit doesn't offer to resume the credits. The
+      //     episode key is recomputed at each write: right after an AJAX
+      //     episode swap the `.active` marker can lag the new <video> by a
+      //     tick, and a live read here keeps writes filed under the right
+      //     episode once playback (and the marker) have settled.
+      let lastWrite = 0;
+      attachCleanup.addEventListener(v, 'timeupdate', () => {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (now - lastWrite < 5000) return;
+        lastWrite = now;
+        const key = extractHDRezkaEpisodeKey(titleId);
+        const t = v.currentTime;
+        const dur = v.duration;
+        if (isResumeworthy(t, dur)) {
+          void writePosition(adapter, key, t, location.pathname);
+        } else if (Number.isFinite(dur) && dur > 0 && t > dur - 90) {
+          void clearPosition(adapter, key);
+        }
+      });
+
+      // (b) Offer resume — once per attach, only when starting near the top
+      //     (don't second-guess a player that already restored a position).
+      const readKey = extractHDRezkaEpisodeKey(titleId);
+      void readPosition(adapter, readKey).then((saved) => {
+        if (!saved || saved.t < 30) return;
+        if (attachCleanup.isDisposed || v.currentTime > 15) return;
+        const close = showActionChip(ctx.i18n.t('resume.chip', { time: formatClock(saved.t) }), {
+          kind: 'info',
+          icon: 'play',
+          duration: 15000,
+          dismissLabel: ctx.i18n.t('chip.dismiss'),
+          playerContainer: discoveryPort.resolve('playerContainer'),
+          onActivate: () => seekVideoTo(v, saved.t),
+        });
+        // Stale the offer once the user is already watching past it.
+        attachCleanup.addEventListener(v, 'timeupdate', () => {
+          if (v.currentTime >= saved.t - 2 || v.currentTime > 60) close();
+        });
+        attachCleanup.add(close);
+      });
+    },
+  };
+
   // 10. Attach to <video>. Nested CleanupRegistry per attach so we can
   //     dispose the ratechange/loadstart listeners cleanly when HDRezka
   //     mounts a new <video> on episode change.
   let attachCleanup = new CleanupRegistry();
   cleanup.add(() => attachCleanup.dispose());
-  attachToVideo(ctx, meter, attachCleanup);
+  attachToVideo(ctx, meter, attachCleanup, 0, resumeHooks);
 
   // REL-040 (twin of VideoSpeeds): the player can replace the <video>
   // ELEMENT (not just src) after a fatal decode error, with no SPA
@@ -583,7 +658,7 @@ export async function bootstrap(
       ctx.logger.info('unattached <video> is playing (element replaced?); re-attaching');
       attachCleanup.dispose();
       attachCleanup = new CleanupRegistry();
-      attachToVideo(ctx, meter, attachCleanup);
+      attachToVideo(ctx, meter, attachCleanup, 0, resumeHooks);
     },
     { capture: true },
   );
@@ -671,7 +746,7 @@ export async function bootstrap(
 
     panel.element.parentElement?.removeChild(panel.element);
     scheduleInsertWithRetry(panel.element, ctx);
-    attachToVideo(ctx, meter, attachCleanup);
+    attachToVideo(ctx, meter, attachCleanup, 0, resumeHooks);
     reapplyTheme();
   };
   bootstrapHDRezkaSite(ctx).onNavigation(reattach);
@@ -925,6 +1000,25 @@ function awaitHDRezkaSignature(
   });
 }
 
+/**
+ * FEAT-018/20: a durable failure chip (warn ✕ + a "Reload" action) for the
+ * two terminal give-up paths. Replaces the auto-dismissing 3s warn toast so
+ * the message — and its recovery action — stays put until the user acts.
+ */
+function showFailureChip(ctx: AppContext, message: string): void {
+  try {
+    showActionChip(message, {
+      kind: 'warn',
+      icon: 'alert',
+      dismissLabel: ctx.i18n.t('chip.dismiss'),
+      action: { label: ctx.i18n.t('chip.reload'), onClick: () => location.reload() },
+      playerContainer: ctx.discovery.resolve('playerContainer'),
+    });
+  } catch (e) {
+    ctx.logger.warn('failure chip render failed', e);
+  }
+}
+
 function scheduleInsertWithRetry(panelEl: HTMLElement, ctx: AppContext): void {
   const MAX_ATTEMPTS = 16;
   const BASE_DELAY = 500;
@@ -975,15 +1069,11 @@ function scheduleInsertWithRetry(panelEl: HTMLElement, ctx: AppContext): void {
           `panel insertion failed after ${attempts} attempts; giving up until next reattach`,
         );
         // Surface this to the user. Silent failure left the page with no
-        // gear, no notification, no explanation. Now they get a hint to
-        // try a reload (which kicks the retry cycle from scratch). The
-        // toast lives in the page's body, so it appears even when the
-        // panel itself never landed.
-        try {
-          ctx.ui.showNotification(ctx.i18n.t('panel.insertion_failed'), 'warn');
-        } catch (e) {
-          ctx.logger.warn('panel.insertion_failed notification failed', e);
-        }
+        // gear, no notification, no explanation. A durable chip (with a
+        // Reload action that kicks the retry cycle from scratch) stays put
+        // instead of vanishing in 3s. It lives in the page body, so it
+        // appears even when the panel itself never landed.
+        showFailureChip(ctx, ctx.i18n.t('panel.insertion_failed'));
       }
       return;
     }
@@ -1035,6 +1125,12 @@ function installRemovalObserver(
   ctx.cleanup.addObserver(observer);
 }
 
+/** FEAT-018: per-attach resume hook (position tracking + resume chip),
+ *  injected by the orchestrator so attachToVideo stays storage-agnostic. */
+interface ResumeHooks {
+  onVideoReady(v: HTMLVideoElement, attachCleanup: CleanupRegistry): void;
+}
+
 /**
  * Apply the chosen initial speed once the video element is ready, install
  * a ratechange listener, AND fight Plyr-driven playbackRate resets.
@@ -1044,6 +1140,7 @@ function attachToVideo(
   meter: ReturnType<typeof createRatechangeMeter>,
   cleanup: CleanupRegistry,
   attempt = 0,
+  resume?: ResumeHooks,
 ): void {
   const v = ctx.discovery.resolve('video');
   if (!(v instanceof HTMLVideoElement)) {
@@ -1055,15 +1152,12 @@ function attachToVideo(
       ctx.logger.warn('attachToVideo: gave up after 20 attempts; will re-arm on next reattach');
       // REL-039: tell the user instead of failing silently. The retry
       // budget spans ~80 s, so this only fires on genuinely broken pages.
-      try {
-        ctx.ui.showNotification(ctx.i18n.t('panel.video_not_found'), 'warn');
-      } catch {
-        /* notification is best-effort */
-      }
+      // Durable chip with a Reload action (FEAT-018/20).
+      showFailureChip(ctx, ctx.i18n.t('panel.video_not_found'));
       return;
     }
     const delay = Math.min(5000, Math.round(500 * 1.2 ** attempt));
-    cleanup.setTimeout(() => attachToVideo(ctx, meter, cleanup, attempt + 1), delay);
+    cleanup.setTimeout(() => attachToVideo(ctx, meter, cleanup, attempt + 1, resume), delay);
     return;
   }
   type Branded = HTMLVideoElement & { __vsAttached?: boolean; __vsSelfWriteAt?: number };
@@ -1071,6 +1165,9 @@ function attachToVideo(
   (v as Branded).__vsAttached = true;
 
   void ctx.speedStore.setSmart(null);
+
+  // FEAT-018: arm position tracking + the resume offer for this element.
+  resume?.onVideoReady(v, cleanup);
 
   // FEAT-017: re-apply the user's volume boost to the fresh element.
   // No-op (and no audio graph) while the setting sits at 100%.

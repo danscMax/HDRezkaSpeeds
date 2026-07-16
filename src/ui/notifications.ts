@@ -15,6 +15,7 @@
 
 import type { NotificationKind } from '../app/ports';
 import { h } from './dom-h';
+import { type IconName, vsIcon } from './icons';
 
 const STACK_ID = 'speed-notifications';
 
@@ -117,6 +118,181 @@ export function showNotification(text: string, opts: NotificationOptions = {}): 
       toast.parentNode?.removeChild(toast);
     }, 250);
   }, duration);
+}
+
+export interface ActionChipOptions {
+  kind?: NotificationKind;
+  /** Leading glyph (tinted with the kind colour). */
+  icon?: IconName;
+  /** Clicking the message body fires this — the resume-style whole-chip
+   *  action. Its label IS `text`. */
+  onActivate?: () => void;
+  /** An explicit trailing action button (failure-style "Reload"). */
+  action?: { label: string; onClick: () => void };
+  /** ms visible; 0 (default) = sticky until dismissed / activated. */
+  duration?: number;
+  playerContainer?: Element | null;
+  /** aria-label for the ✕ button (localised by the caller). */
+  dismissLabel?: string;
+}
+
+/**
+ * A durable, actionable chip in the notifications stack. Unlike
+ * showNotification it does NOT auto-dismiss by default; it carries an
+ * optional leading icon, a clickable body and/or a trailing action button,
+ * and a ✕. Real <button>s inside make it keyboard-operable for free.
+ *
+ * Returns an idempotent close() so the caller can dismiss it
+ * programmatically (e.g. the resume chip closing once playback passes the
+ * saved point, or a new episode loads).
+ */
+export function showActionChip(text: string, opts: ActionChipOptions = {}): () => void {
+  const kind: NotificationKind = opts.kind ?? 'info';
+  const color = DOT_COLORS[kind] ?? DOT_COLORS.info;
+  const duration = opts.duration ?? 0;
+  const stack = ensureStack(opts.playerContainer ?? null);
+
+  const reduceMotion =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const chip = document.createElement('div');
+  chip.style.cssText = `
+    background: rgba(8, 8, 10, 0.92) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid ${color}66 !important;
+    border-radius: 8px !important;
+    padding: 6px 8px 6px 12px !important;
+    color: white !important;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    pointer-events: auto !important;
+    max-width: min(80vw, 480px) !important;
+    opacity: ${reduceMotion ? '1' : '0'};
+    transform: ${reduceMotion ? 'none' : 'translateX(20px)'};
+    transition: ${reduceMotion ? 'none' : 'opacity 0.25s ease, transform 0.25s ease'} !important;
+  `;
+
+  const tagged = chip as HTMLElement & { __vsTimer1?: number; __vsTimer2?: number };
+  let closed = false;
+  const close = (): void => {
+    if (closed) return;
+    closed = true;
+    if (tagged.__vsTimer1 !== undefined) clearTimeout(tagged.__vsTimer1);
+    if (reduceMotion) {
+      chip.parentNode?.removeChild(chip);
+      return;
+    }
+    chip.style.opacity = '0';
+    chip.style.transform = 'translateX(20px)';
+    tagged.__vsTimer2 = window.setTimeout(() => chip.parentNode?.removeChild(chip), 250);
+  };
+
+  const iconEl = opts.icon ? vsIcon(opts.icon, 15) : null;
+  if (iconEl) {
+    iconEl.style.color = color;
+    iconEl.style.flexShrink = '0';
+  }
+  const label = h('span', { style: 'line-height:1.3; white-space:nowrap;' }, String(text ?? ''));
+
+  // Body: a real button when it is itself the action (resume), else a plain
+  // wrapper. Either way it holds the icon + label.
+  const bodyChildren: (Node | string)[] = [];
+  if (iconEl) bodyChildren.push(iconEl);
+  bodyChildren.push(label);
+  if (opts.onActivate) {
+    const bodyBtn = h(
+      'button',
+      {
+        type: 'button',
+        style:
+          'display:inline-flex; align-items:center; gap:8px; background:none; border:none; padding:0; margin:0; color:inherit; font:inherit; cursor:pointer;',
+      },
+      ...bodyChildren,
+    );
+    bodyBtn.addEventListener('click', () => {
+      opts.onActivate?.();
+      close();
+    });
+    makeHoverable(bodyBtn);
+    chip.appendChild(bodyBtn);
+  } else {
+    chip.appendChild(
+      h(
+        'span',
+        { style: 'display:inline-flex; align-items:center; gap:8px;' },
+        ...bodyChildren,
+      ),
+    );
+  }
+
+  if (opts.action) {
+    const cta = h(
+      'button',
+      {
+        type: 'button',
+        style: `flex-shrink:0; padding:3px 10px; border:1px solid ${color}66; border-radius:6px; background:${color}22; color:white; font:inherit; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;`,
+      },
+      opts.action.label,
+    );
+    cta.addEventListener('click', () => {
+      opts.action?.onClick();
+      close();
+    });
+    makeHoverable(cta);
+    chip.appendChild(cta);
+  }
+
+  const closeBtn = h('button', {
+    type: 'button',
+    'aria-label': opts.dismissLabel ?? 'Dismiss',
+    style:
+      'display:inline-flex; align-items:center; flex-shrink:0; background:none; border:none; padding:2px; margin:0; color:rgba(255,255,255,0.6); cursor:pointer; border-radius:4px;',
+  });
+  const xIcon = vsIcon('x', 14);
+  closeBtn.appendChild(xIcon);
+  closeBtn.addEventListener('click', close);
+  closeBtn.addEventListener('mouseenter', () => {
+    closeBtn.style.color = 'white';
+  });
+  closeBtn.addEventListener('mouseleave', () => {
+    closeBtn.style.color = 'rgba(255,255,255,0.6)';
+  });
+  chip.appendChild(closeBtn);
+
+  stack.appendChild(chip);
+
+  if (!reduceMotion) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (closed) return;
+        chip.style.opacity = '1';
+        chip.style.transform = 'translateX(0)';
+      });
+    });
+  }
+
+  if (duration > 0) {
+    tagged.__vsTimer1 = window.setTimeout(close, duration);
+  }
+
+  return close;
+}
+
+/** Subtle hover feedback for an interactive chip element (no :hover inline). */
+function makeHoverable(el: HTMLElement): void {
+  el.addEventListener('mouseenter', () => {
+    el.style.opacity = '0.75';
+  });
+  el.addEventListener('mouseleave', () => {
+    el.style.opacity = '1';
+  });
 }
 
 /**

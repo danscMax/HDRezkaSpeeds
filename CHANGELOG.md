@@ -26,12 +26,21 @@ versioning is [SemVer](https://semver.org/).
 - **Current speed on the toolbar icon.** The extension icon shows a small
   badge with the active playback rate (e.g. `1.5`) so you can see it at a
   glance without opening the popup; it clears at normal 1× speed.
+- **Resume where you left off.** On something you've partly watched, a
+  "Continue from 42:15" chip offers to jump back to your spot. The position
+  is remembered per episode (each episode of a series resumes on its own),
+  never leaves your device, and clears once you finish. Nothing auto-seeks —
+  the chip waits for your click and steps aside once you're watching past it.
 
 ### Changed
 
 - **Slider default upper bound now follows the fastest speed button** instead
   of the absolute 10x cap — the slider spans exactly the buttons out of the
   box. Set an explicit range in Settings → Slider range to override.
+- **Terminal failures now show a durable chip with a "Reload" button** instead
+  of a 3-second toast that vanished before it could be read. When the speed
+  panel can't attach, or no video is ever found, the message and its recovery
+  action stay put until dismissed.
 
 ### Fixed
 

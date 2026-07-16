@@ -43,7 +43,8 @@ export type IconName =
   | 'help-circle'
   | 'mail'
   | 'clock'
-  | 'bookmark';
+  | 'bookmark'
+  | 'play';
 
 /**
  * Icon spec — array of [tag, attrs] tuples. Each tuple becomes an SVG
@@ -196,6 +197,8 @@ const VS_ICONS: Record<IconName, readonly SvgPart[]> = {
   // active buttons (mask in styles.ts), keeping the "save / pinned"
   // affordance visually consistent across the panel.
   bookmark: [['path', { d: 'm19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z' }]],
+  // Lucide play — the resume ("continue from …") chip's leading glyph.
+  play: [['polygon', { points: '6 3 20 12 6 21 6 3' }]],
 };
 
 /**
