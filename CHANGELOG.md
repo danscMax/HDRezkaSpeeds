@@ -41,6 +41,11 @@ versioning is [SemVer](https://semver.org/).
   of a 3-second toast that vanished before it could be read. When the speed
   panel can't attach, or no video is ever found, the message and its recovery
   action stay put until dismissed.
+- **Clearer "playing vs saved" speed buttons.** The saved-default button used a
+  large blurry accent halo that competed with the currently-playing button for
+  attention (worst on the dark theme). It's now a crisp accent outline plus a
+  bookmark, so the solid-filled "playing now" button stays the primary read —
+  and the bookmark glyph is unified with the pin button's.
 
 ### Fixed
 

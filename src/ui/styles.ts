@@ -695,36 +695,44 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
      MAJ-13's surface — the surface looked good on lighter hosts but
      misaligned on HDRezka.) */
 }
-/* Pinned (saved/default) speed indicator: bookmark icon top-right +
-   soft accent halo glow around the button. Replaces the earlier 5×5
-   dot (audit 2026-05-09: dot was uninformative, didn't read as
-   "saved"). The bookmark uses mask-image so the colour comes from
-   --vs-accent (per-site palette) without hard-coding hex per build.
-   The halo glow is the primary peripheral-vision signal — even at a
-   glance the pinned button reads as "warmer" than its neighbours. */
-.speed-button.pinned {
-  box-shadow: 0 0 18px 3px rgba(var(--vs-accent-rgb), 0.45);
+/* Pinned (saved/default) speed indicator. HIERARCHY (VIS-011): .active
+   (solid accent fill) means "playing right now" and must read as the
+   primary signal; .pinned means "your saved default" and is deliberately
+   QUIETER — a crisp accent ring + the bookmark glyph, not a loud halo.
+   Before this the dark theme wrapped the pin in an 18px blurry glow that
+   competed with the active fill for the eye (the two states were hard to
+   rank at a glance); both themes now share the same crisp treatment. The
+   bookmark uses mask-image so its colour comes from --vs-accent (per-site
+   palette) without hard-coding hex. */
+.speed-button.pinned:not(.active) {
+  border-color: rgba(var(--vs-accent-rgb), 0.9);
+  box-shadow: 0 0 10px 1px rgba(var(--vs-accent-rgb), 0.28);
 }
+/* Playing your saved default: solid fill + bookmark + a modest accent glow.
+   Still the strongest state, but no longer a double-loud halo. */
 .speed-button.pinned.active {
   box-shadow:
     0 2px 10px rgba(var(--vs-accent-rgb), 0.35),
-    0 0 22px 5px rgba(var(--vs-accent-rgb), 0.55);
+    0 0 14px 2px rgba(var(--vs-accent-rgb), 0.42);
 }
 .speed-button.pinned.active:hover {
   box-shadow:
     0 3px 14px rgba(var(--vs-accent-rgb), 0.5),
-    0 0 26px 6px rgba(var(--vs-accent-rgb), 0.6);
+    0 0 18px 3px rgba(var(--vs-accent-rgb), 0.5);
 }
 .speed-button.pinned::after {
   content: '';
   position: absolute;
-  top: 2px;
-  right: 7px;
-  width: 7px;
-  height: 11px;
+  top: 3px;
+  right: 6px;
+  width: 8px;
+  height: 10px;
   background-color: var(--vs-accent);
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 24'%3E%3Cpath fill='white' d='M2 1h12v22l-6-5-6 5z'/%3E%3C/svg%3E");
-          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 24'%3E%3Cpath fill='white' d='M2 1h12v22l-6-5-6 5z'/%3E%3C/svg%3E");
+  /* Lucide bookmark — the SAME glyph as the pin button + the shared icon
+     set (the icons.ts bookmark), so "saved" reads consistently across the
+     panel. Was a bespoke sharp-cornered bookmark mask. */
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z'/%3E%3C/svg%3E");
+          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z'/%3E%3C/svg%3E");
   -webkit-mask-size: contain;
           mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -737,19 +745,10 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   background-color: #fff;
 }
 /* VIS-007: on the dark theme the accent bookmark sits on a dark
-   translucent pill and almost vanishes — the halo glow carried the
-   whole signal. A near-white icon keeps the "saved" mark legible at a
-   glance; the halo still ties it to the accent palette. */
+   translucent pill and almost vanishes. A near-white icon keeps the
+   "saved" mark legible; the accent ring ties it to the palette. */
 html[data-vs-theme="dark"] .speed-button.pinned:not(.active)::after {
-  background-color: rgba(255, 255, 255, 0.88);
-}
-/* VIS 2026-06-10: on light pages the wide 0.45-alpha halo bled into the
-   white background and made the pinned pill read as a washed-out /
-   half-disabled button (user report). Tighten the glow; the accent
-   bookmark icon carries the "saved" signal on light. */
-html[data-vs-theme="light"] .speed-button.pinned:not(.active) {
-  box-shadow: 0 0 8px 1px rgba(var(--vs-accent-rgb), 0.30);
-  border-color: rgba(var(--vs-accent-rgb), 0.45);
+  background-color: rgba(255, 255, 255, 0.9);
 }
 .speed-button {
   position: relative;
