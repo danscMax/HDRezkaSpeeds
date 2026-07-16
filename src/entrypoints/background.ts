@@ -56,6 +56,15 @@ const CONTENT_SCRIPT_FILE = 'content-scripts/content.js';
 export default defineBackground(() => {
   const adapter = createBrowserStorageAdapter();
 
+  // FEAT-016: brand the toolbar speed badge (cyan fill). Idempotent — runs
+  // on every SW wake but is cheap; wrapped because `action` can be briefly
+  // unavailable during early startup.
+  try {
+    void browser.action.setBadgeBackgroundColor({ color: '#0e7490' });
+  } catch {
+    /* action API not ready — badge still works with the default colour */
+  }
+
   function hasOriginPermission(host: string): Promise<boolean> {
     // Both patterns requested atomically on grant, so AND-semantics of
     // `contains` is what we want: a partial external revoke flips the
@@ -265,9 +274,22 @@ export default defineBackground(() => {
   const ALLOWED_PAGES = new Set(['/feedback.html', '/welcome.html']);
   browser.runtime.onMessage.addListener((msg: unknown, sender): Promise<unknown> | undefined => {
     if (!msg || typeof msg !== 'object') return undefined;
-    const m = msg as { type?: unknown; path?: unknown };
+    const m = msg as { type?: unknown; path?: unknown; text?: unknown };
     if (m.type === 'mirrors:get-status') {
       return getMirrorStatus().catch((e: unknown) => ({ ok: false, error: String(e) }));
+    }
+    // FEAT-016: the content script mirrors the live playback rate onto the
+    // toolbar icon badge. Only the SW can call chrome.action; the sender's
+    // tab id targets the right tab. Fire-and-forget — no response channel.
+    if (m.type === 'vs:speed-badge') {
+      const tabId = sender.tab?.id;
+      if (typeof tabId === 'number') {
+        const text = typeof m.text === 'string' ? m.text.slice(0, 4) : '';
+        browser.action.setBadgeText({ tabId, text }).catch(() => {
+          // Tab gone / action API unavailable — best-effort.
+        });
+      }
+      return undefined;
     }
     if (m.type !== 'open-extension-page') return undefined;
     if (typeof m.path !== 'string' || !ALLOWED_PAGES.has(m.path)) {

@@ -439,12 +439,38 @@ export async function bootstrap(
       },
     },
   });
+  // FEAT-016: reflect the live playback rate on the toolbar icon badge.
+  // The SW owns chrome.action; we just message it the text to show ('' at
+  // 1×). Deduped so the HLS-cascade retry storm doesn't spam the SW, and
+  // the wxt/browser import is lazy + swallowed so the userscript build
+  // (no toolbar, aliased-to-throwing shim) is a silent no-op.
+  let lastBadgeText: string | null = null;
+  const setToolbarBadge = (speed: number): void => {
+    const text =
+      Number.isFinite(speed) && Math.abs(speed - 1) > 0.005
+        ? parseFloat(speed.toFixed(2)).toString()
+        : '';
+    if (text === lastBadgeText) return;
+    lastBadgeText = text;
+    void import('wxt/browser')
+      .then(({ browser: br }) => br.runtime.sendMessage({ type: 'vs:speed-badge', text }))
+      .catch(() => {
+        /* SW asleep or userscript shim — badge is best-effort */
+      });
+  };
+
   const realUi = createUiPort({
     panel,
     playerContainer: () => discoveryPort.resolve('playerContainer'),
+    onSpeed: setToolbarBadge,
   });
   ctx.ui = realUi;
   cleanup.add(() => panel.dispose());
+
+  // FEAT-016: clear the toolbar badge when the page goes away — a same-tab
+  // navigation to a non-rezka page would otherwise leave the last speed
+  // lingering on the icon (Chrome persists per-tab badge across navigations).
+  cleanup.addEventListener(window, 'pagehide', () => setToolbarBadge(1));
 
   // REL-038: real UI exists now — arm the storage-write-failure toast.
   // Shown at most once per page load to avoid a toast storm when the

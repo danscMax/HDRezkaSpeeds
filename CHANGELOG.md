@@ -23,6 +23,9 @@ versioning is [SemVer](https://semver.org/).
 - **"Show time-saved badge" toggle** (Settings → Behavior) hides the
   "finish N earlier" badge for anyone who finds it noise. The badge now
   carries a clock icon so its meaning reads without hovering for the tooltip.
+- **Current speed on the toolbar icon.** The extension icon shows a small
+  badge with the active playback rate (e.g. `1.5`) so you can see it at a
+  glance without opening the popup; it clears at normal 1× speed.
 
 ### Changed
 

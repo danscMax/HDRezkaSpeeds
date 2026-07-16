@@ -24,6 +24,10 @@ export interface CreateUiPortOptions {
   panel: PanelHandle;
   /** Player container; passed to showNotification so toasts live inside it. */
   playerContainer?: () => Element | null;
+  /** FEAT-016: notified on every applied speed so the orchestrator can
+   *  mirror the live rate on the toolbar icon badge. Fires on silent
+   *  correction paths too — dedup lives on the callback side. */
+  onSpeed?: (speed: number) => void;
 }
 
 export function createUiPort(opts: CreateUiPortOptions): UiPort {
@@ -31,6 +35,7 @@ export function createUiPort(opts: CreateUiPortOptions): UiPort {
   return {
     refreshButtons(speed: number, refreshOpts?: RefreshOptions): void {
       panel.refreshButtons(speed);
+      opts.onSpeed?.(speed);
       // Skip the centred speed-popup for non-user-initiated paths (HLS
       // cascade, ratechange-revert, retry storms, YT external accept).
       // Without this gate the popup flashed up to 4× per video on start
