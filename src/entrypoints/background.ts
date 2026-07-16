@@ -327,8 +327,12 @@ export default defineBackground(() => {
     // content script into its own tab once it confirmed the HDRezka signature.
     if (m.type === 'auto-follow:inject') {
       const tabId = sender.tab?.id;
-      if (typeof tabId === 'number') void injectFullScript(tabId);
-      return undefined;
+      if (typeof tabId !== 'number') return undefined;
+      // Return the promise (not fire-and-forget): MV3 can terminate the SW as
+      // soon as the handler returns, cutting off an in-flight executeScript.
+      // The trailing .catch guarantees a resolved (never rejected) response —
+      // a harmless `undefined` the sniffer ignores.
+      return injectFullScript(tabId).catch(() => undefined);
     }
     if (m.type !== 'open-extension-page') return undefined;
     if (typeof m.path !== 'string' || !ALLOWED_PAGES.has(m.path)) {
