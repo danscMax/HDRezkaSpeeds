@@ -63,6 +63,14 @@ versioning is [SemVer](https://semver.org/).
   name-or-signature mirror matching, and the fact that the IP is HMAC-keyed
   and never stored.
 
+### Security
+
+- **Explicit Content-Security-Policy on the extension's own pages.** The
+  popup/welcome/feedback pages now declare `connect-src 'self' <feedback
+  worker>` (on top of the MV3-default `script-src 'self'`), so the only
+  outbound connection they can make is the feedback submission you trigger —
+  everything else is blocked.
+
 ## [0.5.3] — 2026-07-10
 
 ### Fixed
