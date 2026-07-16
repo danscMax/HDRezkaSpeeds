@@ -94,5 +94,16 @@ export default defineConfig({
         32: 'icon/32.png',
       },
     },
+    // Defence-in-depth for the extension's own pages (popup / welcome /
+    // feedback). script-src + object-src 'self' just restate the MV3 default;
+    // connect-src is the addition — the ONLY outbound connection any
+    // extension page makes is the feedback POST to the Cloudflare Worker
+    // (src/entrypoints/feedback/main.ts), so everything else is locked to
+    // 'self'. default-src is intentionally omitted so local img/font/style
+    // for welcome/popup stay unrestricted.
+    content_security_policy: {
+      extension_pages:
+        "script-src 'self'; object-src 'self'; connect-src 'self' https://speeds-feedback.matsiyak.workers.dev",
+    },
   }),
 });
