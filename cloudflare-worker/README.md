@@ -97,7 +97,12 @@ curl -X POST https://speeds-feedback.<sub>.workers.dev/feedback \
 ```
 
 Without `-H "Origin: ..."` the Worker returns `403 forbidden_origin`
-(intended — that's the abuse gate).
+(intended — that's the abuse gate). While `ALLOWED_CHROME_IDS` (in
+`wrangler.toml`) is empty, **any** `chrome-extension://*` id is accepted
+(so `smoke-test` above works). After the Chrome Web Store id is known, set
+`ALLOWED_CHROME_IDS` to it to pin Chrome to your extension; Firefox uses a
+random per-install `moz-extension://` origin and stays allowed at the
+protocol level.
 
 You should:
 - get `{"ok":true}` from curl
@@ -125,7 +130,9 @@ Required headers:
 - `Origin: chrome-extension://...` or `Origin: moz-extension://...`. Any
   other origin (or missing header) gets `403 forbidden_origin`. Browsers
   set this automatically from extension HTML pages and MV3 content-script
-  fetches; non-browser tooling has to spoof it.
+  fetches; non-browser tooling has to spoof it. Chrome ids can be pinned to
+  a specific extension via `ALLOWED_CHROME_IDS` (empty = accept any
+  `chrome-extension://*`); Firefox's per-install origin is never pinnable.
 
 Response:
 - `200 {"ok": true}` on success

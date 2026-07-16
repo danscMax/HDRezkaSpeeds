@@ -33,6 +33,10 @@ export interface Env {
   IP_HASH_SECRET: string;
   RATE_LIMIT: KVNamespace;
   ALLOWED_APPS: string; // comma-separated, e.g. "hdrezka,videospeeds"
+  // comma-separated chrome-extension host ids to pin the Chrome origin to.
+  // Empty = accept any chrome-extension:// origin (rollout-safe default;
+  // fill in after the Chrome Web Store id is known). Firefox can't be pinned.
+  ALLOWED_CHROME_IDS: string;
 }
 
 interface FeedbackPayload {
@@ -71,15 +75,30 @@ const CORS_HEADERS = {
 // This check is best-effort: a determined attacker can spoof Origin via
 // non-browser tooling. It does, however, kill drive-by abuse from random
 // pages on the open web (where browsers will not send a forged Origin).
-const ALLOWED_ORIGIN_PROTOCOLS = new Set(['chrome-extension:', 'moz-extension:']);
-
-function isAllowedOrigin(origin: string | null): boolean {
+// Chrome's chrome-extension://<id> is stable per published extension, so once
+// the Chrome Web Store id is known the origin can be pinned to it via
+// ALLOWED_CHROME_IDS (comma-separated host ids). While that var is empty
+// (pre-publish / dev-unpacked, where the id differs per load) any
+// chrome-extension origin is accepted — so tightening is a config flip, not a
+// redeploy. Firefox uses a random per-install moz-extension://<uuid> that
+// never appears pinnable server-side, so it stays a protocol-wide allow.
+function isAllowedOrigin(origin: string | null, env: Env): boolean {
   if (!origin) return false;
+  let url: URL;
   try {
-    return ALLOWED_ORIGIN_PROTOCOLS.has(new URL(origin).protocol);
+    url = new URL(origin);
   } catch {
     return false;
   }
+  if (url.protocol === 'moz-extension:') return true;
+  if (url.protocol === 'chrome-extension:') {
+    const pinned = (env.ALLOWED_CHROME_IDS ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return pinned.length === 0 || pinned.includes(url.hostname);
+  }
+  return false;
 }
 
 export default {
@@ -104,7 +123,7 @@ export default {
     // bots) gets a hard 403 here before consuming any KV writes or Telegram
     // quota.
     const origin = request.headers.get('Origin');
-    if (!isAllowedOrigin(origin)) {
+    if (!isAllowedOrigin(origin, env)) {
       console.warn('Rejected origin:', origin ?? '<missing>');
       return json({ error: 'forbidden_origin' }, 403);
     }

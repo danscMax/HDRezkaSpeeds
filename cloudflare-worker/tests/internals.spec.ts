@@ -16,29 +16,39 @@ const ENV = {
   IP_HASH_SECRET: 'test-secret',
   RATE_LIMIT: {} as KVNamespace,
   ALLOWED_APPS: 'hdrezka,videospeeds',
+  ALLOWED_CHROME_IDS: '', // empty = accept any chrome-extension id
 };
 
 describe('isAllowedOrigin', () => {
-  it('accepts chrome-extension origins', () => {
-    expect(isAllowedOrigin('chrome-extension://abc123def456')).toBe(true);
+  it('accepts any chrome-extension origin when the allowlist is empty', () => {
+    expect(isAllowedOrigin('chrome-extension://abc123def456', ENV)).toBe(true);
   });
 
-  it('accepts moz-extension origins', () => {
-    expect(isAllowedOrigin('moz-extension://abc-123')).toBe(true);
+  it('accepts moz-extension origins (never pinnable)', () => {
+    expect(isAllowedOrigin('moz-extension://abc-123', ENV)).toBe(true);
   });
 
   it('rejects http and https origins', () => {
-    expect(isAllowedOrigin('https://attacker.example')).toBe(false);
-    expect(isAllowedOrigin('http://localhost:3000')).toBe(false);
+    expect(isAllowedOrigin('https://attacker.example', ENV)).toBe(false);
+    expect(isAllowedOrigin('http://localhost:3000', ENV)).toBe(false);
   });
 
   it('rejects null / empty origin', () => {
-    expect(isAllowedOrigin(null)).toBe(false);
-    expect(isAllowedOrigin('')).toBe(false);
+    expect(isAllowedOrigin(null, ENV)).toBe(false);
+    expect(isAllowedOrigin('', ENV)).toBe(false);
   });
 
   it('rejects malformed URLs', () => {
-    expect(isAllowedOrigin('not a url')).toBe(false);
+    expect(isAllowedOrigin('not a url', ENV)).toBe(false);
+  });
+
+  it('with a non-empty allowlist, pins Chrome to the listed ids', () => {
+    const pinned = { ...ENV, ALLOWED_CHROME_IDS: 'goodid111 , goodid222' };
+    expect(isAllowedOrigin('chrome-extension://goodid111', pinned)).toBe(true);
+    expect(isAllowedOrigin('chrome-extension://goodid222', pinned)).toBe(true);
+    expect(isAllowedOrigin('chrome-extension://evilid999', pinned)).toBe(false);
+    // Firefox is never pinnable — still allowed under a Chrome pin.
+    expect(isAllowedOrigin('moz-extension://any-uuid', pinned)).toBe(true);
   });
 });
 

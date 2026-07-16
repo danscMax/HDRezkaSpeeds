@@ -11,6 +11,14 @@ workers_dev = true
 # same feedback endpoint.
 ALLOWED_APPS = "hdrezka,videospeeds"
 
+# Comma-separated chrome-extension host ids to pin the Chrome origin to.
+# Leave EMPTY until the Chrome Web Store id is known — empty accepts any
+# chrome-extension:// origin (dev-unpacked builds get a different id each
+# load). After CWS publish, set this to the published id to lock Chrome down.
+# Firefox uses a random per-install moz-extension:// origin and cannot be
+# pinned, so it is always allowed at the protocol level.
+ALLOWED_CHROME_IDS = ""
+
 # KV namespace for per-IP rate limiting. Create with:
 #   wrangler kv namespace create RATE_LIMIT
 # Then paste the returned `id` below in place of "REPLACE_WITH_KV_ID".
