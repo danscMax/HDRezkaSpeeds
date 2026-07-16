@@ -21,6 +21,15 @@ versioning is [SemVer](https://semver.org/).
   own mirrors, then the built-ins. Probes for a live host when the broad
   permission is granted; otherwise opens the freshest guess and lets
   HDRezka's own redirect resolve the current address.
+- **"Show time-saved badge" toggle** (Settings → Behavior) hides the
+  "finish N earlier" badge for anyone who finds it noise. The badge now
+  carries a clock icon so its meaning reads without hovering for the tooltip.
+
+### Changed
+
+- **Slider default upper bound now follows the fastest speed button** instead
+  of the absolute 10x cap — the slider spans exactly the buttons out of the
+  box. Set an explicit range in Settings → Slider range to override.
 
 ## [0.5.3] — 2026-07-10
 

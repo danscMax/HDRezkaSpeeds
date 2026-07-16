@@ -42,6 +42,7 @@ export type IconName =
   | 'external-link'
   | 'help-circle'
   | 'mail'
+  | 'clock'
   | 'bookmark';
 
 /**
@@ -185,6 +186,11 @@ const VS_ICONS: Record<IconName, readonly SvgPart[]> = {
   mail: [
     ['rect', { x: 2, y: 4, width: 20, height: 16, rx: 2 }],
     ['path', { d: 'm22 7-10 5L2 7' }],
+  ],
+  // Lucide clock — signals the "finish N earlier" badge is about time.
+  clock: [
+    ['circle', { cx: 12, cy: 12, r: 10 }],
+    ['polyline', { points: '12 6 12 12 16 14' }],
   ],
   // Lucide bookmark — same shape as the pinned-speed indicator on
   // active buttons (mask in styles.ts), keeping the "save / pinned"

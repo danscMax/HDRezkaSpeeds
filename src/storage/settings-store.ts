@@ -309,6 +309,8 @@ function sanitizePatch(
   ) {
     out.volumeBoost = Math.round(safe.volumeBoost * 100) / 100;
   }
+  // FEAT-016 "finish N earlier" badge visibility.
+  if (typeof safe.showTimeSaved === 'boolean') out.showTimeSaved = safe.showTimeSaved;
   // Opt-in "work on any mirror automatically" toggle.
   if (typeof safe.autoFollowMirrors === 'boolean') out.autoFollowMirrors = safe.autoFollowMirrors;
   // lastSeenTheme — only accept the two valid string values; anything

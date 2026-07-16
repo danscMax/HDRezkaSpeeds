@@ -273,6 +273,17 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
   // site default; the panel re-resolves on every settings change.
   const userMin = settings.sliderMin;
   const userMax = settings.sliderMax;
+  // Default slider max (when the field is left empty) follows the fastest
+  // preset button — mirror src/ui/panel.ts resolveSliderRange so the
+  // placeholder never lies about what "empty" resolves to.
+  const presetsForDefault = settings.speedPresets ?? [];
+  const defaultSliderMax = Math.min(
+    bounds.max,
+    Math.max(
+      presetsForDefault.length > 0 ? Math.max(...presetsForDefault) : bounds.max,
+      bounds.min + 0.1,
+    ),
+  );
   const sliderRangeSection = vsSection(
     t('general.slider_range'),
     h('p', { class: 'vs-help-text' }, t('general.slider_range.hint')),
@@ -306,7 +317,7 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
           min: 0.1,
           max: bounds.max,
           step: 0.05,
-          placeholder: String(bounds.max),
+          placeholder: String(defaultSliderMax),
           value: typeof userMax === 'number' ? String(userMax) : '',
           'aria-label': t('general.slider_range.max'),
         }),
@@ -371,6 +382,10 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
       vsToggle('preserve-pitch', settings.preservePitch !== false),
       { title: t('behavior.preserve_pitch.tip') },
     ),
+    // FEAT-016: show/hide the "finish N earlier" badge next to the buttons.
+    vsRow(t('behavior.time_saved'), vsToggle('show-time-saved', settings.showTimeSaved !== false), {
+      title: t('behavior.time_saved.tip'),
+    }),
   );
 
   // FEAT-017: volume boost (percent input, 100 = off). Deliberately a

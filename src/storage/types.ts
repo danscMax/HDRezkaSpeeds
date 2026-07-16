@@ -107,6 +107,12 @@ export interface Settings {
    */
   volumeBoost?: number;
   /**
+   * FEAT-016: show the "finish N earlier" badge next to the speed buttons at
+   * >1x. Default on (undefined === on); a user who finds it noise can hide it
+   * from Settings → Behavior.
+   */
+  showTimeSaved?: boolean;
+  /**
    * Opt-in: work on ANY HDRezka mirror automatically. When true (and the
    * user has granted the broad all-sites optional host permission), the
    * background SW registers an all-sites content script that self-bails on
@@ -181,6 +187,7 @@ export function defaultSettings(language: Lang, site?: Site): Settings {
     preservePitch: true,
     seekSeconds: 10,
     volumeBoost: 1,
+    showTimeSaved: true,
     autoFollowMirrors: false,
   };
 }

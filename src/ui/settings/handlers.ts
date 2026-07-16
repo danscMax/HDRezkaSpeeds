@@ -380,6 +380,9 @@ export function attachSettingsHandlers(
   attachToggle(menuRoot, ctx, 'preserve-pitch', 'preservePitch');
   // FEAT-015: per-content speed memory.
   attachToggle(menuRoot, ctx, 'remember-per-video', 'rememberPerVideo');
+  // FEAT-016: show/hide the "finish N earlier" badge. Panel subscribes to the
+  // store and reflects the change live.
+  attachToggle(menuRoot, ctx, 'show-time-saved', 'showTimeSaved');
 
   // ----- Discovery / healthcheck (KillSwitch wiring -- Wave 1.9) -----
   const discoveryCb = menuRoot.querySelector<HTMLInputElement>('input[name="discovery-enabled"]');
@@ -865,7 +868,7 @@ function attachToggle(
   menuRoot: Element,
   ctx: AppContext,
   inputName: string,
-  settingKey: 'rememberSpeed' | 'compactMode' | 'preservePitch' | 'rememberPerVideo',
+  settingKey: 'rememberSpeed' | 'compactMode' | 'preservePitch' | 'rememberPerVideo' | 'showTimeSaved',
   onChanged?: () => void,
 ): void {
   const cb = menuRoot.querySelector<HTMLInputElement>(`input[name="${inputName}"]`);

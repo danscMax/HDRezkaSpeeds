@@ -336,6 +336,9 @@ export const I18N_DICT = {
     'behavior.preserve_pitch': 'Preserve audio pitch',
     'behavior.preserve_pitch.tip':
       'Keep voices natural at any speed. Turn off to let the pitch shift with the speed ("vinyl mode").',
+    'behavior.time_saved': 'Show time-saved badge',
+    'behavior.time_saved.tip':
+      'The "−N min" badge next to the buttons shows how much sooner you finish the video at the current speed. Turn off to hide it.',
     'hotkeys.step': 'Speed step per press',
     'hotkeys.step.hint': 'How much each speed-up / slow-down press changes the rate (0.01–1).',
     'hotkeys.reset_label': 'Reset to 1×',
@@ -708,6 +711,9 @@ export const I18N_DICT = {
     'behavior.preserve_pitch': 'Сохранять тон звука',
     'behavior.preserve_pitch.tip':
       'Голоса звучат естественно на любой скорости. Выключите, чтобы тон менялся вместе со скоростью («режим винила»).',
+    'behavior.time_saved': 'Бейдж сэкономленного времени',
+    'behavior.time_saved.tip':
+      'Бейдж «−N мин» рядом с кнопками показывает, на сколько раньше вы досмотрите видео на текущей скорости. Выключите, чтобы скрыть.',
     'hotkeys.step': 'Шаг изменения скорости',
     'hotkeys.step.hint': 'Насколько меняется скорость за одно нажатие (0.01–1).',
     'hotkeys.reset_label': 'Сброс к 1×',

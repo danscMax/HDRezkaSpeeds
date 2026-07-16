@@ -144,10 +144,17 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       typeof storedMin === 'number' && storedMin >= bounds.min && storedMin < bounds.max
         ? storedMin
         : bounds.min;
+    // Default upper bound follows the fastest preset button (clamped to the
+    // site cap, kept strictly above min) so the slider spans exactly the
+    // buttons. Was bounds.max (10x), which read as absurdly high next to the
+    // ~2x buttons. An explicit user-set sliderMax still wins.
+    const presets = ctx.settingsStore.getKey('speedPresets') ?? [];
+    const presetMax = presets.length > 0 ? Math.max(...presets) : bounds.max;
+    const defaultMax = Math.min(bounds.max, Math.max(presetMax, min + 0.1));
     const max =
       typeof storedMax === 'number' && storedMax > min && storedMax <= bounds.max
         ? storedMax
-        : bounds.max;
+        : defaultMax;
     return { min, max };
   };
   const initialRange = resolveSliderRange();
@@ -212,6 +219,11 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   timeSaved.className = 'vs-time-saved';
   timeSaved.style.display = 'none';
   const updateTimeSaved = (speed: number): void => {
+    // Hidden by user preference (FEAT-016 toggle) — default on.
+    if (ctx.settingsStore.getKey('showTimeSaved') === false) {
+      timeSaved.style.display = 'none';
+      return;
+    }
     const v = ctx.discovery.resolve('video') as HTMLVideoElement | null;
     const dur = v && Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
     if (!dur || !(speed > 1.02)) {
@@ -223,7 +235,9 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       savedSec >= 60
         ? `${Math.round(savedSec / 60)}${ctx.i18n.t('time.min_suffix')}`
         : `${Math.round(savedSec)}${ctx.i18n.t('time.sec_suffix')}`;
-    timeSaved.textContent = `−${value}`;
+    // Clock icon + value: the icon signals the badge is about time saved, so
+    // "−11 min" isn't cryptic without hovering to read the tooltip.
+    timeSaved.replaceChildren(vsIcon('clock', 11), document.createTextNode(`−${value}`));
     timeSaved.title = ctx.i18n.t('panel.time_saved.tip', { value });
     timeSaved.style.display = '';
   };
@@ -660,6 +674,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   let lastCompact = ctx.settingsStore.getKey('compactMode') === true;
   let lastPresetsKey = JSON.stringify(ctx.settingsStore.getKey('speedPresets') ?? []);
   let lastRange = initialRange;
+  let lastShowTimeSaved = ctx.settingsStore.getKey('showTimeSaved') !== false;
   const offSubscribe = ctx.settingsStore.subscribe((next) => {
     if (next.sliderPosition !== lastPos) {
       lastPos = next.sliderPosition;
@@ -700,6 +715,12 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     if (nextRange.min !== lastRange.min || nextRange.max !== lastRange.max) {
       lastRange = nextRange;
       setSliderRange(sliderContainer, nextRange.min, nextRange.max);
+    }
+    // FEAT-016 badge visibility toggled from settings — reflect live.
+    const nextShowTimeSaved = next.showTimeSaved !== false;
+    if (nextShowTimeSaved !== lastShowTimeSaved) {
+      lastShowTimeSaved = nextShowTimeSaved;
+      updateTimeSaved(ctx.speedStore.current());
     }
     // Pinned dot is gated on rememberSpeed; refresh whenever the
     // settings change so the user sees the toggle take effect live.
