@@ -29,6 +29,8 @@ export interface MirrorsViewModel {
   builtinStatus: Record<string, boolean> | null;
   /** True in the popup — `permissions.request` is reachable there. */
   canManagePermissions: boolean;
+  /** Popup-only: current "work on any mirror automatically" opt-in state. */
+  autoFollow?: boolean;
   /** Popup-only: the active tab's host, when readable and http(s). */
   currentHost?: {
     host: string;

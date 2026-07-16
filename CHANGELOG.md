@@ -4,6 +4,37 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.6.0] — 2026-07-16
+
+### Added
+
+- **Auto-follow mirrors (opt-in).** HDRezka rotates domains constantly; a new
+  one used to need a store update or a manual mirror add. Turn on
+  Settings → Mirrors → "Work on any HDRezka mirror" and grant the one-time
+  all-sites permission — the extension then recognises HDRezka on **any**
+  domain by the player's DOM signature (`#oframecdnplayer` + content blocks)
+  rather than the domain name, so renamed / hash-prefixed mirrors just work.
+  Off by default; the broad permission is never requested silently, and the
+  content script self-bails on non-HDRezka pages.
+- **"Open HDRezka" button** (popup → Mirrors) — jumps to a working mirror
+  when no rezka tab is open: the domain you last watched on first, then your
+  own mirrors, then the built-ins. Probes for a live host when the broad
+  permission is granted; otherwise opens the freshest guess and lets
+  HDRezka's own redirect resolve the current address.
+
+## [0.5.3] — 2026-07-10
+
+### Fixed
+
+- **Speed survives player-crash recovery (REL-040, twin of VideoSpeeds
+  0.5.3).** When the browser's media decoder dies mid-playback, the
+  player can rebuild the `<video>` element with no navigation — all
+  per-element listeners died with the old node and the fresh element
+  played at 1× until the next navigation. A document-level capture
+  listener now detects a fresh unattached `<video>` starting to play and
+  re-arms the attach pipeline. The `video` validator filters hover
+  previews/thumbnails so they don't dispose the live attach registry.
+
 ## [0.5.1] — 2026-06-10
 
 ### Fixed

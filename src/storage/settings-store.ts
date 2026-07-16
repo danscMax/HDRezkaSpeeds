@@ -309,6 +309,8 @@ function sanitizePatch(
   ) {
     out.volumeBoost = Math.round(safe.volumeBoost * 100) / 100;
   }
+  // Opt-in "work on any mirror automatically" toggle.
+  if (typeof safe.autoFollowMirrors === 'boolean') out.autoFollowMirrors = safe.autoFollowMirrors;
   // lastSeenTheme — only accept the two valid string values; anything
   // else means a corrupt write or a stale shape from an older version.
   if (safe.lastSeenTheme === 'dark' || safe.lastSeenTheme === 'light') {

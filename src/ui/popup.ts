@@ -52,7 +52,7 @@ function ensurePopup(container: Element | null): HTMLElement {
   // 2026-05-09 sec C16). A stale node from a torn-down player container
   // would otherwise be reused and render at coordinates the host page
   // has since rebuilt.
-  if (existing && existing.isConnected) return existing;
+  if (existing?.isConnected) return existing;
   if (existing) {
     const id = hideTimers.get(existing);
     if (id !== undefined) {

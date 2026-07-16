@@ -107,6 +107,14 @@ export interface Settings {
    */
   volumeBoost?: number;
   /**
+   * Opt-in: work on ANY HDRezka mirror automatically. When true (and the
+   * user has granted the broad all-sites optional host permission), the
+   * background SW registers an all-sites content script that self-bails on
+   * non-HDRezka pages via looksLikeHDRezka(). Default false — the price is
+   * a "read/change data on all sites" grant, so it stays user-driven.
+   */
+  autoFollowMirrors?: boolean;
+  /**
    * Last theme detected on the host page. Written by the content script's
    * theme watcher; read by the toolbar popup so it can match the host
    * page's theme instead of guessing from OS prefers-color-scheme.
@@ -173,5 +181,6 @@ export function defaultSettings(language: Lang, site?: Site): Settings {
     preservePitch: true,
     seekSeconds: 10,
     volumeBoost: 1,
+    autoFollowMirrors: false,
   };
 }

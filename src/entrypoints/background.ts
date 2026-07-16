@@ -31,12 +31,20 @@
 
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
+import { storageKeysFor } from '../config';
 import { BUILTIN_MIRROR_HOSTS, originPatternsFor } from '../sites/mirror-hosts';
 import { createBrowserStorageAdapter } from '../storage/adapter';
 import { MIRRORS_STORAGE_KEY, readUserMirrors, sanitizeMirrorList } from '../storage/mirrors-store';
 
 /** Single dynamic-registration id covering ALL user mirrors. */
 const DYNAMIC_SCRIPT_ID = 'user-mirrors';
+
+/** Dynamic-registration id for the opt-in broad "auto-follow" script. */
+const AUTO_FOLLOW_SCRIPT_ID = 'auto-follow';
+/** Broad match / origin backing auto-follow (single source of truth). */
+const BROAD_ORIGIN = '*://*/*';
+/** Settings blob key — read to learn whether auto-follow is opted in. */
+const SETTINGS_STORAGE_KEY = storageKeysFor('hdrezka').settings;
 
 /**
  * Built output path of the content entrypoint (same file the manifest
@@ -89,11 +97,60 @@ export default defineBackground(() => {
     }
   }
 
+  /** Is the opt-in "work on any mirror" flag set in the settings blob? */
+  async function autoFollowEnabled(): Promise<boolean> {
+    const s = await adapter.get<{ autoFollowMirrors?: unknown } | null>(SETTINGS_STORAGE_KEY, null);
+    return !!(s && typeof s === 'object' && s.autoFollowMirrors === true);
+  }
+
+  /**
+   * Register/unregister the broad auto-follow content script. Active only
+   * when the user opted in AND granted the broad host permission — the same
+   * self-bailing content.js runs everywhere and exits on non-HDRezka pages
+   * via looksLikeHDRezka(). Independent of the user-mirrors registration.
+   */
+  async function reconcileAutoFollowScript(): Promise<void> {
+    const wantActive =
+      (await autoFollowEnabled()) &&
+      (await browser.permissions.contains({ origins: [BROAD_ORIGIN] }));
+    const existing = await browser.scripting.getRegisteredContentScripts({
+      ids: [AUTO_FOLLOW_SCRIPT_ID],
+    });
+
+    if (!wantActive) {
+      if (existing.length > 0) {
+        await browser.scripting.unregisterContentScripts({ ids: [AUTO_FOLLOW_SCRIPT_ID] });
+      }
+      return;
+    }
+
+    const script = {
+      id: AUTO_FOLLOW_SCRIPT_ID,
+      js: [CONTENT_SCRIPT_FILE],
+      matches: [BROAD_ORIGIN],
+      runAt: 'document_idle' as const,
+      allFrames: false,
+      persistAcrossSessions: true,
+    };
+
+    if (existing.length > 0) {
+      await browser.scripting.updateContentScripts([script]);
+    } else {
+      await browser.scripting.registerContentScripts([script]);
+    }
+  }
+
+  /** Both dynamic registrations reconciled together (idempotent). */
+  async function reconcileAll(): Promise<void> {
+    await reconcileMirrorScripts();
+    await reconcileAutoFollowScript();
+  }
+
   // Serialize reconciles: storage.onChanged + permissions.onAdded fire
-  // back-to-back for a single popup "add" and must not interleave.
+  // back-to-back for a single popup "add" / toggle and must not interleave.
   let reconcileChain: Promise<void> = Promise.resolve();
   function scheduleReconcile(reason: string): void {
-    reconcileChain = reconcileChain.then(reconcileMirrorScripts).catch((e: unknown) => {
+    reconcileChain = reconcileChain.then(reconcileAll).catch((e: unknown) => {
       console.warn('[HDREZKA-SPEEDS] mirror reconcile failed (%s)', reason, e);
     });
   }
@@ -144,19 +201,38 @@ export default defineBackground(() => {
   });
 
   browser.storage.local.onChanged.addListener((changes) => {
-    const change = changes[MIRRORS_STORAGE_KEY];
-    if (!change) return;
-    const before = sanitizeMirrorList(change.oldValue);
-    const after = sanitizeMirrorList(change.newValue);
-    // Hosts dropped from the list lose their origin permission too —
-    // we requested it, we clean it up. (User hosts are never covered by
-    // required host_permissions: mirrors-store rejects built-in dupes.)
-    for (const host of before.filter((h) => !after.includes(h))) {
-      browser.permissions.remove({ origins: originPatternsFor(host) }).catch(() => {
-        // Not granted / not removable — nothing to clean up.
-      });
+    const mirrorChange = changes[MIRRORS_STORAGE_KEY];
+    if (mirrorChange) {
+      const before = sanitizeMirrorList(mirrorChange.oldValue);
+      const after = sanitizeMirrorList(mirrorChange.newValue);
+      // Hosts dropped from the list lose their origin permission too —
+      // we requested it, we clean it up. (User hosts are never covered by
+      // required host_permissions: mirrors-store rejects built-in dupes.)
+      for (const host of before.filter((h) => !after.includes(h))) {
+        browser.permissions.remove({ origins: originPatternsFor(host) }).catch(() => {
+          // Not granted / not removable — nothing to clean up.
+        });
+      }
     }
-    scheduleReconcile('storage-change');
+
+    // Auto-follow toggle lives in the settings blob, which is rewritten on
+    // every minor settings edit — only reconcile when the flag itself flips,
+    // otherwise a theme/preset write would churn the registration.
+    const settingsChange = changes[SETTINGS_STORAGE_KEY];
+    let autoFollowFlipped = false;
+    if (settingsChange) {
+      const was =
+        (settingsChange.oldValue as { autoFollowMirrors?: unknown } | undefined)
+          ?.autoFollowMirrors === true;
+      const now =
+        (settingsChange.newValue as { autoFollowMirrors?: unknown } | undefined)
+          ?.autoFollowMirrors === true;
+      autoFollowFlipped = was !== now;
+    }
+
+    if (mirrorChange || autoFollowFlipped) {
+      scheduleReconcile('storage-change');
+    }
   });
 
   // Audit 2026-05-11: open-extension-page proxy. Content scripts can't

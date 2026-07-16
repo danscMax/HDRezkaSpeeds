@@ -555,6 +555,38 @@ function hotkeysTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
 }
 
 function mirrorsTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
+  const t = opts.i18n.t;
+  const vm = opts.mirrors;
+
+  // Popup-only header (permissions.request + tabs.create only work there):
+  //   1. "Open HDRezka" — jump to the last-known-good mirror when no rezka
+  //      tab is open (this tab is where the popup lands off-site).
+  //   2. Auto-follow opt-in — one broad grant, then any future mirror works.
+  const header: HChild[] = [];
+  if (vm?.canManagePermissions) {
+    header.push(
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'vs-action vs-mirror-cta',
+          'data-vs-mirror-open': '',
+          title: t('mirrors.open.tip'),
+        },
+        vsIcon('external-link', 14),
+        ' ',
+        t('mirrors.open'),
+      ),
+      vsSection(
+        t('mirrors.autofollow.section'),
+        vsRow(t('mirrors.autofollow.label'), vsToggle('autofollow-mirrors', !!vm.autoFollow), {
+          title: t('mirrors.autofollow.hint'),
+        }),
+        h('p', { class: 'vs-help-text' }, t('mirrors.autofollow.hint')),
+      ),
+    );
+  }
+
   return h(
     'div',
     {
@@ -562,9 +594,10 @@ function mirrorsTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
       'data-vs-panel': 'mirrors',
       'aria-hidden': hidden ? 'true' : 'false',
     },
+    ...header,
     // Caller guarantees opts.mirrors when this tab is reachable (the tab
     // button itself renders only when the view model is present).
-    ...(opts.mirrors ? renderMirrorsBlock(opts.mirrors, opts.i18n) : []),
+    ...(vm ? renderMirrorsBlock(vm, opts.i18n) : []),
   );
 }
 

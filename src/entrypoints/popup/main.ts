@@ -28,12 +28,14 @@ import { storageKeysFor } from '../../config';
 import type { DiagnosticReport } from '../../health/types';
 import { createTranslator } from '../../i18n/translator';
 import { detectSite } from '../../sites/detect';
+import { orderMirrorCandidates } from '../../sites/mirror-resolver';
 import {
   BUILTIN_MIRROR_HOSTS,
   isCoveredByHostList,
   originPatternsFor,
 } from '../../sites/mirror-hosts';
 import { createBrowserStorageAdapter } from '../../storage/adapter';
+import { readLastWorkingHost } from '../../storage/last-host-store';
 import {
   addUserMirror,
   MAX_USER_MIRRORS,
@@ -150,6 +152,7 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
     builtinStatus: {},
     canManagePermissions: true,
     maxMirrors: MAX_USER_MIRRORS,
+    autoFollow: settingsStore.getKey('autoFollowMirrors') === true,
   };
 
   function hasOriginPermission(hostName: string): Promise<boolean> {
@@ -209,6 +212,7 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
       builtinStatus,
       canManagePermissions: true,
       maxMirrors: MAX_USER_MIRRORS,
+      autoFollow: settingsStore.getKey('autoFollowMirrors') === true,
       currentHost: computeCurrentHost(userHosts, status),
     };
   }
@@ -441,6 +445,47 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
             window.close();
           }
         },
+        openMirror: () => {
+          void (async () => {
+            const [lastHost, userHosts] = await Promise.all([
+              readLastWorkingHost(adapter),
+              readUserMirrors(adapter),
+            ]);
+            const candidates = orderMirrorCandidates({
+              lastHost,
+              userHosts,
+              builtinHosts: BUILTIN_MIRROR_HOSTS,
+            });
+            if (candidates.length === 0) {
+              ui.showNotification(ctx.i18n.t('toast.open_no_candidate'), 'warn');
+              return;
+            }
+            const target = await pickReachableMirror(candidates);
+            void browser.tabs.create({ url: `https://${target}/` });
+            window.close();
+          })();
+        },
+        setAutoFollow: async (on) => {
+          if (on) {
+            // Request the broad grant FIRST — no await may precede it or the
+            // click's user gesture is spent (Firefox rejects otherwise).
+            const granted = await browser.permissions
+              .request({ origins: ['*://*/*'] })
+              .catch(() => false);
+            if (!granted) {
+              await settingsStore.update({ autoFollowMirrors: false });
+              await refreshMirrorsVm();
+              return false;
+            }
+            await settingsStore.update({ autoFollowMirrors: true });
+            await refreshMirrorsVm();
+            return true;
+          }
+          await settingsStore.update({ autoFollowMirrors: false });
+          await browser.permissions.remove({ origins: ['*://*/*'] }).catch(() => {});
+          await refreshMirrorsVm();
+          return false;
+        },
         list: () => mirrorsVm.userHosts,
         replaceAll: async (hosts) => {
           await replaceUserMirrors(adapter, hosts);
@@ -614,6 +659,50 @@ async function sendSpeedMessage(message: {
     return res.speed;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Pick a reachable mirror from the ordered candidate list. Only probes when
+ * the broad host permission is held (auto-follow on) — otherwise a
+ * cross-origin fetch is blocked, so we just return the freshest guess and
+ * let HDRezka's own redirect resolve the live domain. Best-effort: any probe
+ * failure degrades to candidates[0].
+ *
+ * Probes sequentially at 2.5s/host. With last-known-good first this is
+ * usually instant; if the leading hosts are dead the popup may sit for a
+ * moment, and closing it mid-probe cancels the pending open. Acceptable for
+ * v1 — the common case (freshest host alive) resolves on the first probe.
+ */
+async function pickReachableMirror(candidates: string[]): Promise<string> {
+  const first = candidates[0] as string;
+  const canProbe = await browser.permissions
+    .contains({ origins: ['*://*/*'] })
+    .catch(() => false);
+  if (!canProbe) return first;
+  for (const host of candidates) {
+    if (await probeMirrorHost(host)) return host;
+  }
+  return first;
+}
+
+/** HEAD-probe a host; a fulfilled fetch (even opaque) == reachable. */
+async function probeMirrorHost(host: string): Promise<boolean> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 2500);
+  try {
+    await fetch(`https://${host}/`, {
+      method: 'HEAD',
+      mode: 'no-cors',
+      redirect: 'follow',
+      cache: 'no-store',
+      signal: ctrl.signal,
+    });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

@@ -57,6 +57,13 @@ export const I18N_DICT = {
     'mirrors.empty': 'No custom mirrors yet.',
     'mirrors.count': '{n} of {max}',
     'mirrors.reload_tab': 'Reload the tab to enable the panel',
+    // Auto-follow (part A) + open-mirror (part C).
+    'mirrors.open': 'Open HDRezka',
+    'mirrors.open.tip': 'Open a working HDRezka mirror in a new tab',
+    'mirrors.autofollow.section': 'Automatic mirrors',
+    'mirrors.autofollow.label': 'Work on any HDRezka mirror',
+    'mirrors.autofollow.hint':
+      'Follow HDRezka to any new domain automatically. Requires access to all sites — the extension checks each page and activates only on HDRezka. Off by default.',
     'toast.mirror_added': 'Mirror {host} added',
     'toast.mirror_removed': 'Mirror removed',
     'toast.mirror_invalid': 'Invalid domain',
@@ -67,6 +74,10 @@ export const I18N_DICT = {
     'toast.mirror_limit': 'Mirror limit reached ({max})',
     'toast.mirror_granted': 'Access granted',
     'toast.mirror_grant_denied': 'Access was not granted',
+    'toast.autofollow_on': 'Auto-follow enabled — HDRezka will work on any mirror',
+    'toast.autofollow_off': 'Auto-follow disabled',
+    'toast.autofollow_denied': 'Auto-follow needs access to all sites',
+    'toast.open_no_candidate': 'No known mirror to open yet',
 
     // general.*
     'general.speed_presets': 'Speed buttons',
@@ -422,6 +433,13 @@ export const I18N_DICT = {
     'mirrors.empty': 'Свои зеркала пока не добавлены.',
     'mirrors.count': '{n} из {max}',
     'mirrors.reload_tab': 'Обновите вкладку, чтобы включить панель',
+    // Авто-follow (часть A) + открыть зеркало (часть C).
+    'mirrors.open': 'Открыть HDRezka',
+    'mirrors.open.tip': 'Открыть рабочее зеркало HDRezka в новой вкладке',
+    'mirrors.autofollow.section': 'Автоматические зеркала',
+    'mirrors.autofollow.label': 'Работать на любом зеркале HDRezka',
+    'mirrors.autofollow.hint':
+      'Автоматически следовать за HDRezka на любой новый домен. Требуется доступ ко всем сайтам — расширение проверяет каждую страницу и включается только на HDRezka. По умолчанию выключено.',
     'toast.mirror_added': 'Зеркало {host} добавлено',
     'toast.mirror_removed': 'Зеркало удалено',
     'toast.mirror_invalid': 'Некорректный домен',
@@ -432,6 +450,10 @@ export const I18N_DICT = {
     'toast.mirror_limit': 'Достигнут лимит зеркал ({max})',
     'toast.mirror_granted': 'Доступ выдан',
     'toast.mirror_grant_denied': 'Доступ не выдан',
+    'toast.autofollow_on': 'Авто-follow включён — HDRezka заработает на любом зеркале',
+    'toast.autofollow_off': 'Авто-follow выключен',
+    'toast.autofollow_denied': 'Для авто-follow нужен доступ ко всем сайтам',
+    'toast.open_no_candidate': 'Пока нет известного зеркала для открытия',
 
     // general.*
     'general.speed_presets': 'Кнопки скорости',

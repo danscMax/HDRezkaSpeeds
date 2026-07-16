@@ -107,6 +107,14 @@ export interface SettingsHandlersDeps {
     /** Popup-only: reload the active tab so the freshly-registered
      *  content script actually runs. */
     reloadCurrentTab?(): void;
+    /** Popup-only: open a working HDRezka mirror in a new tab (last-known-
+     *  good first). Used when no rezka tab is currently open. */
+    openMirror?(): void;
+    /** Popup-only: toggle the broad "work on any mirror" opt-in. Requests
+     *  the all-sites host permission (user gesture) and returns the FINAL
+     *  state (false if the user denied). Called synchronously from the
+     *  checkbox change event so the gesture survives. */
+    setAutoFollow?(on: boolean): Promise<boolean>;
     /** Current list snapshot — exported alongside settings. */
     list(): readonly string[];
     /** Replace the whole list (settings import; raw = untrusted JSON). */
@@ -812,6 +820,43 @@ function attachMirrorHandlers(
       event.preventDefault();
       event.stopPropagation();
       mirrors.reloadCurrentTab?.();
+    });
+  }
+
+  // "Open HDRezka" — jump to a working mirror when no rezka tab is open.
+  const openBtn = menuRoot.querySelector<HTMLButtonElement>('[data-vs-mirror-open]');
+  const openMirror = mirrors.openMirror;
+  if (openBtn && openMirror) {
+    ctx.cleanup.addEventListener(openBtn, 'click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openMirror();
+    });
+  }
+
+  // Auto-follow opt-in toggle. setAutoFollow requests the all-sites grant,
+  // so it must run synchronously from the change event (user gesture) with
+  // no await before it. It returns the FINAL state (false on denial), which
+  // we reflect back onto the checkbox so the UI never lies.
+  const autoFollowCb = menuRoot.querySelector<HTMLInputElement>(
+    'input[name="autofollow-mirrors"]',
+  );
+  const setAutoFollow = mirrors.setAutoFollow;
+  if (autoFollowCb && setAutoFollow) {
+    ctx.cleanup.addEventListener(autoFollowCb, 'change', () => {
+      const want = autoFollowCb.checked;
+      void setAutoFollow(want).then((applied) => {
+        autoFollowCb.checked = applied;
+        if (want && !applied) {
+          ctx.ui.showNotification(ctx.i18n.t('toast.autofollow_denied'), 'warn');
+        } else {
+          ctx.ui.showNotification(
+            ctx.i18n.t(applied ? 'toast.autofollow_on' : 'toast.autofollow_off'),
+            'info',
+          );
+        }
+        deps.rerender();
+      });
     });
   }
 }

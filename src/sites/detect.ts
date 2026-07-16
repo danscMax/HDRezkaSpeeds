@@ -13,6 +13,7 @@
  * this returns null.
  */
 
+import { selectorsFor } from '../discovery/selectors';
 import type { Site } from '../app/ports';
 
 export function detectSite(host: string = safeHostname()): Site | null {
@@ -38,6 +39,35 @@ export function detectSite(host: string = safeHostname()): Site | null {
     return 'hdrezka';
   }
   return null;
+}
+
+/**
+ * Content-signature fallback: is THIS page an HDRezka mirror, judged by the
+ * engine's DOM rather than the domain name? Every mirror runs the same
+ * front-end, so name-based lists (and even a `hdrezka.*` regex) lose to
+ * renamed / hash-prefixed domains — but the DOM signature is stable.
+ *
+ * Only consulted in auto-follow mode (the broad content script self-bails
+ * on non-HDRezka pages via this check). Reuses the discovery selector
+ * tables so class-name changes are maintained in one place.
+ *
+ * Match rule (near-zero false positives):
+ *   - `#oframecdnplayer` present  -> yes (near-unique HDRezka CDN player), OR
+ *   - a player wrapper AND a content/info block both present.
+ */
+export function looksLikeHDRezka(doc: Document = document): boolean {
+  const q = (sel: string): boolean => {
+    try {
+      return doc.querySelector(sel) !== null;
+    } catch {
+      return false;
+    }
+  };
+  if (q('#oframecdnplayer')) return true;
+  const sel = selectorsFor('hdrezka');
+  const anyMatch = (list: readonly string[] | undefined): boolean =>
+    !!list && list.some(q);
+  return anyMatch(sel.playerContainer) && anyMatch(sel.infoElem);
 }
 
 /**

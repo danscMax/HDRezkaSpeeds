@@ -37,7 +37,12 @@ import { reportToClipboardText } from './health/report';
 import type { DiagnosticReport } from './health/types';
 import { detectBrowserLang } from './i18n/detect';
 import { createTranslator } from './i18n/translator';
-import { detectSite, extractHDRezkaTitleId, isHDRezkaVideoPath } from './sites/detect';
+import {
+  detectSite,
+  extractHDRezkaTitleId,
+  isHDRezkaVideoPath,
+  looksLikeHDRezka,
+} from './sites/detect';
 import { bootstrapHDRezkaSite, patchPlyrLocalStorage } from './sites/hdrezka';
 import { BUILTIN_MIRROR_HOSTS, isCoveredByHostList } from './sites/mirror-hosts';
 import {
@@ -51,6 +56,7 @@ import { createRatechangeMeter } from './speed/meter';
 import { applyVolumeBoost } from './speed/volume-boost';
 import { createBrowserStorageAdapter, type StorageAdapter } from './storage/adapter';
 import { createCoalescingAdapter } from './storage/adapter-coalescing';
+import { writeLastWorkingHost } from './storage/last-host-store';
 import { runTmMigration } from './storage/migration-tm';
 import {
   addUserMirror,
@@ -87,6 +93,24 @@ export async function bootstrap(
   wxtCtx: ContentScriptContext,
   options: BootstrapOptions = {},
 ): Promise<void> {
+  // Idempotency guard (isolated-world global, not page-reachable): in
+  // auto-follow mode a host can match BOTH the broad content script and the
+  // built-in / user-mirror registration, injecting content.js twice into one
+  // frame. This flag is set synchronously — before step 0's first await — so
+  // the second injection bails race-free. Cleared on invalidation so HMR /
+  // re-injection still work. (detectAndClaim's DOM marker can't cover the
+  // user-mirror case alone: step 0 awaits storage before it claims.)
+  type BootFlag = typeof globalThis & { __hdrezkaSpeedsBooted?: boolean };
+  const bootFlag = globalThis as BootFlag;
+  if (bootFlag.__hdrezkaSpeedsBooted) {
+    console.info('[HDREZKA-SPEEDS] already booted in this frame; skipping duplicate injection');
+    return;
+  }
+  bootFlag.__hdrezkaSpeedsBooted = true;
+  wxtCtx.onInvalidated(() => {
+    delete bootFlag.__hdrezkaSpeedsBooted;
+  });
+
   // Storage adapter — created BEFORE site detection because the
   // user-mirrors fallback below needs a storage read. (Used to live in
   // step 2; hoisting is side-effect-free, the adapter holds no state.)
@@ -106,6 +130,23 @@ export async function bootstrap(
     } catch {
       // Storage unreachable — treat as unsupported.
     }
+  }
+  // Auto-follow (part B): the broad content script reaches an unknown host
+  // only when the user opted in. If the page's DOM carries HDRezka's engine
+  // signature, treat it as a mirror — domain-name lists lose to renamed /
+  // hash-prefixed mirrors, the signature doesn't. A false positive is
+  // harmless: at most a speed panel on a non-rezka video page. No permission
+  // is granted here; the broad grant is the user's separate opt-in.
+  //
+  // Bounded retry (not a one-shot): the signature IS the gate here, and
+  // HDRezka's player markers aren't always in the DOM the instant
+  // document_idle fires — same reason attachToVideo / scheduleInsertWithRetry
+  // retry below. Resolves instantly when the signature is already present, so
+  // a real rezka page pays no delay; on a genuine non-rezka page it waits out
+  // the budget and bails. Only reached in auto-follow mode on non-listed
+  // hosts, so ordinary browsing never pays this cost.
+  if (!site && (await awaitHDRezkaSignature(wxtCtx))) {
+    site = 'hdrezka';
   }
   if (!site) {
     console.info('[HDREZKA-SPEEDS] unsupported host, bootstrap aborted');
@@ -495,6 +536,32 @@ export async function bootstrap(
   cleanup.add(() => attachCleanup.dispose());
   attachToVideo(ctx, meter, attachCleanup);
 
+  // REL-040 (twin of VideoSpeeds): the player can replace the <video>
+  // ELEMENT (not just src) after a fatal decode error, with no SPA
+  // navigation — all per-element listeners die with the old node and the
+  // fresh element plays at rate=1 until the next navigation. Media events
+  // don't bubble, but capture-phase listeners on document still see them:
+  // any 'playing' from an unbranded <video> == a fresh element → dispose
+  // the stale per-attach registry and re-arm. The __vsAttached brand makes
+  // this a no-op for already-attached elements. The video validator
+  // filters hover previews/thumbnails so they don't dispose the live
+  // attach registry.
+  ctx.cleanup.addEventListener(
+    document,
+    'playing',
+    (event) => {
+      const t = event.target;
+      if (!(t instanceof HTMLVideoElement)) return;
+      if ((t as HTMLVideoElement & { __vsAttached?: boolean }).__vsAttached) return;
+      if (!Validators.video(t).ok) return;
+      ctx.logger.info('unattached <video> is playing (element replaced?); re-attaching');
+      attachCleanup.dispose();
+      attachCleanup = new CleanupRegistry();
+      attachToVideo(ctx, meter, attachCleanup);
+    },
+    { capture: true },
+  );
+
   // 11. Hotkey listener (global, capture so it wins over the page).
   // FEAT-012: per-page memory for the toggle-last-speed hotkey.
   let toggleLastSpeed: number | null = null;
@@ -778,7 +845,58 @@ export async function bootstrap(
     }
   });
 
+  // Remember where we successfully activated so the popup's "Open HDRezka"
+  // can jump straight to the last-known-good mirror when no rezka tab is
+  // open. Fire-and-forget; junk hosts are dropped inside the writer.
+  void writeLastWorkingHost(adapter, location.hostname);
+
   logger.info('bootstrap complete');
+}
+
+/**
+ * Auto-follow signature gate with bounded retry (part B). detectSite is
+ * name-based and settles synchronously, but on an auto-follow host the DOM
+ * signature IS the gate — and HDRezka's player markers aren't guaranteed to
+ * be in the DOM the instant document_idle fires. Mirror the retry discipline
+ * used elsewhere in this file: resolve true as soon as looksLikeHDRezka()
+ * passes, or false once the budget elapses (or the context is invalidated).
+ * Resolves instantly when the signature is already present, so a real rezka
+ * page pays no delay; only auto-follow hosts ever reach this.
+ */
+function awaitHDRezkaSignature(
+  wxtCtx: ContentScriptContext,
+  budgetMs = 3000,
+  stepMs = 250,
+): Promise<boolean> {
+  if (looksLikeHDRezka()) return Promise.resolve(true);
+  return new Promise<boolean>((resolve) => {
+    let elapsed = 0;
+    let settled = false;
+    const finish = (value: boolean): void => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    const timer = setInterval(() => {
+      if (settled) {
+        clearInterval(timer);
+        return;
+      }
+      if (looksLikeHDRezka()) {
+        clearInterval(timer);
+        finish(true);
+        return;
+      }
+      elapsed += stepMs;
+      if (elapsed >= budgetMs) {
+        clearInterval(timer);
+        finish(false);
+      }
+    }, stepMs);
+    // A mid-wait navigation / HMR must not hang bootstrap or let it continue
+    // on a dead context — resolve false so the caller aborts cleanly.
+    wxtCtx.onInvalidated(() => finish(false));
+  });
 }
 
 function scheduleInsertWithRetry(panelEl: HTMLElement, ctx: AppContext): void {
