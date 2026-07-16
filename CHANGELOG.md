@@ -18,9 +18,8 @@ versioning is [SemVer](https://semver.org/).
   content script self-bails on non-HDRezka pages.
 - **"Open HDRezka" button** (popup → Mirrors) — jumps to a working mirror
   when no rezka tab is open: the domain you last watched on first, then your
-  own mirrors, then the built-ins. Probes for a live host when the broad
-  permission is granted; otherwise opens the freshest guess and lets
-  HDRezka's own redirect resolve the current address.
+  own mirrors, then the built-ins. Opens the freshest known domain directly
+  and lets HDRezka's own redirect resolve the current address.
 - **"Show time-saved badge" toggle** (Settings → Behavior) hides the
   "finish N earlier" badge for anyone who finds it noise. The badge now
   carries a clock icon so its meaning reads without hovering for the tooltip.

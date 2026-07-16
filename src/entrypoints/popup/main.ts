@@ -460,8 +460,14 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
               ui.showNotification(ctx.i18n.t('toast.open_no_candidate'), 'warn');
               return;
             }
-            const target = await pickReachableMirror(candidates);
-            void browser.tabs.create({ url: `https://${target}/` });
+            // Open the freshest known host directly. A stale entry is
+            // harmless: HDRezka's own domains redirect to the live mirror.
+            // We used to HEAD-probe candidates for reachability first, but a
+            // no-cors probe only ever resolves to an opaque 200 — a
+            // parked/seized domain reads as "reachable" identically to the
+            // real site — so it added up to 2.5s/host of latency for a signal
+            // that couldn't tell live from dead.
+            void browser.tabs.create({ url: `https://${candidates[0]}/` });
             window.close();
           })();
         },
@@ -659,50 +665,6 @@ async function sendSpeedMessage(message: {
     return res.speed;
   } catch {
     return null;
-  }
-}
-
-/**
- * Pick a reachable mirror from the ordered candidate list. Only probes when
- * the broad host permission is held (auto-follow on) — otherwise a
- * cross-origin fetch is blocked, so we just return the freshest guess and
- * let HDRezka's own redirect resolve the live domain. Best-effort: any probe
- * failure degrades to candidates[0].
- *
- * Probes sequentially at 2.5s/host. With last-known-good first this is
- * usually instant; if the leading hosts are dead the popup may sit for a
- * moment, and closing it mid-probe cancels the pending open. Acceptable for
- * v1 — the common case (freshest host alive) resolves on the first probe.
- */
-async function pickReachableMirror(candidates: string[]): Promise<string> {
-  const first = candidates[0] as string;
-  const canProbe = await browser.permissions
-    .contains({ origins: ['*://*/*'] })
-    .catch(() => false);
-  if (!canProbe) return first;
-  for (const host of candidates) {
-    if (await probeMirrorHost(host)) return host;
-  }
-  return first;
-}
-
-/** HEAD-probe a host; a fulfilled fetch (even opaque) == reachable. */
-async function probeMirrorHost(host: string): Promise<boolean> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 2500);
-  try {
-    await fetch(`https://${host}/`, {
-      method: 'HEAD',
-      mode: 'no-cors',
-      redirect: 'follow',
-      cache: 'no-store',
-      signal: ctrl.signal,
-    });
-    return true;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
   }
 }
 

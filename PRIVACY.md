@@ -47,11 +47,10 @@ want to send it to the developer.
 | `host_permissions` (HDRezka mirrors) | Inject the speed-control UI into the HDRezka video player. The extension does not run on any other site. |
 | `*://*/*` (optional — "Auto-follow mirrors") | **Off by default.** Only if you turn on Settings → Mirrors → "Work on any HDRezka mirror" and accept the browser prompt. It lets the extension recognise HDRezka on a new mirror domain — by the domain name (an `hdrezka.*`/`rezka.*` pattern) or by the player's DOM signature — so a moved site keeps working without a store update. The content script self-bails on pages that are neither, and you can revoke this anytime from the browser's extension settings. |
 
-The **"Open HDRezka"** button (popup → Mirrors) sends a `HEAD` reachability
-probe to your known mirror domains **only** when you click it, and only if the
-optional all-sites permission is granted. It transmits no data beyond the
-request itself and is used solely to pick a live mirror to open; without the
-permission it just opens the freshest known domain and lets HDRezka redirect.
+The **"Open HDRezka"** button (popup → Mirrors) opens the freshest known
+mirror domain in a new tab. It makes **no** network request of its own — the
+browser simply navigates to the domain and HDRezka's own server redirects to
+the live mirror if that one has moved.
 
 The Firefox manifest declares
 `browser_specific_settings.gecko.data_collection_permissions:
@@ -149,12 +148,10 @@ issue, если хотите отправить разработчику.
 | `host_permissions` (зеркала HDRezka) | Встраивать панель управления скоростью в плеер HDRezka. Расширение не работает на других сайтах. |
 | `*://*/*` (опционально — «Автозеркала») | **По умолчанию выключено.** Только если вы включите Настройки → Зеркала → «Работать на любом зеркале HDRezka» и подтвердите запрос браузера. Позволяет распознавать HDRezka на новом домене — по имени домена (шаблон `hdrezka.*`/`rezka.*`) или по DOM-сигнатуре плеера — чтобы переехавший сайт продолжал работать без обновления в сторе. На страницах, которые ни то, ни другое, контент-скрипт сразу выходит; право можно отозвать в любой момент в настройках расширения браузера. |
 
-Кнопка **«Открыть HDRezka»** (попап → Зеркала) отправляет `HEAD`-запрос-проверку
-доступности на ваши известные домены-зеркала **только** при вашем клике и только
-если выдано опциональное право на все сайты. Кроме самого запроса ничего не
-передаётся; он нужен исключительно чтобы выбрать живое зеркало для открытия. Без
-этого права кнопка просто открывает самый свежий известный домен, а HDRezka сама
-делает редирект.
+Кнопка **«Открыть HDRezka»** (попап → Зеркала) открывает самый свежий
+известный домен-зеркало в новой вкладке. Она **не** делает никаких сетевых
+запросов сама — браузер просто переходит на домен, а сервер HDRezka сам
+редиректит на живое зеркало, если это переехало.
 
 В Firefox-манифесте задекларировано
 `browser_specific_settings.gecko.data_collection_permissions:
