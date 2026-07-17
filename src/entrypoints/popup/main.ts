@@ -28,12 +28,13 @@ import { storageKeysFor } from '../../config';
 import type { DiagnosticReport } from '../../health/types';
 import { createTranslator } from '../../i18n/translator';
 import { detectSite } from '../../sites/detect';
-import { orderMirrorCandidates } from '../../sites/mirror-resolver';
 import {
   BUILTIN_MIRROR_HOSTS,
   isCoveredByHostList,
   originPatternsFor,
 } from '../../sites/mirror-hosts';
+import type { MirrorReach } from '../../sites/mirror-reach';
+import { orderMirrorCandidates } from '../../sites/mirror-resolver';
 import { createBrowserStorageAdapter } from '../../storage/adapter';
 import { readLastWorkingHost } from '../../storage/last-host-store';
 import {
@@ -54,7 +55,6 @@ import {
   renderSettingsMenu,
   showNotification,
 } from '../../ui';
-import type { MirrorReach } from '../../sites/mirror-reach';
 import { h } from '../../ui/dom-h';
 import type { MirrorsViewModel } from '../../ui/settings/modal';
 import { createLogger } from '../../utils/logger';

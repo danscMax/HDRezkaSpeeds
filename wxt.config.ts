@@ -1,6 +1,6 @@
 import { defineConfig } from 'wxt';
 import pkg from './package.json' with { type: 'json' };
-import { builtinMatchPatterns, BUILTIN_MIRROR_HOSTS } from './src/sites/mirror-hosts';
+import { BUILTIN_MIRROR_HOSTS, builtinMatchPatterns } from './src/sites/mirror-hosts';
 
 // connect-src for the extension_pages CSP. Two legitimate outbound endpoints:
 // the feedback worker (feedback POST) and the built-in mirror hosts — the

@@ -32,8 +32,12 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { storageKeysFor } from '../config';
+import {
+  BUILTIN_MIRROR_HOSTS,
+  builtinMatchPatterns,
+  originPatternsFor,
+} from '../sites/mirror-hosts';
 import { classifyMirrorBody, type MirrorReach } from '../sites/mirror-reach';
-import { builtinMatchPatterns, BUILTIN_MIRROR_HOSTS, originPatternsFor } from '../sites/mirror-hosts';
 import { createBrowserStorageAdapter } from '../storage/adapter';
 import { MIRRORS_STORAGE_KEY, readUserMirrors, sanitizeMirrorList } from '../storage/mirrors-store';
 
@@ -415,7 +419,9 @@ export default defineBackground(() => {
     // homepage body to tell a working mirror from an ISP stub / bot-check.
     if (m.type === 'mirrors:probe') {
       const hosts = Array.isArray(m.hosts)
-        ? (m.hosts as unknown[]).filter((hostName): hostName is string => typeof hostName === 'string')
+        ? (m.hosts as unknown[]).filter(
+            (hostName): hostName is string => typeof hostName === 'string',
+          )
         : [];
       return probeMirrors(hosts)
         .then((reach) => ({ ok: true, reach }))

@@ -102,9 +102,13 @@ test.describe('auto-follow content signature', () => {
         waitUntil: 'domcontentloaded',
         timeout: 30_000,
       });
-      await page.waitForFunction((attr) => document.documentElement.hasAttribute(attr), EXT_MARKER, {
-        timeout: 25_000,
-      });
+      await page.waitForFunction(
+        (attr) => document.documentElement.hasAttribute(attr),
+        EXT_MARKER,
+        {
+          timeout: 25_000,
+        },
+      );
       expect(await page.evaluate(markerAttr)).toBe('1');
 
       // Negative: no signature -> self-bail. Wait past the 3s signature budget,

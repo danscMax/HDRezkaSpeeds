@@ -224,11 +224,7 @@ export function showActionChip(text: string, opts: ActionChipOptions = {}): () =
     chip.appendChild(bodyBtn);
   } else {
     chip.appendChild(
-      h(
-        'span',
-        { style: 'display:inline-flex; align-items:center; gap:8px;' },
-        ...bodyChildren,
-      ),
+      h('span', { style: 'display:inline-flex; align-items:center; gap:8px;' }, ...bodyChildren),
     );
   }
 

@@ -97,7 +97,9 @@ export async function writePosition(
   map[titleId] = { t, p: path, at: Date.now() };
   const keys = Object.keys(map);
   if (keys.length > POSITION_LIMIT) {
-    const keep = keys.sort((a, b) => (map[b]?.at ?? 0) - (map[a]?.at ?? 0)).slice(0, POSITION_LIMIT);
+    const keep = keys
+      .sort((a, b) => (map[b]?.at ?? 0) - (map[a]?.at ?? 0))
+      .slice(0, POSITION_LIMIT);
     const next: Record<string, PositionEntry> = {};
     for (const k of keep) {
       const e = map[k];

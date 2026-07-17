@@ -860,9 +860,7 @@ function attachMirrorHandlers(
   // so it must run synchronously from the change event (user gesture) with
   // no await before it. It returns the FINAL state (false on denial), which
   // we reflect back onto the checkbox so the UI never lies.
-  const autoFollowCb = menuRoot.querySelector<HTMLInputElement>(
-    'input[name="autofollow-mirrors"]',
-  );
+  const autoFollowCb = menuRoot.querySelector<HTMLInputElement>('input[name="autofollow-mirrors"]');
   const setAutoFollow = mirrors.setAutoFollow;
   if (autoFollowCb && setAutoFollow) {
     ctx.cleanup.addEventListener(autoFollowCb, 'change', () => {
@@ -887,7 +885,12 @@ function attachToggle(
   menuRoot: Element,
   ctx: AppContext,
   inputName: string,
-  settingKey: 'rememberSpeed' | 'compactMode' | 'preservePitch' | 'rememberPerVideo' | 'showTimeSaved',
+  settingKey:
+    | 'rememberSpeed'
+    | 'compactMode'
+    | 'preservePitch'
+    | 'rememberPerVideo'
+    | 'showTimeSaved',
   onChanged?: () => void,
 ): void {
   const cb = menuRoot.querySelector<HTMLInputElement>(`input[name="${inputName}"]`);

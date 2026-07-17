@@ -13,8 +13,8 @@
  * this returns null.
  */
 
-import { selectorsFor } from '../discovery/selectors';
 import type { Site } from '../app/ports';
+import { selectorsFor } from '../discovery/selectors';
 
 export function detectSite(host: string = safeHostname()): Site | null {
   const h = host.toLowerCase();
@@ -65,8 +65,7 @@ export function looksLikeHDRezka(doc: Document = document): boolean {
   };
   if (q('#oframecdnplayer')) return true;
   const sel = selectorsFor('hdrezka');
-  const anyMatch = (list: readonly string[] | undefined): boolean =>
-    !!list && list.some(q);
+  const anyMatch = (list: readonly string[] | undefined): boolean => !!list && list.some(q);
   return anyMatch(sel.playerContainer) && anyMatch(sel.infoElem);
 }
 
