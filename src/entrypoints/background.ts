@@ -197,6 +197,52 @@ export default defineBackground(() => {
       });
   }
 
+  /**
+   * Probe a host with a bounded no-cors HEAD. A fulfilled fetch (even an
+   * opaque response) == reachable; a reject == blocked / dead. This is the one
+   * thing the probe reliably tells apart — HDRezka's canonical domains are
+   * frequently ISP-blocked (DNS blackhole / TCP reset), and those reject.
+   */
+  async function probeMirrorHost(host: string): Promise<boolean> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 2500);
+    try {
+      await fetch(`https://${host}/`, {
+        method: 'HEAD',
+        mode: 'no-cors',
+        redirect: 'follow',
+        cache: 'no-store',
+        signal: ctrl.signal,
+      });
+      return true;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * "Open HDRezka": probe the ordered candidates (all in parallel, ~2.5s
+   * bound) and open the first REACHABLE one in a new tab, skipping
+   * blocked/dead entries; fall back to the freshest guess if none answer.
+   * Lives in the SW so it isn't blocked by the extension-pages CSP and can
+   * reach built-in hosts via the manifest host permissions.
+   */
+  async function openReachableMirror(candidates: string[]): Promise<{ ok: boolean }> {
+    if (candidates.length === 0) return { ok: false };
+    const reachable = await Promise.all(candidates.map(probeMirrorHost));
+    const idx = reachable.findIndex(Boolean);
+    const host = (idx >= 0 ? candidates[idx] : candidates[0]) as string;
+    try {
+      await browser.tabs.create({ url: `https://${host}/` });
+      return { ok: true };
+    } catch (e) {
+      console.warn('[HDREZKA-SPEEDS] open-reachable failed', e);
+      return { ok: false };
+    }
+  }
+
   /** Both dynamic registrations reconciled together (idempotent). */
   async function reconcileAll(): Promise<void> {
     await reconcileMirrorScripts();
@@ -306,9 +352,18 @@ export default defineBackground(() => {
   const ALLOWED_PAGES = new Set(['/feedback.html', '/welcome.html']);
   browser.runtime.onMessage.addListener((msg: unknown, sender): Promise<unknown> | undefined => {
     if (!msg || typeof msg !== 'object') return undefined;
-    const m = msg as { type?: unknown; path?: unknown; text?: unknown };
+    const m = msg as { type?: unknown; path?: unknown; text?: unknown; candidates?: unknown };
     if (m.type === 'mirrors:get-status') {
       return getMirrorStatus().catch((e: unknown) => ({ ok: false, error: String(e) }));
+    }
+    // "Open HDRezka" (popup): open the first reachable candidate mirror,
+    // skipping ISP-blocked ones. Returns the promise so the SW stays alive
+    // through the probe + tab open.
+    if (m.type === 'mirrors:open-reachable') {
+      const candidates = Array.isArray(m.candidates)
+        ? (m.candidates as unknown[]).filter((c): c is string => typeof c === 'string')
+        : [];
+      return openReachableMirror(candidates).catch(() => ({ ok: false }));
     }
     // FEAT-016: the content script mirrors the live playback rate onto the
     // toolbar icon badge. Only the SW can call chrome.action; the sender's

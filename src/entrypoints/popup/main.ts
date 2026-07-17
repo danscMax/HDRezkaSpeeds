@@ -460,13 +460,27 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
               ui.showNotification(ctx.i18n.t('toast.open_no_candidate'), 'warn');
               return;
             }
-            // Open the freshest known host directly. A stale entry is
-            // harmless: HDRezka's own domains redirect to the live mirror.
-            // We used to HEAD-probe candidates for reachability first, but a
-            // no-cors probe only ever resolves to an opaque 200 — a
-            // parked/seized domain reads as "reachable" identically to the
-            // real site — so it added up to 2.5s/host of latency for a signal
-            // that couldn't tell live from dead.
+            // Ask the SW to open the first REACHABLE candidate. HDRezka's
+            // canonical domains are frequently ISP-blocked; a no-cors HEAD
+            // probe REJECTS on a blocked host (but resolves opaque on a
+            // reachable one), so the SW skips dead/blocked entries and opens
+            // one that actually loads instead of the freshest-but-blocked
+            // guess. The probe lives in the SW, not here: extension pages are
+            // now under a strict connect-src CSP, and the SW can also reach
+            // built-in hosts via the manifest host permissions. On any failure
+            // we fall back to opening candidates[0] directly.
+            try {
+              const res = (await browser.runtime.sendMessage({
+                type: 'mirrors:open-reachable',
+                candidates,
+              })) as { ok?: boolean } | undefined;
+              if (res?.ok) {
+                window.close();
+                return;
+              }
+            } catch {
+              // SW unreachable — fall through to the direct open.
+            }
             void browser.tabs.create({ url: `https://${candidates[0]}/` });
             window.close();
           })();
