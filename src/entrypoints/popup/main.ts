@@ -54,6 +54,7 @@ import {
   renderSettingsMenu,
   showNotification,
 } from '../../ui';
+import type { MirrorReach } from '../../sites/mirror-reach';
 import { h } from '../../ui/dom-h';
 import type { MirrorsViewModel } from '../../ui/settings/modal';
 import { createLogger } from '../../utils/logger';
@@ -150,6 +151,7 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
     userHosts: [],
     status: {},
     builtinStatus: {},
+    reach: null,
     canManagePermissions: true,
     maxMirrors: MAX_USER_MIRRORS,
     autoFollow: settingsStore.getKey('autoFollowMirrors') === true,
@@ -210,6 +212,9 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
       userHosts,
       status,
       builtinStatus,
+      // Reachability is independent of permission edits — keep the last probe
+      // so a grant/add/remove doesn't wipe the live dots and re-probe.
+      reach: mirrorsVm.reach,
       canManagePermissions: true,
       maxMirrors: MAX_USER_MIRRORS,
       autoFollow: settingsStore.getKey('autoFollowMirrors') === true,
@@ -217,6 +222,32 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
     };
   }
   await refreshMirrorsVm();
+
+  // Live reachability of the built-in mirrors — reads each homepage in the SW
+  // (extension pages are under a strict connect-src CSP; the SW isn't, and it
+  // holds the built-in host permissions). Fired lazily when the Mirrors tab is
+  // shown so a popup that never visits Mirrors makes no probe requests. Turns
+  // the misleading always-green permission dots into a real "which mirror
+  // works right now" signal the user can click.
+  let reachProbing = false;
+  function probeReach(): void {
+    if (reachProbing || mirrorsVm.reach) return;
+    reachProbing = true;
+    const hosts = [...mirrorsVm.builtinHosts];
+    void browser.runtime
+      .sendMessage({ type: 'mirrors:probe', hosts })
+      .then((res) => {
+        const r = res as { ok?: boolean; reach?: Record<string, MirrorReach> } | undefined;
+        if (r?.ok && r.reach) {
+          mirrorsVm = { ...mirrorsVm, reach: r.reach };
+          rerender();
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        reachProbing = false;
+      });
+  }
 
   const logger = createLogger({ scriptName: 'HDREZKA-POPUP' });
   const cleanup = new CleanupRegistry();
@@ -460,15 +491,14 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
               ui.showNotification(ctx.i18n.t('toast.open_no_candidate'), 'warn');
               return;
             }
-            // Ask the SW to open the first REACHABLE candidate. HDRezka's
-            // canonical domains are frequently ISP-blocked; a no-cors HEAD
-            // probe REJECTS on a blocked host (but resolves opaque on a
-            // reachable one), so the SW skips dead/blocked entries and opens
-            // one that actually loads instead of the freshest-but-blocked
-            // guess. The probe lives in the SW, not here: extension pages are
-            // now under a strict connect-src CSP, and the SW can also reach
-            // built-in hosts via the manifest host permissions. On any failure
-            // we fall back to opening candidates[0] directly.
+            // Ask the SW to classify the candidates (it READS each homepage —
+            // ISP-blocked domains answer with a stub/bot-check on HTTP 200, so
+            // "did it respond" is worthless) and open the first that actually
+            // serves HDRezka. The probe lives in the SW: extension pages are
+            // under a strict connect-src CSP, and the SW holds the built-in
+            // host permissions. If NOTHING is reachable we do NOT dump the user
+            // on a dead domain — we tell them to open a working mirror
+            // themselves, which the extension then remembers as last-working.
             try {
               const res = (await browser.runtime.sendMessage({
                 type: 'mirrors:open-reachable',
@@ -479,11 +509,16 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
                 return;
               }
             } catch {
-              // SW unreachable — fall through to the direct open.
+              // SW unreachable — fall through to the honest message.
             }
-            void browser.tabs.create({ url: `https://${candidates[0]}/` });
-            window.close();
+            ui.showNotification(ctx.i18n.t('toast.open_none_live'), 'warn');
           })();
+        },
+        openHost: (host) => {
+          // User clicked a specific mirror chip — open it regardless of the
+          // dot (they decided; even a bot-check chip loads in a real tab).
+          void browser.tabs.create({ url: `https://${host}/` });
+          window.close();
         },
         setAutoFollow: async (on) => {
           if (on) {
@@ -527,6 +562,9 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
         if (report) applyReportToMenu(menu, ctx.i18n, report);
       });
     }
+    // Kick the live reachability probe when the Mirrors tab is shown so the
+    // built-in chips light up (green = working). No-op after the first probe.
+    if (activeTab === 'mirrors') probeReach();
   }
 
   // Re-init translator on language switch. Subscriber fires on every

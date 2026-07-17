@@ -1,6 +1,25 @@
 import { defineConfig } from 'wxt';
 import pkg from './package.json' with { type: 'json' };
-import { builtinMatchPatterns } from './src/sites/mirror-hosts';
+import { builtinMatchPatterns, BUILTIN_MIRROR_HOSTS } from './src/sites/mirror-hosts';
+
+// connect-src for the extension_pages CSP. Two legitimate outbound endpoints:
+// the feedback worker (feedback POST) and the built-in mirror hosts — the
+// "Open HDRezka" reachability probe fetches each mirror's homepage from the
+// background. In FIREFOX the background is an EVENT PAGE (an extension page),
+// so it runs under extension_pages CSP: without the mirror hosts here the
+// probe fetch is blocked and every mirror looks dead (Chrome's service worker
+// is NOT under this CSP, but we ship one policy for both). Built from the same
+// BUILTIN_MIRROR_HOSTS as host_permissions so the two can never drift.
+// Note: user-added / auto-follow mirrors are NOT listed (arbitrary hosts) — a
+// deliberately tight connect-src; their probe is best-effort only.
+const FEEDBACK_WORKER = 'https://speeds-feedback.matsiyak.workers.dev';
+const MIRROR_CONNECT_SRC = BUILTIN_MIRROR_HOSTS.flatMap((host) => [
+  `https://${host}`,
+  `https://*.${host}`,
+]).join(' ');
+const EXTENSION_PAGES_CSP =
+  `script-src 'self'; object-src 'self'; ` +
+  `connect-src 'self' ${FEEDBACK_WORKER} ${MIRROR_CONNECT_SRC}`;
 
 // WXT config: builds Chrome MV3 + Firefox MV3 from the same source.
 // Browser-specific manifest tweaks are handled via the `manifest` callback below.
@@ -95,15 +114,13 @@ export default defineConfig({
       },
     },
     // Defence-in-depth for the extension's own pages (popup / welcome /
-    // feedback). script-src + object-src 'self' just restate the MV3 default;
-    // connect-src is the addition — the ONLY outbound connection any
-    // extension page makes is the feedback POST to the Cloudflare Worker
-    // (src/entrypoints/feedback/main.ts), so everything else is locked to
-    // 'self'. default-src is intentionally omitted so local img/font/style
-    // for welcome/popup stay unrestricted.
+    // feedback / the FF background event page). script-src + object-src 'self'
+    // restate the MV3 default (the real XSS defence); connect-src is locked to
+    // 'self' + the feedback worker + the built-in mirror hosts the background
+    // probe reaches (see EXTENSION_PAGES_CSP above). default-src is omitted so
+    // local img/font/style for welcome/popup stay unrestricted.
     content_security_policy: {
-      extension_pages:
-        "script-src 'self'; object-src 'self'; connect-src 'self' https://speeds-feedback.matsiyak.workers.dev",
+      extension_pages: EXTENSION_PAGES_CSP,
     },
   }),
 });

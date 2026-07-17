@@ -51,6 +51,11 @@ export const I18N_DICT = {
     'mirrors.badge.active': 'Active',
     'mirrors.badge.no_access': 'No access',
     'mirrors.badge.unknown': 'Status unknown',
+    // Live reachability dot on the built-in chips (popup).
+    'mirrors.reach.live': 'Working — opens the real HDRezka',
+    'mirrors.reach.challenge': 'Responds behind a bot-check — should open in the browser',
+    'mirrors.reach.dead': 'Not responding — blocked or moved',
+    'mirrors.reach.checking': 'Checking…',
     'mirrors.grant': 'Grant access',
     'mirrors.grant.tip': 'Re-request browser permission for this domain',
     'mirrors.remove.tip': 'Remove this mirror',
@@ -62,6 +67,7 @@ export const I18N_DICT = {
     // Auto-follow (part A) + open-mirror (part C).
     'mirrors.open': 'Open HDRezka',
     'mirrors.open.tip': 'Open a working HDRezka mirror in a new tab',
+    'mirrors.open_host.tip': 'Open {host} in a new tab',
     'mirrors.autofollow.section': 'Automatic mirrors',
     'mirrors.autofollow.label': 'Work on any HDRezka mirror',
     'mirrors.autofollow.hint':
@@ -84,6 +90,8 @@ export const I18N_DICT = {
     'toast.autofollow_off': 'Auto-follow disabled',
     'toast.autofollow_denied': 'Auto-follow needs access to all sites',
     'toast.open_no_candidate': 'No known mirror to open yet',
+    'toast.open_none_live':
+      'No known mirror is responding as working. Open one yourself — the extension will remember it for next time.',
 
     // general.*
     'general.speed_presets': 'Speed buttons',
@@ -440,6 +448,11 @@ export const I18N_DICT = {
     'mirrors.badge.active': 'Активно',
     'mirrors.badge.no_access': 'Нет доступа',
     'mirrors.badge.unknown': 'Статус неизвестен',
+    // Живая доступность на встроенных чипах (попап).
+    'mirrors.reach.live': 'Рабочее — откроется настоящая HDRezka',
+    'mirrors.reach.challenge': 'Отвечает за бот-проверкой — должно открыться в браузере',
+    'mirrors.reach.dead': 'Не отвечает — заблокировано или переехало',
+    'mirrors.reach.checking': 'Проверяю…',
     'mirrors.grant': 'Выдать доступ',
     'mirrors.grant.tip': 'Повторно запросить у браузера разрешение для этого домена',
     'mirrors.remove.tip': 'Удалить это зеркало',
@@ -451,6 +464,7 @@ export const I18N_DICT = {
     // Авто-follow (часть A) + открыть зеркало (часть C).
     'mirrors.open': 'Открыть HDRezka',
     'mirrors.open.tip': 'Открыть рабочее зеркало HDRezka в новой вкладке',
+    'mirrors.open_host.tip': 'Открыть {host} в новой вкладке',
     'mirrors.autofollow.section': 'Автоматические зеркала',
     'mirrors.autofollow.label': 'Работать на любом зеркале HDRezka',
     'mirrors.autofollow.hint':
@@ -473,6 +487,8 @@ export const I18N_DICT = {
     'toast.autofollow_off': 'Авто-follow выключен',
     'toast.autofollow_denied': 'Для авто-follow нужен доступ ко всем сайтам',
     'toast.open_no_candidate': 'Пока нет известного зеркала для открытия',
+    'toast.open_none_live':
+      'Ни одно известное зеркало не отвечает как рабочее. Откройте рабочее сами — расширение запомнит его на следующий раз.',
 
     // general.*
     'general.speed_presets': 'Кнопки скорости',

@@ -2127,6 +2127,42 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   background: var(--vs-menu-button-bg-hover);
   border-color: var(--vs-accent, #ff0000);
 }
+/* Live-reachability dot on built-in chips (popup). Distinct from
+   .vs-mirror-status (permission) — this reflects whether the mirror actually
+   serves HDRezka right now, probed by the SW: green=working, amber=bot-check
+   (opens in a real tab), red=dead, grey pulse=checking. */
+.vs-mirror-reach {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9e9e9e;
+}
+.vs-mirror-reach[data-reach='live'] { background: #34c759; }
+.vs-mirror-reach[data-reach='challenge'] { background: #ff9f0a; }
+.vs-mirror-reach[data-reach='dead'] { background: #ff453a; }
+.vs-mirror-reach[data-reach='checking'] {
+  animation: vs-mirror-reach-pulse 1s ease-in-out infinite;
+}
+@keyframes vs-mirror-reach-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+/* Clickable built-in chip that opens its mirror on click. Dead chips dim but
+   stay clickable — the user may still want to try. */
+.vs-mirror-chip-open {
+  cursor: pointer;
+  color: var(--vs-text-primary);
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.vs-mirror-chip-open:hover {
+  background: var(--vs-menu-button-bg-hover);
+  border-color: var(--vs-accent, #ff0000);
+}
+.vs-mirror-chip-open[data-reach='dead'] { opacity: 0.55; }
+@media (prefers-reduced-motion: reduce) {
+  .vs-mirror-reach[data-reach='checking'] { animation: none; opacity: 0.6; }
+}
 /* 5 tabs (General/Keys/Mirrors/Diagnostics/Support) need a slightly
    tighter strip than the original 4-tab layout; labels still crop via
    the existing flex 1 1 0 + overflow rule on .vs-tab. */

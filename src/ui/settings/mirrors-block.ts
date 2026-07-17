@@ -14,6 +14,7 @@
  */
 
 import type { Translator } from '../../app/ports';
+import type { MirrorReach } from '../../sites/mirror-reach';
 import { h } from '../dom-h';
 import { vsIcon } from '../icons';
 
@@ -27,6 +28,11 @@ export interface MirrorsViewModel {
    *  added by an extension UPDATE (bug 1893232), so a built-in can be
    *  non-granted there; the popup offers the same re-grant button. */
   builtinStatus: Record<string, boolean> | null;
+  /** Live reachability of the built-in mirrors (popup only). `null` = not
+   *  probed yet (show a "checking" dot); a missing host = still checking.
+   *  Lets the user pick a WORKING mirror instead of guessing — the built-in
+   *  chips carry a green/amber/red dot and open the domain on click. */
+  reach?: Record<string, MirrorReach> | null;
   /** True in the popup — `permissions.request` is reachable there. */
   canManagePermissions: boolean;
   /** Popup-only: current "work on any mirror automatically" opt-in state. */
@@ -63,6 +69,17 @@ function statusBadge(state: BadgeState, i18n: Translator): HTMLElement {
     'data-state': state,
     title: i18n.t(key),
     'aria-label': i18n.t(key),
+  });
+}
+
+/** Live-reachability dot for a built-in chip. Undefined = still checking. */
+function reachDot(reach: MirrorReach | undefined, i18n: Translator): HTMLElement {
+  const state = reach ?? 'checking';
+  return h('span', {
+    class: 'vs-mirror-reach',
+    'data-reach': state,
+    title: i18n.t(`mirrors.reach.${state}`),
+    'aria-label': i18n.t(`mirrors.reach.${state}`),
   });
 }
 
@@ -207,7 +224,13 @@ export function renderMirrorsBlock(vm: MirrorsViewModel, i18n: Translator): HTML
     ),
   );
 
-  // ----- Built-in mirrors (read-only chips; re-grant only in popup) -----
+  // ----- Built-in mirrors -----
+  // Popup: each granted chip is a button that OPENS the mirror, tagged with a
+  // live reachability dot (green = working, amber = bot-check, red = dead) so
+  // the user picks a working one instead of guessing. Firefox may leave a
+  // built-in non-granted after an update (bug 1893232) — that chip re-grants
+  // instead. In-player the chips are static (built-ins granted by definition,
+  // and no reachability probe runs there).
   const builtinChips = vm.builtinHosts.map((host) => {
     const state = badgeState(vm.builtinStatus ? vm.builtinStatus[host] : null);
     if (vm.canManagePermissions && state === 'no-access') {
@@ -224,14 +247,22 @@ export function renderMirrorsBlock(vm: MirrorsViewModel, i18n: Translator): HTML
         host,
       );
     }
-    return h(
-      'span',
-      { class: 'vs-mirror-chip', 'data-state': state },
-      // In-player the badge is noise: built-ins are granted by definition
-      // when the content script is running.
-      vm.canManagePermissions ? statusBadge(state, i18n) : null,
-      host,
-    );
+    if (vm.canManagePermissions) {
+      const reach = vm.reach ? vm.reach[host] : undefined;
+      return h(
+        'button',
+        {
+          type: 'button',
+          class: 'vs-mirror-chip vs-mirror-chip-open',
+          'data-vs-mirror-open-host': host,
+          'data-reach': reach ?? 'checking',
+          title: t('mirrors.open_host.tip', { host }),
+        },
+        reachDot(reach, i18n),
+        host,
+      );
+    }
+    return h('span', { class: 'vs-mirror-chip' }, host);
   });
   out.push(
     h(

@@ -110,6 +110,8 @@ export interface SettingsHandlersDeps {
     /** Popup-only: open a working HDRezka mirror in a new tab (last-known-
      *  good first). Used when no rezka tab is currently open. */
     openMirror?(): void;
+    /** Popup-only: open a specific built-in mirror the user clicked (chip). */
+    openHost?(host: string): void;
     /** Popup-only: toggle the broad "work on any mirror" opt-in. Requests
      *  the all-sites host permission (user gesture) and returns the FINAL
      *  state (false if the user denied). Called synchronously from the
@@ -835,6 +837,23 @@ function attachMirrorHandlers(
       event.stopPropagation();
       openMirror();
     });
+  }
+
+  // Built-in chips — click a specific mirror (with its live status dot) to
+  // open it directly. Popup-only; the in-player surface renders static chips.
+  const openHost = mirrors.openHost;
+  if (openHost) {
+    for (const chip of Array.from(
+      menuRoot.querySelectorAll<HTMLButtonElement>('[data-vs-mirror-open-host]'),
+    )) {
+      const host = chip.dataset.vsMirrorOpenHost;
+      if (!host) continue;
+      ctx.cleanup.addEventListener(chip, 'click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openHost(host);
+      });
+    }
   }
 
   // Auto-follow opt-in toggle. setAutoFollow requests the all-sites grant,

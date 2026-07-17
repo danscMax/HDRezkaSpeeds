@@ -47,13 +47,16 @@ want to send it to the developer.
 | `host_permissions` (HDRezka mirrors) | Inject the speed-control UI into the HDRezka video player. The extension does not run on any other site. |
 | `*://*/*` (optional — "Auto-follow mirrors") | **Off by default.** Only if you turn on Settings → Mirrors → "Work on any HDRezka mirror" and accept the browser prompt. It lets the extension recognise HDRezka on a new mirror domain — by the domain name (an `hdrezka.*`/`rezka.*` pattern) or by the player's DOM signature — so a moved site keeps working without a store update. The content script self-bails on pages that are neither, and you can revoke this anytime from the browser's extension settings. |
 
-The **"Open HDRezka"** button (popup → Mirrors), **only** when you click it,
-sends a `HEAD` reachability probe from the background service worker to your
-known mirror domains and opens the first one that responds — HDRezka's
-canonical domains are often ISP-blocked, so this skips the dead ones instead
-of opening a blocked page. It transmits no data beyond the request itself (no
-cookies, headers, or body are read — a bare "did it respond" check) and is
-used solely to pick a reachable mirror to open in a new tab.
+The **"Open HDRezka"** button (popup → Mirrors) and the Mirrors tab's live
+status dots fetch your known mirror homepages from the background service
+worker — **only** when you open the Mirrors tab or click the button. HDRezka's
+canonical domains are often ISP-blocked with a stub or anti-bot page that still
+returns HTTP 200, so a bare "did it respond" check is not enough: the worker
+reads each homepage to tell a working mirror from a blocked/stub one, and then
+opens (or highlights green) a working one. The probe sends **no cookies**
+(`credentials: 'omit'`), reads only the public homepage HTML to classify it,
+stores nothing, and is used solely to pick a reachable mirror to open in a new
+tab. It runs only on your action.
 
 The Firefox manifest declares
 `browser_specific_settings.gecko.data_collection_permissions:
@@ -151,13 +154,18 @@ issue, если хотите отправить разработчику.
 | `host_permissions` (зеркала HDRezka) | Встраивать панель управления скоростью в плеер HDRezka. Расширение не работает на других сайтах. |
 | `*://*/*` (опционально — «Автозеркала») | **По умолчанию выключено.** Только если вы включите Настройки → Зеркала → «Работать на любом зеркале HDRezka» и подтвердите запрос браузера. Позволяет распознавать HDRezka на новом домене — по имени домена (шаблон `hdrezka.*`/`rezka.*`) или по DOM-сигнатуре плеера — чтобы переехавший сайт продолжал работать без обновления в сторе. На страницах, которые ни то, ни другое, контент-скрипт сразу выходит; право можно отозвать в любой момент в настройках расширения браузера. |
 
-Кнопка **«Открыть HDRezka»** (попап → Зеркала) **только** при вашем клике
-отправляет `HEAD`-запрос-проверку доступности из фонового service worker на
-ваши известные домены-зеркала и открывает первый ответивший — канонические
-домены HDRezka часто заблокированы провайдером, и так мы пропускаем мёртвые
-вместо открытия заблокированной страницы. Кроме самого запроса ничего не
-передаётся (ни куки, ни заголовки, ни тело — просто «ответил ли»), и он нужен
-исключительно чтобы выбрать доступное зеркало для открытия в новой вкладке.
+Кнопка **«Открыть HDRezka»** (попап → Зеркала) и живые точки статуса на вкладке
+«Зеркала» запрашивают главные страницы ваших известных зеркал из фонового
+service worker — **только** когда вы открываете вкладку «Зеркала» или нажимаете
+кнопку. Канонические домены HDRezka часто заблокированы провайдером заглушкой
+или анти-бот-страницей, которая всё равно отдаёт HTTP 200, поэтому проверки
+«ответил ли» недостаточно: worker читает главную страницу каждого зеркала,
+чтобы отличить рабочее от заблокированного/заглушки, и затем открывает (или
+подсвечивает зелёным) рабочее. Проверка **не отправляет куки**
+(`credentials: 'omit'`), читает только публичный HTML главной страницы для
+классификации, ничего не сохраняет и нужна исключительно чтобы выбрать
+доступное зеркало для открытия в новой вкладке. Срабатывает только по вашему
+действию.
 
 В Firefox-манифесте задекларировано
 `browser_specific_settings.gecko.data_collection_permissions:

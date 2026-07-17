@@ -32,6 +32,7 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { storageKeysFor } from '../config';
+import { classifyMirrorBody, type MirrorReach } from '../sites/mirror-reach';
 import { builtinMatchPatterns, BUILTIN_MIRROR_HOSTS, originPatternsFor } from '../sites/mirror-hosts';
 import { createBrowserStorageAdapter } from '../storage/adapter';
 import { MIRRORS_STORAGE_KEY, readUserMirrors, sanitizeMirrorList } from '../storage/mirrors-store';
@@ -198,14 +199,20 @@ export default defineBackground(() => {
   }
 
   /**
-   * Probe a host with a bounded no-cors HEAD. A fulfilled fetch (even an
-   * opaque response) == reachable; a reject == blocked / dead. This is the one
-   * thing the probe reliably tells apart — HDRezka's canonical domains are
-   * frequently ISP-blocked (DNS blackhole / TCP reset), and those reject.
+   * Classify a mirror by READING its homepage. A no-cors HEAD only tells us
+   * "something answered", which is worthless: ISP-blocked domains return a
+   * stub / anti-bot page with HTTP 200, so a HEAD marks a dead mirror
+   * reachable and we open a blank page. The extension holds host permissions
+   * for the built-ins, so the SW can fetch cross-origin and read the body;
+   * classification lives in the pure, unit-tested mirror-reach module.
+   * `credentials: 'omit'` — never send the user's cookies on a probe.
    */
-  async function probeMirrorHost(host: string): Promise<boolean> {
+  /** A no-cors HEAD needs NO host permission and resolves on any reachable
+   *  host (opaque). Used only as a fallback to tell "reachable but unreadable"
+   *  from "dead" when the content read below rejects. */
+  async function isReachableNoCors(host: string): Promise<boolean> {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 2500);
+    const timer = setTimeout(() => ctrl.abort(), 4000);
     try {
       await fetch(`https://${host}/`, {
         method: 'HEAD',
@@ -222,20 +229,62 @@ export default defineBackground(() => {
     }
   }
 
+  async function classifyMirror(host: string): Promise<MirrorReach> {
+    const ctrl = new AbortController();
+    // Live/challenge mirrors answer in well under a second; this bound only
+    // decides how long we wait on a DEAD host before giving up, so keep it
+    // short — it caps the "Open HDRezka" button's worst-case wait.
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    try {
+      const res = await fetch(`https://${host}/`, {
+        redirect: 'follow',
+        cache: 'no-store',
+        credentials: 'omit',
+        signal: ctrl.signal,
+      });
+      if (!res.ok) return 'dead';
+      return classifyMirrorBody(res.ok, await res.text());
+    } catch {
+      // The content read (default cors mode) rejects for TWO reasons: the host
+      // is truly dead, OR we lack the granted host permission to read it
+      // cross-origin (Firefox can leave a built-in ungranted after an
+      // extension update — bug 1893232). A no-cors HEAD needs no permission
+      // and still resolves on a reachable host, so it tells "reachable but
+      // unreadable" (challenge — still opens) from "dead". Keeps this probe
+      // never worse than the old permission-free HEAD.
+      return (await isReachableNoCors(host)) ? 'challenge' : 'dead';
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** Reachability map for a set of hosts (all classified in parallel). */
+  async function probeMirrors(hosts: string[]): Promise<Record<string, MirrorReach>> {
+    const states = await Promise.all(hosts.map(classifyMirror));
+    const out: Record<string, MirrorReach> = {};
+    hosts.forEach((host, i) => {
+      out[host] = states[i] as MirrorReach;
+    });
+    return out;
+  }
+
   /**
-   * "Open HDRezka": probe the ordered candidates (all in parallel, ~2.5s
-   * bound) and open the first REACHABLE one in a new tab, skipping
-   * blocked/dead entries; fall back to the freshest guess if none answer.
-   * Lives in the SW so it isn't blocked by the extension-pages CSP and can
-   * reach built-in hosts via the manifest host permissions.
+   * "Open HDRezka": classify the ordered candidates (parallel) and open the
+   * first LIVE one, falling back to the first CHALLENGE (a bot-check that may
+   * still pass in a real tab). NEVER opens a DEAD one — if every candidate is
+   * dead we return {ok:false} and the popup tells the user to open a mirror
+   * themselves (which then becomes the remembered last-working host). Lives in
+   * the SW so it isn't blocked by the extension-pages CSP and can read
+   * built-in hosts via the manifest host permissions.
    */
   async function openReachableMirror(candidates: string[]): Promise<{ ok: boolean }> {
     if (candidates.length === 0) return { ok: false };
-    const reachable = await Promise.all(candidates.map(probeMirrorHost));
-    const idx = reachable.findIndex(Boolean);
-    const host = (idx >= 0 ? candidates[idx] : candidates[0]) as string;
+    const states = await Promise.all(candidates.map(classifyMirror));
+    const liveIdx = states.indexOf('live');
+    const idx = liveIdx >= 0 ? liveIdx : states.indexOf('challenge');
+    if (idx < 0) return { ok: false };
     try {
-      await browser.tabs.create({ url: `https://${host}/` });
+      await browser.tabs.create({ url: `https://${candidates[idx]}/` });
       return { ok: true };
     } catch (e) {
       console.warn('[HDREZKA-SPEEDS] open-reachable failed', e);
@@ -352,9 +401,25 @@ export default defineBackground(() => {
   const ALLOWED_PAGES = new Set(['/feedback.html', '/welcome.html']);
   browser.runtime.onMessage.addListener((msg: unknown, sender): Promise<unknown> | undefined => {
     if (!msg || typeof msg !== 'object') return undefined;
-    const m = msg as { type?: unknown; path?: unknown; text?: unknown; candidates?: unknown };
+    const m = msg as {
+      type?: unknown;
+      path?: unknown;
+      text?: unknown;
+      candidates?: unknown;
+      hosts?: unknown;
+    };
     if (m.type === 'mirrors:get-status') {
       return getMirrorStatus().catch((e: unknown) => ({ ok: false, error: String(e) }));
+    }
+    // Live reachability of the given hosts (popup Mirrors tab dots). Reads each
+    // homepage body to tell a working mirror from an ISP stub / bot-check.
+    if (m.type === 'mirrors:probe') {
+      const hosts = Array.isArray(m.hosts)
+        ? (m.hosts as unknown[]).filter((hostName): hostName is string => typeof hostName === 'string')
+        : [];
+      return probeMirrors(hosts)
+        .then((reach) => ({ ok: true, reach }))
+        .catch(() => ({ ok: false }));
     }
     // "Open HDRezka" (popup): open the first reachable candidate mirror,
     // skipping ISP-blocked ones. Returns the promise so the SW stays alive

@@ -55,6 +55,20 @@ versioning is [SemVer](https://semver.org/).
 
 ### Fixed
 
+- **"Open HDRezka" now opens a mirror that actually works, and the built-in
+  mirror list shows live status.** Two bugs stacked here. First, on Firefox the
+  `connect-src` policy shipped in this release also governs the background (it's
+  an event page there, unlike Chrome's service worker), and it didn't list the
+  mirror hosts — so the reachability probe was blocked outright and every mirror
+  looked dead. Second, the probe itself only asked "did the domain respond", but
+  ISP-blocked domains answer with a stub or "checking you're not a bot" page on
+  HTTP 200. The background worker now reads each mirror's homepage (mirror hosts
+  are allowed in `connect-src`) to tell a working HDRezka from a blocked/stub
+  one; the button opens the first working mirror (never a dead one — if none
+  respond as working it tells you to open one yourself), and each built-in chip
+  in the Mirrors tab carries a live green/amber/red dot and opens that mirror on
+  click. `PRIVACY.md` updated: the probe reads the public homepage HTML to
+  classify it and sends no cookies.
 - **Auto-follow no longer double-loads on rezka pages.** The broad content
   script now excludes built-in and user-mirror hosts (`excludeMatches`), so a
   known mirror isn't matched by two registrations at once.
@@ -72,10 +86,12 @@ versioning is [SemVer](https://semver.org/).
 ### Security
 
 - **Explicit Content-Security-Policy on the extension's own pages.** The
-  popup/welcome/feedback pages now declare `connect-src 'self' <feedback
-  worker>` (on top of the MV3-default `script-src 'self'`), so the only
-  outbound connection they can make is the feedback submission you trigger —
-  everything else is blocked.
+  popup/welcome/feedback pages (and, on Firefox, the background event page) now
+  declare `connect-src 'self' <feedback worker> <built-in mirror hosts>` on top
+  of the MV3-default `script-src 'self'`. Outbound connections are limited to
+  the feedback submission you trigger and the "Open HDRezka" reachability probe
+  of the known mirror hosts — everything else is blocked. The mirror list is
+  generated from the same source as `host_permissions`, so the two can't drift.
 
 ## [0.5.3] — 2026-07-10
 
