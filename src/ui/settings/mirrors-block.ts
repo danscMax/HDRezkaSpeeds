@@ -72,6 +72,20 @@ export function renderMirrorsBlock(vm: MirrorsViewModel, i18n: Translator): HTML
 
   out.push(h('p', { class: 'vs-help-text' }, t('mirrors.help')));
 
+  // In-player only: the auto-follow toggle + "Open HDRezka" live in the
+  // toolbar popup (a content script can't call permissions.request), so a
+  // user opening this tab from the video gear finds no switch. Point them at
+  // the toolbar icon so the feature is discoverable from where they watch.
+  if (!vm.canManagePermissions) {
+    out.push(
+      h(
+        'p',
+        { class: 'vs-mirror-hint-warn vs-autofollow-player-hint' },
+        t('mirrors.autofollow.player_hint'),
+      ),
+    );
+  }
+
   // Popup CTA row: either "reload the tab" (host already added + granted —
   // the content script loads on next navigation) or "add current site".
   if (vm.currentHost?.offerReload) {

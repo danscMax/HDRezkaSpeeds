@@ -1337,25 +1337,26 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
 }
 .vs-tab {
   position: relative;
-  padding: 6px 6px;
+  padding: 7px 4px;
   background: transparent;
   border: none;
   color: inherit;
   cursor: pointer;
   opacity: 0.55;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   white-space: nowrap;
-  /* flex: 1 1 0 distributes the tab strip width evenly across the
-     tabs; min-width:0 + overflow:hidden lets text crop cleanly
-     instead of spilling past the flex-box. */
+  /* Text-only tabs (icons dropped — icon+label overflowed 5 cells in the
+     420px popup and read as overlapping). flex: 1 1 0 distributes the strip
+     width evenly; min-width:0 + overflow:hidden + ellipsis crop a too-long
+     label cleanly instead of spilling past the flex cell. */
   flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
   transition: color 160ms ease, opacity 160ms ease;
 }
 .vs-tab:hover { opacity: 0.85; }
@@ -2094,6 +2095,11 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   font-size: 11px;
   line-height: 1.45;
   color: #ff9f0a;
+}
+/* The in-player "enable auto-follow from the toolbar" tip needs breathing
+   room before the "My mirrors" section that follows it. */
+.vs-autofollow-player-hint {
+  margin-bottom: 14px;
 }
 .vs-mirror-chips {
   display: flex;

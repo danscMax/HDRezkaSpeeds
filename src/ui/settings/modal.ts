@@ -802,8 +802,6 @@ export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
         'aria-selected': activeTab === 'general' ? 'true' : 'false',
         title: t('tabs.general.tip'),
       },
-      vsIcon('sliders', 13),
-      ' ',
       t('tabs.general'),
     ),
     h(
@@ -815,8 +813,6 @@ export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
         'aria-selected': activeTab === 'hotkeys' ? 'true' : 'false',
         title: t('tabs.shortcuts.tip'),
       },
-      vsIcon('keyboard', 13),
-      ' ',
       t('tabs.shortcuts'),
     ),
     opts.mirrors
@@ -829,8 +825,6 @@ export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
             'aria-selected': activeTab === 'mirrors' ? 'true' : 'false',
             title: t('tabs.mirrors.tip'),
           },
-          vsIcon('globe', 13),
-          ' ',
           t('tabs.mirrors'),
         )
       : null,
@@ -843,8 +837,6 @@ export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
         'aria-selected': activeTab === 'diag' ? 'true' : 'false',
         title: t('tabs.diag.tip'),
       },
-      vsIcon('wrench', 13),
-      ' ',
       t('tabs.diag'),
     ),
     h(
@@ -856,8 +848,6 @@ export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
         'aria-selected': activeTab === 'donate' ? 'true' : 'false',
         title: t('tabs.donate.tip'),
       },
-      vsIcon('heart', 13),
-      ' ',
       t('tabs.donate'),
     ),
   );

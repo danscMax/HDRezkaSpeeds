@@ -23,7 +23,9 @@
 export const I18N_DICT = {
   en: {
     // menu.*
-    'menu.title': 'Playback Speed',
+    // Brand identity in the menu/popup header — kept untranslated so it reads
+    // as the app name, not a section that competes with the tab labels.
+    'menu.title': 'HDRezka Speed',
 
     // tabs.*
     'tabs.general': 'General',
@@ -64,6 +66,10 @@ export const I18N_DICT = {
     'mirrors.autofollow.label': 'Work on any HDRezka mirror',
     'mirrors.autofollow.hint':
       'Follow HDRezka to any new domain automatically. Requires access to all sites — the extension checks each page and activates only on HDRezka. Off by default.',
+    // In-player only: the toggle can't request permissions from a content
+    // script, so point the user at the toolbar popup where it lives.
+    'mirrors.autofollow.player_hint':
+      'Tip: to work on any mirror automatically, open the extension from its toolbar icon and turn on “Work on any HDRezka mirror”.',
     'toast.mirror_added': 'Mirror {host} added',
     'toast.mirror_removed': 'Mirror removed',
     'toast.mirror_invalid': 'Invalid domain',
@@ -407,7 +413,8 @@ export const I18N_DICT = {
   },
   ru: {
     // menu.*
-    'menu.title': 'Скорость воспроизведения',
+    // Brand — same in both languages (see the EN note).
+    'menu.title': 'HDRezka Speed',
 
     // tabs.*
     'tabs.general': 'Общие',
@@ -448,6 +455,10 @@ export const I18N_DICT = {
     'mirrors.autofollow.label': 'Работать на любом зеркале HDRezka',
     'mirrors.autofollow.hint':
       'Автоматически следовать за HDRezka на любой новый домен. Требуется доступ ко всем сайтам — расширение проверяет каждую страницу и включается только на HDRezka. По умолчанию выключено.',
+    // В плеере: тумблер не может запросить право из контент-скрипта — указываем
+    // на попап по иконке.
+    'mirrors.autofollow.player_hint':
+      'Подсказка: чтобы работать на любом зеркале автоматически, откройте расширение по иконке на панели браузера и включите «Работать на любом зеркале HDRezka».',
     'toast.mirror_added': 'Зеркало {host} добавлено',
     'toast.mirror_removed': 'Зеркало удалено',
     'toast.mirror_invalid': 'Некорректный домен',

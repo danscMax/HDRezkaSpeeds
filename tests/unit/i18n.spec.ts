@@ -46,7 +46,9 @@ describe('I18N_DICT', () => {
 describe('createTranslator()', () => {
   it('returns the requested-language string when present', () => {
     const t = createTranslator('ru');
-    expect(t.t('menu.title')).toBe('Скорость воспроизведения');
+    // menu.title is a brand ("HDRezka Speed", same in both languages) — use a
+    // genuinely translated key to prove the RU string comes back.
+    expect(t.t('tabs.general')).toBe('Общие');
   });
 
   it('falls back to English when the key is missing in the requested language', () => {
