@@ -521,6 +521,24 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   position: static;
   animation: vs-fade-in 0.3s ease;
 }
+/* No extension UI in fullscreen (user directive 2026-07-27). Native
+   fullscreen paints only the fullscreenElement's subtree, and the panel is
+   a SIBLING of the player container — so it is already off-screen there.
+   This rule covers what genuinely lives INSIDE the player: the slider in
+   'video' position, the "1.50x" popup, and the panel itself in the case
+   where the site fullscreens an ancestor that contains it. Second matcher
+   is Plyr's CSS-only pseudo-fullscreen (used when the Fullscreen API is
+   unavailable — no fullscreenElement, hence no :fullscreen match).
+   The :is() wrapper is deliberate, not cosmetic: it is forgiving, so a
+   browser that doesn't know :fullscreen drops only that matcher instead of
+   invalidating the whole selector list. Don't flatten it back.
+   The toast/chip stack is NOT here on purpose: it carries an inline
+   display-!important declaration, which an author stylesheet cannot
+   override — it is guarded in JS instead (ui/notifications.ts + the
+   fullscreenchange listener in index.ts). */
+:is(:fullscreen, .plyr--fullscreen-fallback) :is(.vs-panel, .vs-slider-in-chrome, .speed-popup) {
+  display: none !important;
+}
 /* sliderPosition='bottom' -- buttons + gear share the top row; slider
    takes its own row below them. Mirrors .user.js:2873-2877 layout-bottom
    where wrapperDiv (buttons + settings) sat above sliderContainer.

@@ -81,28 +81,8 @@ function ensurePopup(container: Element | null): HTMLElement {
   return popup;
 }
 
-/**
- * Re-parent the popup into the fullscreen element when the user enters
- * fullscreen, and back into its anchor when they leave. Without this the
- * popup keeps its CSS-positioning anchor in the underlying document
- * coordinates and renders off-screen during fullscreen playback. Mirrors
- * .user.js:2599-2622. Returns a cleanup function.
- */
-export function installFullscreenReparent(resolveAnchor: () => Element | null): () => void {
-  function repositionPopup(): void {
-    const popup = document.getElementById(POPUP_ID);
-    if (!popup) return;
-    const fs = document.fullscreenElement;
-    const target = fs ?? resolveAnchor() ?? document.body;
-    if (popup.parentElement !== target) {
-      try {
-        target.appendChild(popup);
-      } catch {
-        /* swallow */
-      }
-    }
-  }
-  const handler = (): void => repositionPopup();
-  document.addEventListener('fullscreenchange', handler);
-  return () => document.removeEventListener('fullscreenchange', handler);
-}
+// The fullscreen re-parent that used to live here (.user.js:2599-2622,
+// port of the "popup follows you into fullscreen" behaviour) is gone: the
+// extension shows no UI in fullscreen at all (user directive 2026-07-27).
+// The popup is hidden by the `:fullscreen .speed-popup` rule in styles.ts
+// whenever its host lands inside the fullscreen subtree.

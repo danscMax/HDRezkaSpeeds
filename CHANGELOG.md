@@ -4,6 +4,25 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.6.1] — 2026-07-28
+
+### Changed
+
+- **No extension UI in fullscreen.** Entering fullscreen used to drag the whole
+  panel into the fullscreen element on purpose (v0.3.5 audit MAJ-9), so buttons,
+  slider, gear — and the "1.50x" popup — sat on top of the picture. That
+  re-parenting is gone: the panel stays beside the player (which native
+  fullscreen simply does not render), the surfaces that live inside the player
+  (in-chrome slider, speed popup) are hidden by `:fullscreen` rules, and toasts
+  no longer appear over the video. A durable chip (the resume offer, or a
+  "panel failed → reload" warning) isn't lost: it waits and appears once you
+  leave fullscreen — unless it went stale meanwhile (watched past the resume
+  point), in which case it never shows. Keyboard shortcuts keep working — they
+  never depended on the panel.
+  Side effect: the reparent also fought the panel's own removal-watcher, which
+  yanked the panel back out on the *first* fullscreen entry and stopped watching
+  afterwards; both the flicker and the dead watcher are gone with it.
+
 ## [0.6.0] — 2026-07-16
 
 ### Added

@@ -76,9 +76,8 @@ import {
 import { createSettingsStore } from './storage/settings-store';
 import { createSpeedStore } from './storage/speed-store';
 import { createPanel, createUiPort, injectStyles, insertPanel, installThemeWatcher } from './ui';
-import { showActionChip, showNotification } from './ui/notifications';
+import { disposeNotificationStack, showActionChip, showNotification } from './ui/notifications';
 import type { PanelMirrors } from './ui/panel';
-import { installFullscreenReparent } from './ui/popup';
 import type { MirrorsViewModel } from './ui/settings/modal';
 import { createLogger } from './utils/logger';
 import {
@@ -777,67 +776,33 @@ export async function bootstrap(
     reattach();
   });
 
-  // 12b. Re-parent the speed-popup into the fullscreen element so it
-  //      stays visible during fullscreen playback.
-  cleanup.add(installFullscreenReparent(() => discoveryPort.resolve('playerContainer')));
-
-  // 12c. Re-integrate the slider into player chrome on fullscreen
-  //      transitions, AND reparent the entire panel root into the
-  //      fullscreenElement when it lives outside the player wrapper.
+  // 12b. Fullscreen: show NO extension UI at all (user directive
+  //      2026-07-27, replaces the v0.3.5 MAJ-9 "stays visible in
+  //      fullscreen" behaviour).
   //
-  //      Browser fullscreen (`Element.requestFullscreen()`) renders ONLY
-  //      the fullscreenElement's subtree. With sliderPosition='right' or
-  //      'bottom', the panel lives next-to / below the player wrapper —
-  //      i.e., outside the wrapper — so it disappears from view in
-  //      fullscreen unless we move it in. v0.3.5 audit MAJ-9.
-  let panelOrigParent: Element | null = null;
-  let panelOrigNext: Node | null = null;
+  //      Native fullscreen renders ONLY the fullscreenElement's subtree,
+  //      and the panel is inserted as a SIBLING of the player container
+  //      (ui/insertion.ts), so simply NOT re-parenting it is enough for
+  //      the common case. The `:fullscreen` rules in ui/styles.ts cover
+  //      the surfaces that live INSIDE the player (slider-in-chrome, the
+  //      "1.50x" popup) plus the case where the site fullscreens an
+  //      ancestor that contains our panel.
+  //
+  //      The toast/chip stack carries inline `display !important`, which
+  //      no stylesheet rule can override — so it is torn down here on
+  //      entering fullscreen, and showNotification/showActionChip bail
+  //      out while fullscreen is active (ui/notifications.ts).
   ctx.cleanup.addEventListener(document, 'fullscreenchange', () => {
-    const fs = document.fullscreenElement;
-    const panelEl = panel.element;
-
-    if (fs && !fs.contains(panelEl)) {
-      // Entering fullscreen. Remember where the panel was so we can
-      // put it back on exit.
-      if (panelEl.parentElement) {
-        panelOrigParent = panelEl.parentElement;
-        panelOrigNext = panelEl.nextSibling;
-      }
+    if (document.fullscreenElement) {
       try {
-        fs.appendChild(panelEl);
+        disposeNotificationStack();
       } catch (e) {
-        ctx.logger.warn('fullscreen: panel reparent failed', e);
+        ctx.logger.warn('fullscreen: notification stack teardown failed', e);
       }
-    } else if (!fs && panelOrigParent) {
-      // Exiting fullscreen. Restore the panel to its original spot.
-      // Audit 2026-05-11 W6.2 (REL-013): if the original parent was
-      // detached during fullscreen (e.g. episode change while
-      // fullscreen), restoring there orphans the panel — its
-      // sibling-watcher's parent is the same detached node and
-      // won't fire. Fall back to scheduleInsertWithRetry.
-      const origStillLive = document.contains(panelOrigParent);
-      try {
-        if (origStillLive && panelOrigNext && panelOrigNext.parentNode === panelOrigParent) {
-          panelOrigParent.insertBefore(panelEl, panelOrigNext);
-        } else if (origStillLive) {
-          panelOrigParent.appendChild(panelEl);
-        } else {
-          ctx.logger.warn('fullscreen: original parent detached, rescheduling insert');
-          scheduleInsertWithRetry(panelEl, ctx);
-        }
-      } catch (e) {
-        ctx.logger.warn('fullscreen: panel restore failed, rescheduling insert', e);
-        scheduleInsertWithRetry(panelEl, ctx);
-      }
-      panelOrigParent = null;
-      panelOrigNext = null;
+      return;
     }
-
-    // The slider-in-chrome integration ('video' position) is unaffected
-    // by the reparent above (the slider lives inside the player wrapper
-    // when this position is active, so it's already in the fullscreen
-    // subtree). applyLayout still fires to recompute slider geometry
-    // after the chrome resizes.
+    // Leaving fullscreen: the player chrome just resized, so the
+    // in-chrome slider ('video' position) needs its geometry recomputed.
     if (ctx.settingsStore.getKey('sliderPosition') === 'video') {
       ctx.cleanup.setTimeout(() => panel.applyLayout(), 500);
     }

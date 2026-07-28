@@ -67,8 +67,8 @@ WHAT IT DOES
   without opening a video.
 - Automatically follows the HDRezka theme — the panel re-skins to match
   the site's light or dark mode, including when you toggle the theme
-  on the fly. Survives fullscreen playback (panel re-parents into the
-  fullscreen element so it stays visible).
+  on the fly. In fullscreen the panel steps out of the way — no extension
+  UI on top of the picture; the keyboard shortcuts keep working.
 - Accessibility: aria-labels on the gear button, aria-live status
   announcements for diagnostic state and speed changes,
   prefers-reduced-motion support.
@@ -143,8 +143,8 @@ Controller ставит ряд кнопок скорости прямо под �
   видео.
 - Автоматически следует за темой HDRezka — панель перекрашивается под
   светлый или тёмный режим сайта, в том числе при переключении темы
-  «на лету». Сохраняется в полноэкранном режиме (панель переезжает в
-  fullscreen-элемент при входе и обратно при выходе).
+  «на лету». В полноэкранном режиме панель не мешает — интерфейс
+  расширения не показывается поверх картинки, горячие клавиши работают.
 - Доступность: aria-labels на шестерёнке, объявление через aria-live
   при смене скорости и при обновлении статуса диагностики, поддержка
   prefers-reduced-motion.
