@@ -23,7 +23,8 @@
     "test:watch": "vitest",
     "test:smoke": "playwright test",
     "drift": "node scripts/check-drift.mjs",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "test:smoke:fullscreen": "node tests/smoke/fullscreen-no-ui.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
