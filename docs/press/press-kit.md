@@ -31,13 +31,13 @@ HDRezka Speed Controller is a free, open-source browser extension that makes pla
 - 11 speed buttons (1.0×–2.0×, 0.1 steps) docked under the player; slider for in-between values.
 - Single-click = this video, double-click = new default; rebindable hotkeys with a reset key.
 - Mirrors tab: works on all known HDRezka mirrors, add your own per-domain.
-- Follows the HDRezka light/dark theme automatically, including fullscreen.
+- Follows the HDRezka light/dark theme automatically; stays out of the way in fullscreen.
 - Self-healing after site updates; no ads, no telemetry, open source.
 
 ### What makes it different
 - **Movie-tuned steps** — 0.1× increments instead of a jump straight to 1.5×/2×.
 - **Survives the mirror churn** — HDRezka rotates domains constantly; add any mirror and it just works.
-- **Matches the site theme** and stays visible in fullscreen.
+- **Matches the site theme** and hides itself in fullscreen — hotkeys still work.
 - **No ads, open source** — nothing leaves your device.
 
 ---
@@ -60,13 +60,13 @@ HDRezka Speed Controller — бесплатное расширение с отк
 - 11 кнопок скорости (1.0×–2.0×, шаг 0.1) под плеером; ползунок для промежуточных значений.
 - Один клик — это видео, двойной — новая скорость по умолчанию; переназначаемые хоткеи с клавишей сброса.
 - Вкладка «Зеркала»: работает на всех известных зеркалах, свои добавляются отдельно на каждый домен.
-- Автоматически следует за светлой/тёмной темой HDRezka, в том числе в полноэкранном режиме.
+- Автоматически следует за светлой/тёмной темой HDRezka; в полноэкранном режиме не мешает картинке.
 - Самовосстановление после обновлений сайта; без рекламы, без телеметрии, открытый код.
 
 ### Чем отличается
 - **Мелкий «киношный» шаг** — 0.1× вместо прыжка сразу на 1.5×/2×.
 - **Переживает смену зеркал** — HDRezka постоянно меняет домены; добавьте любое зеркало, и всё работает.
-- **Подстраивается под тему сайта** и остаётся видимым в полноэкранном режиме.
+- **Подстраивается под тему сайта** и скрывается в полноэкранном режиме — хоткеи продолжают работать.
 - **Без рекламы, открытый код** — ничего не покидает устройство.
 
 ---

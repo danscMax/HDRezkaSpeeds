@@ -19,6 +19,54 @@ import { type IconName, vsIcon } from './icons';
 
 const STACK_ID = 'speed-notifications';
 
+/**
+ * True while the page is showing fullscreen playback — either native
+ * fullscreen, or Plyr's CSS-only fallback (used when the Fullscreen API is
+ * unavailable). The fallback fires NO fullscreenchange event, so it can only
+ * be detected by sniffing the class Plyr puts on the player.
+ */
+function isFullscreen(): boolean {
+  return (
+    document.fullscreenElement != null ||
+    document.querySelector('.plyr--fullscreen-fallback') != null
+  );
+}
+
+/**
+ * Chips raised while fullscreen is active are DEFERRED, not dropped — a
+ * durable chip (resume offer, "panel failed → reload") still carries
+ * information the user needs once they leave fullscreen. Time-sensitive
+ * chips don't go stale: their caller's close() cancels the pending raise
+ * (see showActionChip below).
+ *
+ * Only NATIVE fullscreen defers: leaving Plyr's CSS-only pseudo-fullscreen
+ * fires no event, so a chip queued there could never be flushed — it is
+ * dropped instead of queued forever (see showActionChip).
+ */
+const deferredChips: Array<() => void> = [];
+let flushListenerInstalled = false;
+
+/**
+ * Drop everything still pending. Called from panel.dispose() so a chip
+ * deferred by a torn-down panel cannot surface against a fresh one (the
+ * flush listener itself is process-wide and installed at most once).
+ */
+export function clearDeferredChips(): void {
+  deferredChips.length = 0;
+}
+
+function deferUntilFullscreenExit(raise: () => void): void {
+  deferredChips.push(raise);
+  if (flushListenerInstalled) return;
+  // Installed at most once per page lifetime (not per panel), so an SPA
+  // re-attach cannot stack listeners.
+  flushListenerInstalled = true;
+  document.addEventListener('fullscreenchange', () => {
+    if (isFullscreen()) return;
+    for (const raiseChip of deferredChips.splice(0)) raiseChip();
+  });
+}
+
 const DOT_COLORS: Record<NotificationKind, string> = {
   info: '#2196F3',
   success: '#4CAF50',
@@ -38,6 +86,11 @@ export interface NotificationOptions {
  * the same `#speed-notifications` div.
  */
 export function showNotification(text: string, opts: NotificationOptions = {}): void {
+  // No extension UI in fullscreen (user directive 2026-07-27). The stack
+  // lives INSIDE the player container and carries inline
+  // `display …!important`, so no stylesheet rule can hide it — the only
+  // reliable guard is not building it in the first place.
+  if (isFullscreen()) return;
   const kind: NotificationKind = opts.kind ?? 'info';
   const duration = opts.duration ?? 3000;
   const dotColor = DOT_COLORS[kind] ?? DOT_COLORS.info;
@@ -147,6 +200,25 @@ export interface ActionChipOptions {
  * saved point, or a new episode loads).
  */
 export function showActionChip(text: string, opts: ActionChipOptions = {}): () => void {
+  // Same fullscreen rule as showNotification, but chips are durable, so
+  // they wait for the user to leave fullscreen instead of vanishing. The
+  // returned close() cancels a still-pending chip, which is what keeps a
+  // time-sensitive offer (resume) from resurfacing stale.
+  if (isFullscreen()) {
+    // Plyr's CSS-only pseudo-fullscreen is the exception: its exit fires no
+    // event, so deferring there would queue a chip that never surfaces.
+    // Drop it — a queue with no flush is worse than a lost chip.
+    if (document.fullscreenElement == null) return () => {};
+    let cancelled = false;
+    let closeRaised: (() => void) | null = null;
+    deferUntilFullscreenExit(() => {
+      if (!cancelled) closeRaised = showActionChip(text, opts);
+    });
+    return () => {
+      cancelled = true;
+      closeRaised?.();
+    };
+  }
   const kind: NotificationKind = opts.kind ?? 'info';
   const color = DOT_COLORS[kind] ?? DOT_COLORS.info;
   const duration = opts.duration ?? 0;
