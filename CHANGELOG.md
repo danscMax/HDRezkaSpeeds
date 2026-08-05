@@ -4,6 +4,43 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.6.3] — 2026-08-05
+
+### Changed
+
+- **A film no longer starts faster than normal on its own.** A brand-new
+  install used to play the first film at 1.4× — speech gabbling, music pitched
+  up — with nothing on screen explaining it. 1.4× is still one click away on
+  the panel. If you have ever picked a speed yourself, nothing changes for you.
+- **The extension now explains itself where it is used.** The first time the
+  speed panel appears, a small note says what a click and a double-click do and
+  where the hotkeys live. It waits for you to close it, and never comes back.
+- **The welcome page opens after an update too** — but only when the extension
+  has actually lost access to the site, which is the one case where it stops
+  working without saying why.
+
+### Fixed
+
+- **"Open HDRezka" on the welcome page led nowhere when that mirror was
+  blocked.** It was a fixed link to one address; now it finds a working mirror,
+  the same way the toolbar popup already did.
+- The button that takes you to the site was the last thing on the welcome page,
+  after the donation block — it is now right under the title as well.
+- The advice to pin the extension to the toolbar — the thing that decides
+  whether you can find the settings tomorrow — was the faintest text on the
+  page. It is now a proper callout.
+- The example panel on the welcome page invited clicks and did nothing; it no
+  longer pretends to be clickable.
+- Screen-reader users were told the labels were buttons that do nothing.
+
+### Internal
+
+- Both READMEs and both store listings called the settings tab "Shortcuts"; in
+  the product it is "Keys", and neither mentioned the "Support" tab. Store
+  screenshots were regenerated (they still showed the old default speed), and
+  the RuTube settings screenshot now actually shows the RuTube-only toggles its
+  own caption promised.
+
 ## [0.6.2] — 2026-08-05
 
 ### Added
