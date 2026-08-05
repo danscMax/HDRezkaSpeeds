@@ -81,6 +81,26 @@ describe('fullscreen: persistent UI hidden, messages allowed', () => {
     }
   });
 
+  it('applies the deadline in Plyr pseudo-fullscreen too', () => {
+    // Plyr's fallback leaves fullscreenElement null — checking only that would
+    // have left a sticky chip parked on the picture on exactly the player this
+    // extension was written for.
+    vi.useFakeTimers();
+    const player = document.createElement('div');
+    player.className = 'plyr plyr--fullscreen-fallback';
+    document.body.appendChild(player);
+    try {
+      setFullscreen(null);
+      showActionChip('parked?', { playerContainer: player });
+      expect(document.body.textContent).toContain('parked?');
+      vi.advanceTimersByTime(8000 + 300);
+      expect(document.body.textContent).not.toContain('parked?');
+    } finally {
+      player.remove();
+      vi.useRealTimers();
+    }
+  });
+
   it('mounts the stack INSIDE the element that owns the screen', () => {
     // The regression this guards: the stack lived in the player container
     // while an inner element was fullscreen, so nothing was ever painted.

@@ -22,7 +22,7 @@ import {
 import type { AddMirrorResult } from '../storage/mirrors-store';
 import { refreshActiveButton, refreshPinnedButton, renderButtonsRow } from './buttons';
 import { vsFilledGearIcon, vsIcon } from './icons';
-import { clearDeferredChips, disposeNotificationStack } from './notifications';
+import { disposeNotificationStack } from './notifications';
 import { disposeSpeedPopup } from './popup';
 import { refreshDiagnosticStatus } from './settings/diag-status';
 import { attachSettingsHandlers } from './settings/handlers';
@@ -781,9 +781,6 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       // and speed popup that live OUTSIDE root.
       try {
         disposeNotificationStack();
-        // A chip deferred until fullscreen-exit belongs to THIS panel's
-        // page state; don't let it surface against the next one.
-        clearDeferredChips();
       } catch {
         /* swallow */
       }

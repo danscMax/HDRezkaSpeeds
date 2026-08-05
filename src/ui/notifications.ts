@@ -28,12 +28,20 @@ const STACK_ID = 'speed-notifications';
 const FULLSCREEN_CHIP_MS = 8000;
 
 /**
- * Kept as a no-op: nothing is deferred any more (messages show in fullscreen
- * as of 2026-08-05), but panel.dispose() calls this and an exported name is
- * cheaper to keep than to chase through both twins.
+ * Fullscreen in BOTH flavours this codebase has to live with: the real thing,
+ * and Plyr's CSS-only fallback (used when the Fullscreen API is unavailable —
+ * it sets a class, fires no event and leaves `fullscreenElement` null).
+ *
+ * This answers "is the picture the whole screen". The re-parenting below asks
+ * a NARROWER question (`document.fullscreenElement`) on purpose: only native
+ * fullscreen restricts painting to one subtree, while under the Plyr fallback
+ * the player container is already what fills the screen.
  */
-export function clearDeferredChips(): void {
-  /* nothing is queued any more — see showActionChip */
+function isFullscreen(): boolean {
+  return (
+    document.fullscreenElement != null ||
+    document.querySelector('.plyr--fullscreen-fallback') != null
+  );
 }
 
 /**
@@ -202,8 +210,7 @@ export function showActionChip(text: string, opts: ActionChipOptions = {}): () =
   const kind: NotificationKind = opts.kind ?? 'info';
   const color = DOT_COLORS[kind] ?? DOT_COLORS.info;
   const sticky = (opts.duration ?? 0) === 0;
-  const duration =
-    sticky && document.fullscreenElement != null ? FULLSCREEN_CHIP_MS : (opts.duration ?? 0);
+  const duration = sticky && isFullscreen() ? FULLSCREEN_CHIP_MS : (opts.duration ?? 0);
   const stack = ensureStack(opts.playerContainer ?? null);
   mountForFullscreen(stack, opts.playerContainer ?? null);
 
