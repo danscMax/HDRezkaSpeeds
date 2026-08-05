@@ -80,6 +80,7 @@ import {
   removeUserMirror,
   replaceUserMirrors,
 } from './storage/mirrors-store';
+import { markHintShown, wasHintShown } from './storage/onboarding-store';
 import { createSettingsStore } from './storage/settings-store';
 import { createSpeedStore } from './storage/speed-store';
 import { createPanel, createUiPort, injectStyles, insertPanel, installThemeWatcher } from './ui';
@@ -1020,6 +1021,41 @@ function awaitHDRezkaSignature(wxtCtx: ContentScriptContext, budgetMs = 2500): P
 }
 
 /**
+ * The one thing the panel says to a brand-new user, once per profile.
+ *
+ * Everything else is taught on the welcome page, in a tab that opens at
+ * install and is often closed unread — after which the panel explains itself
+ * only through a `title` attribute, i.e. only to someone already hovering a
+ * button with a mouse. This chip names the two non-obvious things (click vs
+ * double-click, and that the gear holds the hotkeys) in the place where they
+ * are actually used, then never appears again.
+ *
+ * Reuses the durable-chip machinery already built for the failure paths: it
+ * carries its own dismiss ✕ and does not auto-vanish, so it cannot be missed
+ * by someone who looked away, and cannot nag someone who dismissed it.
+ */
+function showFirstRunHint(ctx: AppContext): void {
+  const adapter = createBrowserStorageAdapter();
+  void wasHintShown(adapter).then((seen) => {
+    if (seen) return;
+    // Written BEFORE showing: a failed write must not turn into a hint on
+    // every page load for the rest of the profile's life.
+    void markHintShown(adapter).then(() => {
+      try {
+        showActionChip(ctx.i18n.t('onboarding.first_run'), {
+          kind: 'info',
+          icon: 'help-circle',
+          dismissLabel: ctx.i18n.t('chip.dismiss'),
+          playerContainer: ctx.discovery.resolve('playerContainer'),
+        });
+      } catch (e) {
+        ctx.logger.warn('first-run hint render failed', e);
+      }
+    });
+  });
+}
+
+/**
  * FEAT-018/20: a durable failure chip (warn ✕ + a "Reload" action) for the
  * two terminal give-up paths. Replaces the auto-dismissing 3s warn toast so
  * the message — and its recovery action — stays put until the user acts.
@@ -1065,6 +1101,7 @@ function scheduleInsertWithRetry(panelEl: HTMLElement, ctx: AppContext): void {
         installRemovalObserver(panelEl, ctx, scheduleInsertWithRetry);
         observerInstalled = true;
       }
+      showFirstRunHint(ctx);
       return;
     }
 

@@ -605,16 +605,19 @@ html, body {
   border-radius: 8px;
 }
 
-/* `cursor: pointer` rather than `cursor: help` — `help` signals a tooltip
-   is available and there isn't one. Pointer correctly tells the user
-   "this changes something on the page when interacted with". */
+/* These are an inert REPLICA of the panel, not the panel. They highlight on
+   hover/focus and nothing else — no click handler exists anywhere in
+   renderRealPanel(). A pointer cursor next to an annotation that says
+   "Click — switch speed" invited the first "let me try it" of the whole
+   product and answered with silence, which reads as already broken. `help`
+   is the honest cursor: hovering explains, clicking does not act. */
 .real-pill[data-ann-group],
 .real-slider-wrap[data-ann-group],
 .real-gear[data-ann-group],
 .rs-header-help[data-ann-group],
 .rs-tabs[data-ann-group],
-.rs-preset-section[data-ann-group] { cursor: pointer; }
-.annotation { cursor: pointer; }
+.rs-preset-section[data-ann-group] { cursor: help; }
+.annotation { cursor: help; }
 
 /* ─── Block B: settings replica ───────────────────────────────────── */
 
@@ -968,6 +971,18 @@ html, body {
 .tip-row strong {
   color: var(--vs-fg);
   font-weight: 600;
+}
+
+/* Pin-the-toolbar-icon tip. Promoted out of the dimmed tip list: it is the
+   one instruction that decides whether the user can reach the settings again
+   at all, and it used to be the faintest text on the page. */
+.tip-row-callout {
+  font-size: 14px;
+  color: var(--vs-fg);
+  background: var(--vs-surface-2, rgb(0 0 0 / 4%));
+  border: 1px solid var(--vs-border);
+  border-radius: 12px;
+  padding: 12px 14px;
 }
 
 /* ─── Donate ──────────────────────────────────────────────────────── */

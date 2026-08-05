@@ -345,6 +345,13 @@ export const I18N_DICT = {
     'chip.reload': 'Reload',
     'chip.dismiss': 'Dismiss',
 
+    // onboarding.first_run — the one-time chip shown the first time the panel
+    // ever appears for this profile. Names only what is NOT self-evident:
+    // the click/double-click split and where the hotkeys live. Everything
+    // else the welcome page already covers.
+    'onboarding.first_run':
+      'Click a button — speed for this video. Double-click — save it as your default. The ⚙ button holds hotkeys and settings.',
+
     // toast.storage_write_failed -- a coalesced storage write rejected
     // (quota / invalidated context). Shown once per page so the user
     // knows the saved speed/settings may not have persisted.
@@ -767,6 +774,10 @@ export const I18N_DICT = {
     'resume.chip': 'Продолжить с {time}',
     'chip.reload': 'Обновить',
     'chip.dismiss': 'Закрыть',
+
+    // onboarding.first_run
+    'onboarding.first_run':
+      'Клик по кнопке — скорость для этого видео. Двойной клик — сохранить её по умолчанию. В ⚙ живут горячие клавиши и настройки.',
 
     // toast.storage_write_failed
     'toast.storage_write_failed':

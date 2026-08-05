@@ -3,7 +3,7 @@
   "src/discovery/selectors.ts": "ee0562df79f1e72d50b07be5f9bfd917a346e2b5397002531db383e8008c3def",
   "src/discovery/validators.ts": "f1eda304c7c9d04677faf0c621f91dbf4faed088b4eb2a47b1317373b7b72403",
   "src/health/report.ts": "734064fc90cb6021d45810dad9d0fed5cd23b8ad9ad5fd3ff86e2896b7b6640e",
-  "src/i18n/dict.ts": "0d7b41521c7d9a8a71f72a31a2a35456c2592817481083e7a75684becee5a0f8",
+  "src/i18n/dict.ts": "7231d9aac734e08d4cbdf8736e7b2796ecf6d828bd79d6cf043f17ae8f9dfcd9",
   "src/storage/settings-store.ts": "df835afd4f4b805b76c0b3b2fb20faf8293403fdca4facee261e42c23d14ebe4",
   "src/storage/types.ts": "ea1d7d697108e1d9862e4fdeedf89b4aed998a6898fbc671315268f3ff542a69",
   "src/ui/insertion.ts": "4763254dd127db236b59bb2a4c327d185fb344787e7c645eb575ef0e308c1760",

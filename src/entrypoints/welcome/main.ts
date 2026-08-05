@@ -19,7 +19,7 @@ import { storageKeysFor } from '../../config';
 import { detectBrowserLang } from '../../i18n/detect';
 import { type Lang, SUPPORTED_LANGS } from '../../i18n/dict';
 import { createTranslator } from '../../i18n/translator';
-import { builtinMatchPatterns } from '../../sites/mirror-hosts';
+import { BUILTIN_MIRROR_HOSTS, builtinMatchPatterns } from '../../sites/mirror-hosts';
 import { captureHotkey, formatHotkey } from '../../speed/hotkeys';
 import { createBrowserStorageAdapter } from '../../storage/adapter';
 import { defaultSettings, type Settings } from '../../storage/types';
@@ -103,6 +103,10 @@ async function renderWelcome(host: HTMLElement, langOverride?: Lang): Promise<vo
     renderLangSwitch(t, lang, onLangChange),
     renderHero(t),
     renderPermissionGate(t),
+    // The button that actually starts the product, right where the user is
+    // looking — the full row at the bottom stays, but reaching it meant
+    // scrolling past two teaching blocks, a hotkey editor and a donation ask.
+    renderCta(t),
     renderBlockA(t),
     renderHotkeys(t, liveSettings, applyPatch),
     renderBlockB(t),
@@ -346,12 +350,11 @@ function annotation(positionClass: string, text: string): HTMLElement {
     {
       class: `annotation ${positionClass}`,
       'data-ann-group': group,
-      // Make annotations focusable — keyboard/AT users tab through them
-      // and the focus handler in wireHoverGroups() lights up the matching
-      // UI part. role=button + aria-label tell SR users this thing has
-      // an effect when activated.
+      // Focusable so keyboard/AT users can tab through them — the focus
+      // handler in wireHoverGroups() lights up the matching UI part.
+      // Deliberately NOT role=button: nothing happens on Enter/Space, and
+      // announcing "button" promised an activation that does not exist.
       tabindex: 0,
-      role: 'button',
     },
     h('div', { class: 'ann-label' }, ...richText(text)),
   );
@@ -749,12 +752,14 @@ function renderTips(t: T): HTMLElement {
   const tipRow = (icon: SVGElement, text: string): HTMLElement =>
     h('div', { class: 'tip-row' }, icon, h('span', {}, ...richText(text)));
 
-  return h(
-    'div',
-    { class: 'tips-block' },
-    tipRow(reopenIcon, t('welcome.tips.reopen')),
-    tipRow(pinSvg, t('welcome.pin.tip')),
-  );
+  // Pinning gets its own callout rather than a dimmed 13px line among the
+  // other tips: it is the single action that decides whether the person can
+  // find the settings again tomorrow, and it used to carry the least visual
+  // weight on a page that gives a pulsing heart to the donation block.
+  const pinRow = tipRow(pinSvg, t('welcome.pin.tip'));
+  pinRow.classList.add('tip-row-callout');
+
+  return h('div', { class: 'tips-block' }, pinRow, tipRow(reopenIcon, t('welcome.tips.reopen')));
 }
 
 /* ─── Donate ───────────────────────────────────────────────────────── */
@@ -859,16 +864,36 @@ function renderPermissionGate(t: T): HTMLElement {
 }
 
 function renderCta(t: T): HTMLElement {
+  // Not a bare href to one mirror. HDRezka domains get ISP-blocked routinely —
+  // that is the whole reason the mirror machinery exists — so a hardcoded
+  // link made the FIRST click after install a dead end for exactly the people
+  // the machinery was built for. The worker already knows how to find a
+  // reachable mirror; the popup has always used it (mirrors:open-reachable).
+  // The href stays as the no-JS fallback and as something to middle-click.
   const hdrBtn = h(
     'a',
     {
       class: 'welcome-cta cta-hdr',
-      href: 'https://rezka.ag/',
+      href: `https://${BUILTIN_MIRROR_HOSTS[0]}/`,
       target: '_blank',
       rel: 'noopener noreferrer',
     },
     t('welcome.cta.hdrezka'),
   );
+  hdrBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    void browser.runtime
+      .sendMessage({ type: 'mirrors:open-reachable', candidates: [...BUILTIN_MIRROR_HOSTS] })
+      .then((res) => {
+        // Worker could not reach any mirror (all blocked, or it is asleep in a
+        // userscript-style build): fall back to the plain link rather than
+        // leaving the click doing nothing at all.
+        if (!(res as { ok?: boolean } | undefined)?.ok) window.open(hdrBtn.href, '_blank');
+      })
+      .catch(() => {
+        window.open(hdrBtn.href, '_blank');
+      });
+  });
 
   const closeBtn = h(
     'button',

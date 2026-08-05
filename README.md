@@ -30,7 +30,7 @@ Bilingual interface (English / Russian). No ads, no telemetry.
 - Click = temporary speed for this video. Double-click = save as default.
 - Configurable hotkeys (default `Alt+.` +0.1 / `Alt+,` −0.1, `Alt+0`
   resets to 1x). Supports multiple combos per action (keyboard + remote).
-- In-player gear menu: General / Shortcuts / Mirrors / Diagnostics tabs.
+- In-player gear menu: General / Keys / Mirrors / Diagnostics / Support tabs.
 - Toolbar popup mirrors the in-player menu.
 - Auto-follows HDRezka's light / dark theme toggle.
 - Supports all known mirrors out of the box: `hdrezka.ag`, `rezka.ag`,

@@ -1058,6 +1058,19 @@ export default defineBackground(() => {
       const url = browser.runtime.getURL('/welcome.html');
       void browser.tabs.create({ url });
     }
+    // An UPDATE can leave the extension without access to the sites it works
+    // on — Firefox does not grant host permissions an add-on gains in an
+    // update (Mozilla bug 1893232), so a release that adds a mirror is
+    // silently dead on it. The page that explains the fix used to open only
+    // at install, i.e. never for the people this exact case hits. Opened here
+    // ONLY when access is genuinely missing: a tab on every update would be
+    // spam, and this check costs one permissions.contains call.
+    if (reason === 'update') {
+      void refreshPermissionBadge().then((held) => {
+        if (held) return;
+        void browser.tabs.create({ url: browser.runtime.getURL('/welcome.html') });
+      });
+    }
     // Chrome clears dynamic content scripts on every extension update —
     // re-register from storage without waiting for user action.
     scheduleReconcile(`installed:${reason}`);

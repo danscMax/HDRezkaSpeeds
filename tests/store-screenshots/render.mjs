@@ -127,6 +127,9 @@ await page1.goto(HOST_URL, { waitUntil: 'load' });
 await page1.waitForSelector('.vs-panel', { timeout: 15000 });
 // Allow one rAF for the brand marker / animations to settle.
 await page1.waitForTimeout(800);
+// The first-run hint chip is correct behaviour on a fresh profile and exactly
+// wrong in a store screenshot — remove it before shooting. Profile is throwaway.
+await page1.evaluate(() => document.getElementById('speed-notifications')?.remove());
 await shoot(page1, 'hdrezka-panel');
 
 // Open the settings menu via a real click on the gear button.
@@ -134,6 +137,7 @@ await page1.click('.vs-gear-button');
 // Wait for the menu transition to finish (CSS animation ~200ms).
 await page1.waitForSelector('.settings-menu.show, .settings-menu[aria-hidden="false"]', { timeout: 5000 }).catch(() => null);
 await page1.waitForTimeout(400);
+await page1.evaluate(() => document.getElementById('speed-notifications')?.remove());
 await shoot(page1, 'hdrezka-settings');
 
 // 3. Welcome — through the built extension. Discover its ID via the service

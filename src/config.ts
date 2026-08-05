@@ -30,7 +30,13 @@ export interface SpeedBounds {
 }
 
 const SPEED_BOUNDS: Record<Site, SpeedBounds> = {
-  hdrezka: { min: 0.5, max: 10.0, defaultSpeed: 1.4 },
+  // defaultSpeed is what a profile with NOTHING stored plays at — i.e. the
+  // very first film a new user opens. It used to be 1.4 (inherited from the
+  // legacy userscript), so the film started 40% faster with no explanation
+  // anywhere on screen; the likeliest reading of that is "the extension broke
+  // the player". 1.4 is still one click away as a preset button.
+  // Existing users are unaffected: their speed is read from storage.
+  hdrezka: { min: 0.5, max: 10.0, defaultSpeed: 1.0 },
 };
 
 export function speedBoundsFor(site: Site): SpeedBounds {

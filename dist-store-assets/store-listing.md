@@ -53,7 +53,7 @@ WHAT IT DOES
   - General: slider position (right / below / inside player), language
     switch (English / Russian), preset chips grouped by range
     (slower than 1×, 1×–2×, faster than 2×), behaviour toggles.
-  - Shortcuts: rebind speed-up / speed-down, add additional combos,
+  - Keys: rebind speed-up / speed-down, add additional combos,
     reset to defaults.
   - Mirrors: HDRezka domains rotate constantly — add your own mirror
     domains and the extension works on them too. One click on the
@@ -99,6 +99,13 @@ LANGUAGES
 
 English and Russian. UI language is auto-detected from your browser on
 first run; switch any time from the gear menu.
+
+AFTER YOU INSTALL
+
+A short walkthrough opens automatically in a new tab: what each control
+does, how to set your keyboard shortcuts, and how to pin the icon to the
+toolbar. It takes about a minute, and you can close it and start using
+the extension right away.
 
 COMPATIBILITY
 
@@ -170,6 +177,13 @@ Controller ставит ряд кнопок скорости прямо под �
 
 Английский и русский. Язык интерфейса определяется автоматически
 по языку браузера; переключается в меню в любой момент.
+
+СРАЗУ ПОСЛЕ УСТАНОВКИ
+
+В новой вкладке автоматически откроётся короткая инструкция: что делает
+каждый элемент, как назначить свои горячие клавиши и как закрепить
+значок на панели. Занимает около минуты — можно закрыть и сразу
+пользоваться.
 
 СОВМЕСТИМОСТЬ
 
