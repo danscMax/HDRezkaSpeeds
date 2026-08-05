@@ -56,6 +56,7 @@ import {
   BUILTIN_MIRROR_HOSTS,
   builtinMatchPatterns,
   originPatternsFor,
+  permissionGroupsFor,
 } from '../sites/mirror-hosts';
 import { classifyMirrorBody, type MirrorReach } from '../sites/mirror-reach';
 import { createBrowserStorageAdapter } from '../storage/adapter';
@@ -169,18 +170,11 @@ export default defineBackground(() => {
   // verbatim in both background.ts files, where nothing would have noticed a
   // fix landing in only one of them.
   const refreshPermissionBadge = async (): Promise<boolean> => {
-    // Which mirrors count? "Any one of eleven" alone would go quiet for the
-    // user this badge exists for: the one whose ONLY reachable mirror arrived
-    // in an update and was therefore never granted, while some other, ISP-
-    // blocked mirror still holds its permission. So the host we last actually
-    // worked on is checked on its own — and only when we have no such record
-    // does the question fall back to "is ANY mirror usable".
+    // Which mirrors count is decided in one place, shared with the popup —
+    // see permissionGroupsFor.
     const lastHost = await readLastWorkingHost(adapter).catch(() => null);
-    const groups = lastHost
-      ? [originPatternsFor(lastHost)]
-      : BUILTIN_MIRROR_HOSTS.map((host) => originPatternsFor(host));
     return refreshBadge(browser.action, browser.permissions, {
-      originGroups: groups,
+      originGroups: permissionGroupsFor(lastHost),
       alertTitle: NO_ACCESS_TITLE[detectBrowserLang()],
     });
   };

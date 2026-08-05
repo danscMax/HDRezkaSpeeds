@@ -5,12 +5,11 @@
   "src/health/report.ts": "734064fc90cb6021d45810dad9d0fed5cd23b8ad9ad5fd3ff86e2896b7b6640e",
   "src/i18n/dict.ts": "0d7b41521c7d9a8a71f72a31a2a35456c2592817481083e7a75684becee5a0f8",
   "src/storage/settings-store.ts": "df835afd4f4b805b76c0b3b2fb20faf8293403fdca4facee261e42c23d14ebe4",
-  "src/storage/types.ts": "c3c6610240f05500efc1608c8505421e4f57d7e7cac1e2c1e49277c650f80d39",
+  "src/storage/types.ts": "ea1d7d697108e1d9862e4fdeedf89b4aed998a6898fbc671315268f3ff542a69",
   "src/ui/insertion.ts": "4763254dd127db236b59bb2a4c327d185fb344787e7c645eb575ef0e308c1760",
   "src/ui/panel.ts": "3825e59cc7de112e09df9ea158651fc8866a0737b9edad19dbc263a6b58bd262",
   "src/ui/settings/export-import.ts": "40e54d4471f60e6495c1aad767fd70cd779b60e9cce61dc0102435b46a3071ce",
   "src/ui/settings/handlers.ts": "5f33ef40497d6f0a2edbbff098520a0b63f485987af0fdd15ccce1b9934039c2",
   "src/ui/settings/modal.ts": "acc711ba96affd21f8e33b4bdef57ab5f97d971aef43bae633d61c45fe720fef",
-  "src/ui/styles.ts": "9466217daf8faaaf99cbb4e266f503f317b604b50a3a53dd162ec48f33a2722a",
-  "src/utils/tm-coexist.ts": "765b60a9efa97ae0db389c0c625d4ff7417a1ee95da83eb39e308d73505068c7"
+  "src/ui/styles.ts": "9466217daf8faaaf99cbb4e266f503f317b604b50a3a53dd162ec48f33a2722a"
 }

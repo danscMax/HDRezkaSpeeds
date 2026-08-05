@@ -115,8 +115,11 @@ export interface Settings {
   showTimeSaved?: boolean;
   /**
    * FEAT-020: while a video plays in native fullscreen, cover every OTHER
-   * display with an opaque dark window. Chrome-only (needs
-   * chrome.system.display); opt-in, default off.
+   * display with an opaque dark window. Opt-in, default off.
+   *
+   * Both browsers: Chrome reads the layout from `chrome.system.display`,
+   * Firefox has no such API and measures the monitors once by probing them
+   * (src/screens/dim-screens.ts) — the setting is offered in both.
    */
   dimOtherScreens?: boolean;
   /**

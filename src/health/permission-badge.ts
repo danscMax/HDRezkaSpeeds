@@ -50,23 +50,43 @@ export interface PermissionBadgeOptions {
 }
 
 /**
- * Returns true when at least one site is usable (badge cleared), false when it
- * warned.
+ * "Can the extension work on at least one of its sites?" — one answer, asked
+ * from more than one place.
+ *
+ * The badge is not the only surface that asks: the popup shows its "allow
+ * access" banner off the same question, and the two disagreeing is worse than
+ * either being wrong alone — a clean toolbar icon next to a panel claiming the
+ * extension has no access reads as a broken extension. So the rule lives here
+ * once, and every caller gets the same verdict.
+ *
+ * OR over the groups, AND inside one: a site needs all of its own patterns, but
+ * one usable site is enough for the extension to work.
  *
  * Unable to tell → treated as usable. Crying wolf on a working install is worse
- * than missing the rare broken one, and it trains people to ignore the badge.
+ * than missing the rare broken one, and it trains people to ignore the warning.
  */
-export async function refreshPermissionBadge(
-  action: BadgeSurface,
+export async function hasAnySiteAccess(
   permissions: PermissionProbe,
-  { originGroups, alertTitle }: PermissionBadgeOptions,
+  originGroups: string[][],
 ): Promise<boolean> {
   const groups = originGroups.filter((g) => g.length > 0);
   if (groups.length === 0) return true;
   const results = await Promise.all(
     groups.map((origins) => permissions.contains({ origins }).catch(() => true)),
   );
-  const held = results.some(Boolean);
+  return results.some(Boolean);
+}
+
+/**
+ * Returns true when at least one site is usable (badge cleared), false when it
+ * warned.
+ */
+export async function refreshPermissionBadge(
+  action: BadgeSurface,
+  permissions: PermissionProbe,
+  { originGroups, alertTitle }: PermissionBadgeOptions,
+): Promise<boolean> {
+  const held = await hasAnySiteAccess(permissions, originGroups);
   await action.setBadgeText({ text: held ? '' : '!' }).catch(() => undefined);
   await action
     .setBadgeBackgroundColor({ color: held ? BADGE_OK_COLOR : BADGE_ALERT_COLOR })

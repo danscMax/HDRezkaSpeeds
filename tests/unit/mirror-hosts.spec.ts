@@ -5,7 +5,28 @@ import {
   builtinMatchPatterns,
   isCoveredByHostList,
   originPatternsFor,
+  permissionGroupsFor,
 } from '../../src/sites/mirror-hosts';
+
+describe('permissionGroupsFor', () => {
+  // The badge and the popup banner answer "do we have access?" off this one
+  // list. They used to disagree — the popup asked a flat AND over every mirror
+  // and nagged people whose own mirror worked.
+  it('asks only about the mirror we last worked on', () => {
+    expect(permissionGroupsFor('standby-rezka.tv')).toEqual([
+      originPatternsFor('standby-rezka.tv'),
+    ]);
+  });
+
+  it('falls back to one group per built-in mirror when there is no record', () => {
+    const groups = permissionGroupsFor(null);
+    expect(groups).toHaveLength(BUILTIN_MIRROR_HOSTS.length);
+    // One group per SITE, not one flat list: a single ungranted mirror must not
+    // speak for the other ten.
+    expect(groups.every((g) => g.length === 2)).toBe(true);
+    expect(groups.flat()).toEqual(builtinMatchPatterns());
+  });
+});
 
 describe('originPatternsFor', () => {
   it('returns the wildcard-subdomain + bare-apex pair', () => {

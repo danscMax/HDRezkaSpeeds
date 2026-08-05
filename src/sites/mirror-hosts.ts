@@ -48,6 +48,25 @@ export function builtinMatchPatterns(): string[] {
 }
 
 /**
+ * Which mirrors "do we have access anywhere?" is really about — one group per
+ * site, for `hasAnySiteAccess` (src/health/permission-badge.ts).
+ *
+ * "Any one of eleven" alone would go quiet for exactly the user this question
+ * exists for: the one whose ONLY reachable mirror arrived in an update and was
+ * therefore never granted (Mozilla bug 1893232), while some other, ISP-blocked
+ * mirror still holds its permission. So the host we last actually worked on is
+ * asked about on its own, and only with no such record does it fall back to
+ * every built-in mirror.
+ *
+ * Shared by the toolbar badge and the popup banner: same question, same answer.
+ */
+export function permissionGroupsFor(lastWorkingHost: string | null): string[][] {
+  return lastWorkingHost
+    ? [originPatternsFor(lastWorkingHost)]
+    : BUILTIN_MIRROR_HOSTS.map((host) => originPatternsFor(host));
+}
+
+/**
  * True when `host` equals an entry of `list` or is a subdomain of one
  * (`static.hdrezka.ag` is covered by `hdrezka.ag`). Both sides are
  * expected lowercase. Suffix check is dot-anchored so attacker-style

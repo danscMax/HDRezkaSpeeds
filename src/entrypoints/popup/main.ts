@@ -25,6 +25,7 @@ import { CleanupRegistry } from '../../app/cleanup';
 import type { AppContext } from '../../app/context';
 import type { DiagnosticsPort, DiscoveryPort, Site, UiPort } from '../../app/ports';
 import { storageKeysFor } from '../../config';
+import { hasAnySiteAccess } from '../../health/permission-badge';
 import type { DiagnosticReport } from '../../health/types';
 import { createTranslator } from '../../i18n/translator';
 import { detectSite } from '../../sites/detect';
@@ -33,6 +34,7 @@ import {
   builtinMatchPatterns,
   isCoveredByHostList,
   originPatternsFor,
+  permissionGroupsFor,
 } from '../../sites/mirror-hosts';
 import type { MirrorReach } from '../../sites/mirror-reach';
 import { orderMirrorCandidates } from '../../sites/mirror-resolver';
@@ -206,13 +208,15 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
 
   // Mirrors the toolbar badge: the icon says "click to allow", so the first
   // thing the click shows must be the way to allow it — not a tab the user has
-  // to find. Unknown state counts as fine; a false alarm on a working install
-  // is worse than a missed broken one.
+  // to find. Literally the same question as the badge asks, through the same
+  // shared rule: a clean icon next to a panel shouting "no access" is a worse
+  // bug than either answer alone. Flat `contains` over every mirror was exactly
+  // that — one ungranted mirror out of eleven (the update case, Mozilla bug
+  // 1893232) nagged users whose own mirror worked fine.
   let missingAccess = false;
   async function refreshMissingAccess(): Promise<void> {
-    missingAccess = !(await browser.permissions
-      .contains({ origins: builtinMatchPatterns() })
-      .catch(() => true));
+    const lastHost = await readLastWorkingHost(adapter).catch(() => null);
+    missingAccess = !(await hasAnySiteAccess(browser.permissions, permissionGroupsFor(lastHost)));
   }
 
   async function refreshMirrorsVm(): Promise<void> {

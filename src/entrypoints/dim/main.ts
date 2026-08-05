@@ -36,6 +36,35 @@ const MAX_MISSES = 3;
 
 /** Set once the worker confirms this window is a real overlay, not a trial. */
 let keep = false;
+let heartbeat: ReturnType<typeof setInterval> | undefined;
+
+/**
+ * Ping the worker until it stops answering "dimming is active".
+ *
+ * Started by BOTH roles that end up as a real overlay — including a candidate
+ * that gets promoted (`vs:dim-keep`), which is every overlay on the Firefox
+ * path. Those windows are created as throwaway probes, so without this they
+ * cancelled their self-close deadline and then had no dead-man's switch at
+ * all: reload or disable the extension mid-film and the black rectangles
+ * stayed on the monitors.
+ */
+function startHeartbeat(): void {
+  if (heartbeat) return;
+  let misses = 0;
+  heartbeat = setInterval(async () => {
+    try {
+      // `{ok: false}` means the worker no longer considers dimming active —
+      // truthiness alone would keep a stale overlay alive forever.
+      const res = (await browser.runtime.sendMessage({ type: 'vs:dim-ping' })) as
+        | { ok?: boolean }
+        | undefined;
+      misses = res?.ok === true ? 0 : misses + 1;
+    } catch {
+      misses += 1;
+    }
+    if (misses >= MAX_MISSES) window.close();
+  }, HEARTBEAT_MS);
+}
 
 const probeId = params.get('p');
 // `probe=1` marks a throwaway calibration window; an overlay also reports its
@@ -59,6 +88,7 @@ browser.runtime.onMessage.addListener((msg: unknown) => {
   if (!m || m.probeId !== probeId) return;
   if (m.type === 'vs:dim-keep') {
     keep = true;
+    startHeartbeat();
   } else if (m.type === 'vs:dim-recheck') {
     void browser.runtime
       .sendMessage({ type: 'vs:screen-report', probeId, ...buildScreenReport(window) })
@@ -71,20 +101,7 @@ if (isProbe) {
     if (!keep) window.close();
   }, PROBE_LIFETIME_MS);
 } else {
-  let misses = 0;
-  setInterval(async () => {
-    try {
-      // `{ok: false}` means the worker no longer considers dimming active —
-      // truthiness alone would keep a stale overlay alive forever.
-      const res = (await browser.runtime.sendMessage({ type: 'vs:dim-ping' })) as
-        | { ok?: boolean }
-        | undefined;
-      misses = res?.ok === true ? 0 : misses + 1;
-    } catch {
-      misses += 1;
-    }
-    if (misses >= MAX_MISSES) window.close();
-  }, HEARTBEAT_MS);
+  startHeartbeat();
 }
 
 // Escape hatch: if the window ever outlives its owner tab (worker evicted
