@@ -33,7 +33,6 @@ import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { storageKeysFor } from '../config';
 import { detectBrowserLang } from '../i18n/detect';
-import { createTranslator } from '../i18n/translator';
 import {
   calibrationPoints,
   DEFAULT_DIM_LEVEL,
@@ -161,20 +160,28 @@ export default defineBackground(() => {
    * The badge is set GLOBALLY; the per-tab speed badge overrides it wherever
    * the content script runs, which by definition is only where access exists.
    */
+  /**
+   * The one string this worker shows. Deliberately NOT in src/i18n/dict.ts:
+   * importing the translator pulls the whole 60 kB dictionary into a service
+   * worker that wakes on every browser event, to render a single tooltip.
+   */
+  const NO_ACCESS_TITLE = {
+    ru: 'У HDRezka Speed Controller нет доступа к HDRezka — нажмите, чтобы выдать его, иначе панель не появится',
+    en: 'HDRezka Speed Controller has no access to HDRezka — click to allow it, or the panel will not appear',
+  } as const;
+
   async function refreshPermissionBadge(): Promise<void> {
     // Unable to tell → stay silent. Crying wolf on a working install is worse
     // than missing the rare broken one.
     const held = await browser.permissions
       .contains({ origins: builtinMatchPatterns() })
       .catch(() => true);
-    const { t } = createTranslator(detectBrowserLang());
+    const title = NO_ACCESS_TITLE[detectBrowserLang()];
     await browser.action.setBadgeText({ text: held ? '' : '!' }).catch(() => undefined);
     await browser.action
       .setBadgeBackgroundColor({ color: held ? '#0e7490' : '#c0392b' })
       .catch(() => undefined);
-    await browser.action
-      .setTitle({ title: held ? '' : t('badge.no_access') })
-      .catch(() => undefined);
+    await browser.action.setTitle({ title: held ? '' : title }).catch(() => undefined);
   }
   void refreshPermissionBadge();
 
@@ -736,6 +743,19 @@ export default defineBackground(() => {
         dimLog(rect ? 'sized to cover the monitor' : 'no measurement — used fullscreen', {
           id,
           wanted: rect,
+          // The inputs the rect is derived from. A page that reports its size
+          // before the window has settled would inflate the scale factor and
+          // produce a rect big enough to cover every monitor at once — the
+          // result alone cannot tell that apart from a placement error.
+          inputs: {
+            apiWidth: before?.width,
+            apiLeft: before?.left,
+            apiTop: before?.top,
+            pageOuterWidth: report?.self?.ow,
+            pageSelf: report?.self,
+            pageScreen: report?.css,
+            k: before?.width && report?.self?.ow ? before.width / report.self.ow : null,
+          },
           state: settled?.state,
           left: settled?.left,
           top: settled?.top,

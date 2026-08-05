@@ -161,9 +161,6 @@ export const I18N_DICT = {
     'popup.grant.body':
       'Firefox has not granted access to the site — this happens after an update that added a mirror. Without it the speed panel will not appear.',
     'popup.grant.button': 'Allow access',
-    // Toolbar tooltip while the extension holds no access to HDRezka.
-    'badge.no_access':
-      'HDRezka Speed Controller has no access to HDRezka — click to allow it, or the panel will not appear',
     'welcome.perm.title': 'One step left: allow access to HDRezka',
     'welcome.perm.body':
       'Firefox asks you to grant site access separately. Without it the panel will not appear on HDRezka.',
@@ -584,8 +581,6 @@ export const I18N_DICT = {
     'popup.grant.body':
       'Firefox не выдал доступ к сайту — так бывает после обновления, добавившего зеркало. Без него панель скорости не появится.',
     'popup.grant.button': 'Разрешить доступ',
-    'badge.no_access':
-      'У HDRezka Speed Controller нет доступа к HDRezka — нажмите, чтобы выдать его, иначе панель не появится',
     'welcome.perm.title': 'Остался один шаг: разрешите доступ к HDRezka',
     'welcome.perm.body':
       'Firefox просит выдать доступ к сайту отдельно. Без него панель на HDRezka не появится.',
