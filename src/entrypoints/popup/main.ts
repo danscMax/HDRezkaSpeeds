@@ -63,6 +63,16 @@ import { createLogger } from '../../utils/logger';
 declare const __VS_VERSION__: string | undefined;
 const SCRIPT_VERSION = typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.1.0';
 
+// Firefox anchors the native permission doorhanger to the toolbar button —
+// exactly where the popup PANEL hangs — so its "Allow" lands BEHIND our panel
+// and cannot be clicked. A detached popup WINDOW no longer covers the toolbar,
+// so the doorhanger is reachable: in panel mode Firefox hands off to that
+// window first (same fix as omniroute-cookie-bridge). Chrome centres its own
+// prompt and must keep requesting straight from the panel.
+// `import.meta.env.BROWSER` is WXT's build-time target — no UA sniffing.
+const IS_FIREFOX = import.meta.env.BROWSER === 'firefox';
+const DETACHED = new URLSearchParams(location.search).get('window') === '1';
+
 console.info('[HDREZKA-SPEEDS] popup loaded');
 
 const root = document.getElementById('app');
@@ -352,6 +362,12 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
         ctx.i18n.t('popup.grant.button'),
       );
       grantBtn.addEventListener('click', () => {
+        // Panel mode on Firefox: the doorhanger would open behind us — reopen
+        // as a detached window and let the button there do the real request.
+        if (IS_FIREFOX && !DETACHED) {
+          openDetachedPopup();
+          return;
+        }
         // No await before the request: Firefox only honours it while the
         // click's user-gesture token is alive.
         void browser.permissions
@@ -652,6 +668,20 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
   });
 
   rerender();
+}
+
+/**
+ * Reopen the popup as a standalone window so the Firefox permission
+ * doorhanger is not covered by the panel (see IS_FIREFOX above). The window
+ * bootstraps exactly like the panel — Site is a single-member union here, so
+ * it needs no state handed over.
+ */
+function openDetachedPopup(): void {
+  const url = `${browser.runtime.getURL('/popup.html')}?window=1`;
+  void browser.windows
+    .create({ url, type: 'popup', width: 440, height: 660 })
+    .then(() => window.close())
+    .catch(() => undefined);
 }
 
 interface ActiveTabInfo {

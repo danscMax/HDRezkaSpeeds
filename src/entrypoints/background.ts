@@ -59,6 +59,7 @@ import {
 } from '../sites/mirror-hosts';
 import { classifyMirrorBody, type MirrorReach } from '../sites/mirror-reach';
 import { createBrowserStorageAdapter } from '../storage/adapter';
+import { readLastWorkingHost } from '../storage/last-host-store';
 import { MIRRORS_STORAGE_KEY, readUserMirrors, sanitizeMirrorList } from '../storage/mirrors-store';
 
 /** Single dynamic-registration id covering ALL user mirrors. */
@@ -167,13 +168,22 @@ export default defineBackground(() => {
   // twin and therefore watched by the drift checker. This used to be duplicated
   // verbatim in both background.ts files, where nothing would have noticed a
   // fix landing in only one of them.
-  const refreshPermissionBadge = (): Promise<boolean> =>
-    refreshBadge(browser.action, browser.permissions, {
-      // One group per mirror: any single working mirror means the extension is
-      // usable, and the badge stays quiet.
-      originGroups: BUILTIN_MIRROR_HOSTS.map((host) => originPatternsFor(host)),
+  const refreshPermissionBadge = async (): Promise<boolean> => {
+    // Which mirrors count? "Any one of eleven" alone would go quiet for the
+    // user this badge exists for: the one whose ONLY reachable mirror arrived
+    // in an update and was therefore never granted, while some other, ISP-
+    // blocked mirror still holds its permission. So the host we last actually
+    // worked on is checked on its own — and only when we have no such record
+    // does the question fall back to "is ANY mirror usable".
+    const lastHost = await readLastWorkingHost(adapter).catch(() => null);
+    const groups = lastHost
+      ? [originPatternsFor(lastHost)]
+      : BUILTIN_MIRROR_HOSTS.map((host) => originPatternsFor(host));
+    return refreshBadge(browser.action, browser.permissions, {
+      originGroups: groups,
       alertTitle: NO_ACCESS_TITLE[detectBrowserLang()],
     });
+  };
   void refreshPermissionBadge();
 
   function hasOriginPermission(host: string): Promise<boolean> {
@@ -513,19 +523,27 @@ export default defineBackground(() => {
    * Same failure class as the truncated report — a message lost at a boundary
    * with nothing to show for it.
    */
-  const earlyProbes = new Map<string, ProbeReport>();
+  const earlyProbes = new Map<string, { report: ProbeReport; at: number }>();
+
+  /**
+   * How long a report nobody asked for stays useful. Beyond this it describes a
+   * layout that may already be gone — and a screen map is re-recorded precisely
+   * BECAUSE the monitors changed, so serving a stale answer there is worse than
+   * serving none.
+   */
+  const EARLY_PROBE_TTL_MS = 10_000;
 
   function deliverProbe(probeId: string, report: ProbeReport): void {
     const waiting = pendingProbes.get(probeId);
     if (waiting) waiting(report);
-    else earlyProbes.set(probeId, report);
+    else earlyProbes.set(probeId, { report, at: Date.now() });
   }
 
   function waitForProbe(probeId: string, ms: number): Promise<ProbeReport | null> {
     const early = earlyProbes.get(probeId);
     if (early) {
       earlyProbes.delete(probeId);
-      return Promise.resolve(early);
+      if (Date.now() - early.at <= EARLY_PROBE_TTL_MS) return Promise.resolve(early.report);
     }
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
@@ -573,13 +591,19 @@ export default defineBackground(() => {
     let answered = 0;
     let spoofed = 0;
     let n = 0;
+    // Unique per sweep. `p1..pN` alone repeated every run, so a report that
+    // arrived after its waiter had timed out sat in the buffer and was handed
+    // to the NEXT sweep under the same id — freezing one grid point a full
+    // layout behind, forever.
+    const sweep = Date.now().toString(36);
+    earlyProbes.clear();
     // A previous run that was cut short (worker evicted, browser busy) can
     // have left overlays up; they'd sit under the probe sweep and confuse it.
     // Keep the active flag: this sweep may be running inside a live dim
     // request, whose overlays are raised right after it.
     await closeDimWindows(true);
     for (const point of calibrationPoints()) {
-      const probeId = `p${++n}`;
+      const probeId = `p${sweep}-${++n}`;
       let created: { id?: number } | undefined;
       try {
         created = await browser.windows.create({
@@ -669,7 +693,7 @@ export default defineBackground(() => {
     let probeSeq = 0;
     dimLog('place: target', { target, candidates });
     for (const point of candidates) {
-      const probeId = `o${Date.now() % 100000}-${++probeSeq}`;
+      const probeId = `o${Date.now().toString(36)}-${++probeSeq}`;
       let created: { id?: number } | undefined;
       try {
         created = await browser.windows.create({
@@ -706,10 +730,6 @@ export default defineBackground(() => {
         // Tell the window it is now an overlay, so it cancels the self-close
         // deadline every candidate window carries (see dim/main.ts).
         await browser.runtime.sendMessage({ type: 'vs:dim-keep', probeId }).catch(() => undefined);
-        // Raise it: measured on Windows, an unfocused window is NOT raised, so
-        // the overlay would sit behind whatever is already on that monitor and
-        // dim nothing. Focusing does not move a window.
-        await browser.windows.update(id, { focused: true }).catch(() => undefined);
         // Cover the monitor this window is ALREADY on, by arithmetic.
         //
         // state: 'fullscreen' is not used for placement: the transition
@@ -724,10 +744,15 @@ export default defineBackground(() => {
         if (rect) {
           await browser.windows.update(id, rect).catch(() => undefined);
         } else {
-          // Nothing measurable came back (page never reported, or an older
-          // overlay build). Fall back to the historical behaviour rather than
-          // leaving a 160x120 window pretending to dim a monitor.
-          await browser.windows.update(id, { state: 'fullscreen' }).catch(() => undefined);
+          // Nothing measurable came back (the page never reported, an older
+          // overlay build, an implausible scale). The old fallback promoted the
+          // window to fullscreen anyway — but that transition re-picks the
+          // display and is exactly how a black rectangle landed on the film, so
+          // "we could not measure" must not become "cover something blind".
+          // Drop this candidate; the loop tries the next coordinate.
+          dimLog('no measurable rect — candidate dropped', { id, probeId });
+          await browser.windows.remove(id).catch(() => undefined);
+          continue;
         }
         // Raise it only now: measured on Windows, an unfocused window is not
         // raised and would sit behind whatever is already on that monitor.
@@ -961,7 +986,14 @@ export default defineBackground(() => {
       ? await raiseOverlays(await chromeTargets(windowId), level)
       : await firefoxOverlays(playerWindow, level);
     dimLog('overlays raised', { windowIds });
-    if (windowIds.length === 0) return;
+    if (windowIds.length === 0) {
+      // Nothing is on screen, so nothing may answer the heartbeat as "active".
+      // Leaving the flag set kept a stray overlay — one whose close() failed —
+      // alive forever, and tabs.onRemoved could not reach it because no state
+      // was ever written.
+      await browser.storage.session.remove(DIM_ACTIVE_KEY).catch(() => undefined);
+      return;
+    }
 
     // Hand focus back to the player. The overlays had to take it to be raised
     // above whatever was already on those monitors (see raiseOverlays), but

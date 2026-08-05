@@ -161,6 +161,11 @@ export function looksLikeSpoofedScreen(report: ProbeReport): boolean {
   if (!css || !self || !(self.ow > 0) || !(self.oh > 0)) return false;
   // A few px of slack for window chrome; a real monitor is nowhere near a
   // probe window's size, so the margin can be generous without false alarms.
+  // A real monitor is never this small. Without the size ceiling the rule
+  // fires on an honest browser under a tiling or auto-maximising window
+  // manager, which resizes the probe to fill the screen and makes the two
+  // measurements agree legitimately.
+  if (css.w >= 1000 || css.h >= 800) return false;
   const near = (a: number, b: number): boolean => Math.abs(a - b) <= 40;
   return near(css.w, self.ow) && near(css.h, self.oh);
 }

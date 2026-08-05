@@ -255,6 +255,10 @@ export const I18N_DICT = {
       'Your message reached the author. Bugs typically get a fix within a release; suggestions and praise get a smile and a slow-burn note in the roadmap.',
     'feedback.success.again': 'Send another',
     'feedback.success.close': 'Close',
+    // feedback.review.* — shown only after a happy user's message went
+    // through; the extension has no other path to a public review.
+    'feedback.review.prompt': 'Glad it works! A short review helps other people find it.',
+    'feedback.review.link': 'Leave a review on addons.mozilla.org',
     'feedback.error.title': 'Could not send',
     'feedback.error.network': 'Network error. Check your connection and try again.',
     'feedback.error.rate_limit': 'Slow down — limit is 5 messages per hour. Try later.',
@@ -678,6 +682,9 @@ export const I18N_DICT = {
       'Ваше сообщение доставлено автору. Баги обычно чинятся к следующему релизу; идеи и слова поддержки — встречают улыбку и медленно превращаются в пункты roadmap.',
     'feedback.success.again': 'Отправить ещё',
     'feedback.success.close': 'Закрыть',
+    'feedback.review.prompt':
+      'Рады, что всё работает! Короткий отзыв поможет другим найти расширение.',
+    'feedback.review.link': 'Оставить отзыв на addons.mozilla.org',
     'feedback.error.title': 'Не удалось отправить',
     'feedback.error.network': 'Ошибка сети. Проверьте подключение и попробуйте снова.',
     'feedback.error.rate_limit': 'Не так быстро — лимит 5 сообщений в час. Попробуйте позже.',

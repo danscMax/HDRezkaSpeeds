@@ -24,6 +24,11 @@
  */
 
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
+
+/** Shown in the diagnostics report when the layout userscript is also loaded. */
+const HC_IMPROVEMENT_ISSUE =
+  'HDrezka-Improvement userscript is also running — if the player controls look wrong, disable one of the two.';
+
 import { CleanupRegistry } from './app/cleanup';
 import type { AppContext } from './app/context';
 import type { DiagnosticsPort, Logger as LoggerPort, Translator, UiPort } from './app/ports';
@@ -183,10 +188,15 @@ export async function bootstrap(
     return;
   }
 
-  // 1a. Soft-detect HDrezka-Improvement userscript. Doesn't block us —
-  //     it touches layout/theme rather than speed control — but a
-  //     console.warn helps triage when a user reports a weird overlap.
-  warnIfHdrezkaImprovementPresent();
+  // 1a. Soft-detect HDrezka-Improvement userscript. Doesn't block us — it
+  //     touches layout/theme rather than speed control — but the two CAN
+  //     overlap on the player area. A console.warn is invisible to the person
+  //     actually looking at the overlap, so the finding is also carried into
+  //     the diagnostics report (Settings -> Diagnostics), which is where
+  //     someone goes when the player looks wrong. Deliberately NOT a toast:
+  //     this userscript is popular, and a banner on every page load would be
+  //     noise for people whose setup is working fine.
+  const improvementPresent = warnIfHdrezkaImprovementPresent();
 
   const cleanup = new CleanupRegistry();
   wxtCtx.onInvalidated(() => {
@@ -849,6 +859,9 @@ export async function bootstrap(
       // subscription — otherwise one bad rerender silences the health
       // indicator (gear dot) for the rest of the page lifetime.
       try {
+        if (improvementPresent && !report.issues.includes(HC_IMPROVEMENT_ISSUE)) {
+          report.issues.push(HC_IMPROVEMENT_ISSUE);
+        }
         panel.rerenderSettings();
         panel.setGearWarning(!report.healthy);
       } catch (e) {

@@ -42,14 +42,17 @@ const SELF_ROOT = resolve(__dirname, '..');
 const SELF_NAME = basename(SELF_ROOT);
 const TWIN_NAME = SELF_NAME === 'HDRezkaSpeeds' ? 'VideoSpeeds' : 'HDRezkaSpeeds';
 const cliArgs = process.argv.slice(2);
-const unknownFlag = cliArgs.find((a) => a.startsWith('-') && a !== '--accept');
+const KNOWN_FLAGS = new Set(['--accept', '--strict']);
+const unknownFlag = cliArgs.find((a) => a.startsWith('-') && !KNOWN_FLAGS.has(a));
 if (unknownFlag) {
   console.error(`unknown flag: ${unknownFlag}`);
-  console.error('usage: node scripts/check-drift.mjs [--accept] [path-to-twin]');
+  console.error('usage: node scripts/check-drift.mjs [--accept] [--strict] [path-to-twin]');
   process.exit(1);
 }
 const ACCEPT = cliArgs.includes('--accept');
-const twinArg = cliArgs.find((a) => a !== '--accept');
+const STRICT = cliArgs.includes('--strict');
+// Any non-flag argument is the twin's path; flags must not be mistaken for one.
+const twinArg = cliArgs.find((a) => !a.startsWith('-'));
 const TWIN_ROOT = resolve(twinArg ?? join(SELF_ROOT, '..', TWIN_NAME));
 const BASELINE_NAME = 'drift-baseline.json';
 const BASELINE_PATH = join(__dirname, BASELINE_NAME);
@@ -184,7 +187,7 @@ console.log(
 // legitimate and the human decides), but CI and the release checklist can now
 // demand that every divergence has been LOOKED AT and acknowledged. Without
 // this the checker could only ever be ignored.
-if (process.argv.includes('--strict') && unexpected.length) {
+if (STRICT && unexpected.length) {
   console.error('\n--strict: unacknowledged drift is a failure.');
   process.exit(1);
 }

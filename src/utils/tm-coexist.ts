@@ -154,7 +154,7 @@ export function __resetForTests(): void {
  *      to its toggle classes (hc-content-size-..., hc-style-..., etc.,
  *      seen in the HDRezka console output the user shared 2026-05-06).
  */
-export function warnIfHdrezkaImprovementPresent(): void {
+export function warnIfHdrezkaImprovementPresent(): boolean {
   try {
     const w = window as unknown as {
       HDrezkaImprovement?: unknown;
@@ -167,11 +167,16 @@ export function warnIfHdrezkaImprovementPresent(): void {
     // Match `hc-` only at the start of an id, or at the start of a
     // class token (whitespace-separated).
     const domMatch = !!document.querySelector('[id^="hc-"], [class^="hc-"], [class*=" hc-"]');
-    if (!flagSet && !domMatch) return;
+    if (!flagSet && !domMatch) return false;
     console.warn(
       '[HDREZKA-SPEEDS] HDrezka-Improvement userscript detected — speed controls may overlap with that script. If something looks broken, disable one of them.',
     );
+    // Returned, not just logged: the two scripts CAN overlap on the player
+    // area, and a console line is invisible to the person actually looking at
+    // the overlap. The caller decides how to say it out loud.
+    return true;
   } catch {
     /* swallow — diagnostic-only */
+    return false;
   }
 }
