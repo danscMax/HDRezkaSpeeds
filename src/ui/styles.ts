@@ -1086,6 +1086,35 @@ html[data-vs-theme="light"] .speed-value::after {
 }
 .vs-menu-esc + .vs-menu-help { margin-left: 8px; }
 
+/* Compact EN|RU language switch in the modal header. Language gates reading
+   every other label, so it sits in the header instead of the General tab.
+   It takes over the margin-left:auto that used to push the Esc badge
+   right — hence the sibling override below. */
+.vs-menu-lang {
+  display: inline-flex;
+  margin-left: auto;
+  border: 1px solid var(--vs-menu-input-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.vs-menu-lang + .vs-menu-esc { margin-left: 8px; }
+.vs-menu-lang-option {
+  padding: 2px 7px;
+  border: 0;
+  background: transparent;
+  font: 600 10px/1.4 inherit;
+  letter-spacing: 0.04em;
+  color: var(--vs-text-dim);
+  cursor: pointer;
+}
+.vs-menu-lang-option:hover {
+  color: var(--vs-text-primary);
+}
+.vs-menu-lang-option[aria-pressed='true'] {
+  background: var(--vs-accent, #ff0000);
+  color: #fff;
+}
+
 /* Gear -- circular icon button. Matches the original userscript
    .settings-button (28x28 circle, 16px SVG, rotates 60deg on hover). */
 .vs-gear-wrapper {

@@ -529,6 +529,12 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     menuRegistry = new CleanupRegistry();
     const menuCtx: AppContext = { ...ctx, cleanup: menuRegistry };
 
+    // Every settings write re-renders the whole dialog, and replaceChildren
+    // drops the scroll position with it — so flipping a toggle halfway down
+    // the list threw the user back to the top. Remember where they were and
+    // put them back after the swap.
+    const scrollTop = settingsMenu.querySelector('.vs-menu-body')?.scrollTop ?? 0;
+
     settingsMenu.replaceChildren(
       renderSettingsMenu({
         settings: ctx.settingsStore.get(),
@@ -545,6 +551,11 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
         mirrors: mirrorsOpt?.getViewModel(),
       }),
     );
+
+    if (scrollTop > 0) {
+      const body = settingsMenu.querySelector('.vs-menu-body');
+      if (body) body.scrollTop = scrollTop;
+    }
 
     attachSettingsHandlers(settingsMenu, menuCtx, {
       setActiveTab: (t) => {

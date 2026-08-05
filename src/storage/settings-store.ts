@@ -311,6 +311,16 @@ function sanitizePatch(
   }
   // FEAT-016 "finish N earlier" badge visibility.
   if (typeof safe.showTimeSaved === 'boolean') out.showTimeSaved = safe.showTimeSaved;
+  // FEAT-020: dim other monitors in fullscreen + its fill level (0..100).
+  if (typeof safe.dimOtherScreens === 'boolean') out.dimOtherScreens = safe.dimOtherScreens;
+  if (
+    typeof safe.dimLevel === 'number' &&
+    Number.isFinite(safe.dimLevel) &&
+    safe.dimLevel >= 0 &&
+    safe.dimLevel <= 100
+  ) {
+    out.dimLevel = Math.round(safe.dimLevel);
+  }
   // Opt-in "work on any mirror automatically" toggle.
   if (typeof safe.autoFollowMirrors === 'boolean') out.autoFollowMirrors = safe.autoFollowMirrors;
   // lastSeenTheme — only accept the two valid string values; anything

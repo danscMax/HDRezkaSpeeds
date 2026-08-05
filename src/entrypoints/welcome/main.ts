@@ -14,10 +14,12 @@
  * and Mozilla's static analyzer doesn't flag it.
  */
 
+import { browser } from 'wxt/browser';
 import { storageKeysFor } from '../../config';
 import { detectBrowserLang } from '../../i18n/detect';
 import { type Lang, SUPPORTED_LANGS } from '../../i18n/dict';
 import { createTranslator } from '../../i18n/translator';
+import { builtinMatchPatterns } from '../../sites/mirror-hosts';
 import { captureHotkey, formatHotkey } from '../../speed/hotkeys';
 import { createBrowserStorageAdapter } from '../../storage/adapter';
 import { defaultSettings, type Settings } from '../../storage/types';
@@ -100,6 +102,7 @@ async function renderWelcome(host: HTMLElement, langOverride?: Lang): Promise<vo
   host.replaceChildren(
     renderLangSwitch(t, lang, onLangChange),
     renderHero(t),
+    renderPermissionGate(t),
     renderBlockA(t),
     renderHotkeys(t, liveSettings, applyPatch),
     renderBlockB(t),
@@ -798,6 +801,62 @@ function renderDonate(t: T): HTMLElement {
 }
 
 /* ─── CTA row ──────────────────────────────────────────────────────── */
+
+/* ─── Host permission gate ─────────────────────────────────────────── *
+ *
+ * Firefox treats EVERY host permission in an MV3 manifest as optional and
+ * grants none of them on its own; Chrome grants them at install. So an
+ * install where the user dismissed the prompt — or a profile that lost the
+ * grant on update (Mozilla bug 1893232, see background.ts) — leaves the
+ * extension silently dead on HDRezka: no panel, no error, nothing to click.
+ * Until 0.6.2 the only place to fix that was the popup's Mirrors tab, which
+ * a first-time user has no reason to open. This page is where they ARE at
+ * the moment it matters, so it asks here.
+ *
+ * Renders nothing when the permission is already held — Chrome users and
+ * anyone who accepted the install prompt never see it.
+ */
+function renderPermissionGate(t: T): HTMLElement {
+  const origins = builtinMatchPatterns();
+  const text = h('p', { class: 'welcome-perm-body' }, t('welcome.perm.body'));
+  const button = h(
+    'button',
+    { type: 'button', class: 'welcome-cta cta-hdr' },
+    t('welcome.perm.button'),
+  );
+  const box = h(
+    'div',
+    { class: 'welcome-perm' },
+    h('h2', { class: 'welcome-perm-title' }, t('welcome.perm.title')),
+    text,
+    button,
+  );
+  box.hidden = true;
+
+  button.addEventListener('click', () => {
+    // NO await may precede this call: Firefox only honours permissions.request
+    // while the user-gesture token from the click is still live.
+    void browser.permissions
+      .request({ origins })
+      .then((granted) => {
+        text.textContent = t(granted ? 'welcome.perm.done' : 'welcome.perm.denied');
+        if (granted) button.remove();
+      })
+      .catch(() => {
+        text.textContent = t('welcome.perm.denied');
+      });
+  });
+
+  void browser.permissions
+    .contains({ origins })
+    .then((held) => {
+      box.hidden = held;
+    })
+    // Can't tell: stay quiet rather than nag someone whose access already works.
+    .catch(() => undefined);
+
+  return box;
+}
 
 function renderCta(t: T): HTMLElement {
   const hdrBtn = h(
