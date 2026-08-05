@@ -1034,7 +1034,14 @@ function awaitHDRezkaSignature(wxtCtx: ContentScriptContext, budgetMs = 2500): P
  * carries its own dismiss ✕ and does not auto-vanish, so it cannot be missed
  * by someone who looked away, and cannot nag someone who dismissed it.
  */
+let firstRunHintAttempted = false;
+
 function showFirstRunHint(ctx: AppContext): void {
+  // Synchronous latch on top of the stored flag: the panel re-inserts on
+  // every episode/navigation, and two of those inside the storage round-trip
+  // would both read "not shown yet" and raise two identical chips.
+  if (firstRunHintAttempted) return;
+  firstRunHintAttempted = true;
   const adapter = createBrowserStorageAdapter();
   void wasHintShown(adapter).then((seen) => {
     if (seen) return;
