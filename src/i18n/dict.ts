@@ -153,6 +153,23 @@ export const I18N_DICT = {
       'Click the extension icon → "Support" tab to view TON / USDT addresses.',
     'welcome.cta.hdrezka': 'Open HDRezka',
     'welcome.cta.gotit': 'Close',
+    // welcome.perm.* — shown only while the HDRezka host permission is
+    // missing, which in Firefox is the default state (see renderPermissionGate).
+    // popup.grant.* — the banner the toolbar badge promises when access is
+    // missing. Must be the first thing in the popup, not a tab to find.
+    'popup.grant.title': 'No access to HDRezka',
+    'popup.grant.body':
+      'Firefox has not granted access to the site — this happens after an update that added a mirror. Without it the speed panel will not appear.',
+    'popup.grant.button': 'Allow access',
+    // Toolbar tooltip while the extension holds no access to HDRezka.
+    'badge.no_access':
+      'HDRezka Speed Controller has no access to HDRezka — click to allow it, or the panel will not appear',
+    'welcome.perm.title': 'One step left: allow access to HDRezka',
+    'welcome.perm.body':
+      'Firefox asks you to grant site access separately. Without it the panel will not appear on HDRezka.',
+    'welcome.perm.button': 'Allow on HDRezka',
+    'welcome.perm.done': 'Access granted — reload the HDRezka tab and the panel appears.',
+    'welcome.perm.denied': 'Access was not granted. You can allow it later in the extension popup.',
 
     // panel.button.tooltip — title attribute on each speed-preset button.
     // Single line so the browser tooltip doesn't blow up.
@@ -368,6 +385,20 @@ export const I18N_DICT = {
     'behavior.remember_per_video': 'Remember speed per title',
     'behavior.remember_per_video.tip':
       'Each movie/series keeps its own speed (all episodes of a show share one). Falls back to the global default for new titles.',
+    // ---- FEAT-020: dim the other monitors during fullscreen ----
+    'behavior.dim_screens': 'Dim other monitors in fullscreen',
+    'behavior.dim_screens.level': 'Dim level',
+    'behavior.dim_screens.tip':
+      'While a video plays fullscreen, every other monitor is covered by a dark window. The level sets how dark: 100% is black, lower is grey. Click a dimmed screen to close it manually.',
+    'behavior.dim_screens.calibrate': 'Find my monitors',
+    'behavior.dim_screens.calibrate.tip':
+      'Firefox gives extensions no way to read your monitor layout, so it has to be measured once: small black windows flash across the desktop and the result is remembered. Re-run it after adding or moving a monitor.',
+    'behavior.dim_screens.calibrate.confirm':
+      'Firefox has no way to tell an extension where your monitors are, so they have to be measured.\n\nSmall dark windows will flash across your screens for about 10–20 seconds — that is the measurement, not a malfunction. Nothing else is touched, and the result is remembered.\n\nMeasure now?',
+    'behavior.dim_screens.last_run': 'Last fullscreen: {placed} of {wanted} monitors dimmed.',
+    'behavior.dim_screens.calibrate.running': 'Looking for monitors…',
+    'behavior.dim_screens.calibrate.done': 'Found {n} screen(s). Dimming is ready.',
+    'behavior.dim_screens.calibrate.failed': 'Could not measure the monitors. Try again.',
     'behavior.volume_boost': 'Volume boost',
     'behavior.volume_boost.tip':
       'Amplify quiet audio up to 300%. Site-dependent: if the sound disappears, set it back to 100%.',
@@ -549,6 +580,18 @@ export const I18N_DICT = {
       'Кликните иконку расширения → вкладка «Поддержать», там адреса TON / USDT.',
     'welcome.cta.hdrezka': 'Открыть HDRezka',
     'welcome.cta.gotit': 'Закрыть',
+    'popup.grant.title': 'Нет доступа к HDRezka',
+    'popup.grant.body':
+      'Firefox не выдал доступ к сайту — так бывает после обновления, добавившего зеркало. Без него панель скорости не появится.',
+    'popup.grant.button': 'Разрешить доступ',
+    'badge.no_access':
+      'У HDRezka Speed Controller нет доступа к HDRezka — нажмите, чтобы выдать его, иначе панель не появится',
+    'welcome.perm.title': 'Остался один шаг: разрешите доступ к HDRezka',
+    'welcome.perm.body':
+      'Firefox просит выдать доступ к сайту отдельно. Без него панель на HDRezka не появится.',
+    'welcome.perm.button': 'Разрешить на HDRezka',
+    'welcome.perm.done': 'Доступ выдан — обновите вкладку HDRezka, и панель появится.',
+    'welcome.perm.denied': 'Доступ не выдан. Разрешить можно позже в окне расширения.',
 
     'panel.button.tooltip':
       'Клик — временно для этого видео. Двойной клик — сохранить как основную.',
@@ -759,6 +802,20 @@ export const I18N_DICT = {
     'behavior.remember_per_video': 'Помнить скорость для каждого тайтла',
     'behavior.remember_per_video.tip':
       'У каждого фильма/сериала своя скорость (все серии шоу делят одну). Для новых тайтлов действует глобальная.',
+    // ---- FEAT-020: затемнение соседних мониторов в полноэкранном режиме ----
+    'behavior.dim_screens': 'Затемнять другие мониторы в полноэкранном режиме',
+    'behavior.dim_screens.level': 'Степень затемнения',
+    'behavior.dim_screens.tip':
+      'Пока видео идёт на весь экран, остальные мониторы закрываются тёмным окном. Степень задаёт глубину: 100% — чёрный, меньше — серый. Клик по затемнённому экрану закрывает его вручную.',
+    'behavior.dim_screens.calibrate': 'Найти мониторы',
+    'behavior.dim_screens.calibrate.tip':
+      'Firefox не даёт расширениям узнать раскладку мониторов, поэтому её нужно один раз измерить: по рабочему столу пробегут маленькие чёрные окна, результат запомнится. Повторите после добавления или перестановки монитора.',
+    'behavior.dim_screens.calibrate.confirm':
+      'Firefox не сообщает расширениям, где расположены ваши мониторы, поэтому их нужно измерить.\n\nСейчас по экранам примерно на 10–20 секунд начнут пробегать маленькие тёмные окна — это и есть замер, а не сбой. Больше ничего не затрагивается, результат запоминается.\n\nИзмерить сейчас?',
+    'behavior.dim_screens.last_run': 'Прошлый полный экран: затемнено {placed} из {wanted}.',
+    'behavior.dim_screens.calibrate.running': 'Ищу мониторы…',
+    'behavior.dim_screens.calibrate.done': 'Найдено экранов: {n}. Затемнение готово.',
+    'behavior.dim_screens.calibrate.failed': 'Не удалось измерить мониторы. Попробуйте ещё раз.',
     'behavior.volume_boost': 'Усиление громкости',
     'behavior.volume_boost.tip':
       'Усиливает тихий звук до 300%. Зависит от сайта: если звук пропал — верните 100%.',

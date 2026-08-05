@@ -14,6 +14,7 @@ import { browser } from 'wxt/browser';
 import type { AppContext } from '../../app/context';
 import { defaultPresetsFor } from '../../config';
 import type { Lang } from '../../i18n/dict';
+import { NEEDS_SCREEN_CALIBRATION } from '../../screens/dim-screens';
 import { captureHotkey, formatHotkey, isBrowserReservedCombo } from '../../speed/hotkeys';
 import { applyVolumeBoost, clampBoost } from '../../speed/volume-boost';
 import {
@@ -385,6 +386,124 @@ export function attachSettingsHandlers(
   // FEAT-016: show/hide the "finish N earlier" badge. Panel subscribes to the
   // store and reflects the change live.
   attachToggle(menuRoot, ctx, 'show-time-saved', 'showTimeSaved');
+  // FEAT-020: dim the other monitors in fullscreen. In Firefox the feature is
+  // dead until the monitors have been probed, and "turn it on, nothing
+  // happens, no error" is the worst possible outcome — so switching it ON
+  // calibrates right away instead of relying on the user finding the button
+  // further down the panel.
+  attachToggle(menuRoot, ctx, 'dim-other-screens', 'dimOtherScreens', () => {
+    if (!NEEDS_SCREEN_CALIBRATION) return;
+    if (ctx.settingsStore.getKey('dimOtherScreens') !== true) return;
+    void (async () => {
+      const { browser: br } = await import('wxt/browser');
+      const known = (await br.runtime.sendMessage({ type: 'vs:screen-map' }).catch(() => null)) as {
+        screens?: number;
+      } | null;
+      if (typeof known?.screens === 'number' && known.screens > 1) return;
+      // Windows are about to start flashing across the desktop. Say so BEFORE
+      // it happens — an unexplained swarm of popups reads as a malfunction.
+      if (typeof window.confirm === 'function') {
+        if (!window.confirm(ctx.i18n.t('behavior.dim_screens.calibrate.confirm'))) {
+          await ctx.settingsStore.update({ dimOtherScreens: false });
+          return;
+        }
+      }
+      ctx.ui.showNotification(ctx.i18n.t('behavior.dim_screens.calibrate.running'), 'info');
+      const res = (await br.runtime
+        .sendMessage({ type: 'vs:calibrate-screens' })
+        .catch(() => null)) as { screens?: number } | null;
+      const found = typeof res?.screens === 'number' ? res.screens : 0;
+      ctx.ui.showNotification(
+        ctx.i18n.t('behavior.dim_screens.calibrate.done').replace('{n}', String(found)),
+        found > 1 ? 'info' : 'warn',
+      );
+    })();
+  });
+
+  const dimLevelInput = menuRoot.querySelector<HTMLInputElement>('[data-vs-dim-level]');
+  if (dimLevelInput) {
+    ctx.cleanup.addEventListener(dimLevelInput, 'change', async () => {
+      const parsed = parseFloat(dimLevelInput.value.replace(',', '.'));
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+        flagInvalid(dimLevelInput, true);
+        ctx.ui.showNotification(ctx.i18n.t('toast.preset_invalid'), 'error');
+        return;
+      }
+      flagInvalid(dimLevelInput, false);
+      await ctx.settingsStore.update({ dimLevel: Math.round(parsed) });
+    });
+    ctx.cleanup.addEventListener(dimLevelInput, 'input', () => {
+      flagInvalid(dimLevelInput, false);
+    });
+  }
+
+  // Firefox-only: probe for the attached monitors and cache the result. The
+  // worker owns the sweep (only it can open windows); we just report back how
+  // many screens it ended up with, since a "0 screens" outcome is the one
+  // thing the user must see before wondering why nothing dims.
+  const calibrateBtn = menuRoot.querySelector<HTMLButtonElement>('[data-vs-dim-calibrate]');
+  if (calibrateBtn) {
+    const status = menuRoot.querySelector<HTMLElement>('[data-vs-dim-calibrate-status]');
+    // Show what is on record BEFORE the user touches anything: "0 screens"
+    // is the difference between "the feature is broken" and "press this".
+    if (status) {
+      void (async () => {
+        const { browser: br } = await import('wxt/browser');
+        const known = (await br.runtime
+          .sendMessage({ type: 'vs:screen-map' })
+          .catch(() => null)) as {
+          screens?: number;
+          last?: { wanted: number; placed: number; reason: string };
+        } | null;
+        if (typeof known?.screens !== 'number' || !status.isConnected) return;
+        if (known.screens === 0) {
+          status.textContent = ctx.i18n.t('behavior.dim_screens.calibrate.tip');
+          return;
+        }
+        const found = ctx.i18n
+          .t('behavior.dim_screens.calibrate.done')
+          .replace('{n}', String(known.screens));
+        // The outcome of the LAST fullscreen matters more than the count:
+        // "3 screens found" together with "0 of 2 dimmed" is a different
+        // problem from "3 screens found" alone, and the user can now see
+        // which one they actually have.
+        const last = known.last;
+        status.textContent =
+          last && last.reason !== 'ok'
+            ? `${found} ${ctx.i18n
+                .t('behavior.dim_screens.last_run')
+                .replace('{placed}', String(last.placed))
+                .replace('{wanted}', String(last.wanted))}`
+            : found;
+      })();
+    }
+    ctx.cleanup.addEventListener(calibrateBtn, 'click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof window.confirm === 'function') {
+        if (!window.confirm(ctx.i18n.t('behavior.dim_screens.calibrate.confirm'))) return;
+      }
+      calibrateBtn.disabled = true;
+      if (status) status.textContent = ctx.i18n.t('behavior.dim_screens.calibrate.running');
+      try {
+        const { browser: br } = await import('wxt/browser');
+        const res = (await br.runtime.sendMessage({ type: 'vs:calibrate-screens' })) as
+          | { ok?: boolean; screens?: number }
+          | undefined;
+        const found = typeof res?.screens === 'number' ? res.screens : 0;
+        if (status) {
+          status.textContent = ctx.i18n
+            .t('behavior.dim_screens.calibrate.done')
+            .replace('{n}', String(found));
+        }
+      } catch (e) {
+        ctx.logger.warn('screen calibration failed', e);
+        if (status) status.textContent = ctx.i18n.t('behavior.dim_screens.calibrate.failed');
+      } finally {
+        calibrateBtn.disabled = false;
+      }
+    });
+  }
 
   // ----- Discovery / healthcheck (KillSwitch wiring -- Wave 1.9) -----
   const discoveryCb = menuRoot.querySelector<HTMLInputElement>('input[name="discovery-enabled"]');
@@ -890,7 +1009,8 @@ function attachToggle(
     | 'compactMode'
     | 'preservePitch'
     | 'rememberPerVideo'
-    | 'showTimeSaved',
+    | 'showTimeSaved'
+    | 'dimOtherScreens',
   onChanged?: () => void,
 ): void {
   const cb = menuRoot.querySelector<HTMLInputElement>(`input[name="${inputName}"]`);

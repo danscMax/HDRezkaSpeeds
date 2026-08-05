@@ -10,6 +10,7 @@
 import type { Site } from '../app/ports';
 import { defaultPresetsFor } from '../config';
 import type { Lang } from '../i18n/dict';
+import { DEFAULT_DIM_LEVEL } from '../screens/dim-screens';
 
 /**
  * One key-combo entry. Matches the legacy userscript shape verbatim
@@ -113,6 +114,17 @@ export interface Settings {
    */
   showTimeSaved?: boolean;
   /**
+   * FEAT-020: while a video plays in native fullscreen, cover every OTHER
+   * display with an opaque dark window. Chrome-only (needs
+   * chrome.system.display); opt-in, default off.
+   */
+  dimOtherScreens?: boolean;
+  /**
+   * FEAT-020 fill level in percent, 0..100. 100 = pure black, lower = grey.
+   * Undefined means DEFAULT_DIM_LEVEL.
+   */
+  dimLevel?: number;
+  /**
    * Opt-in: work on ANY HDRezka mirror automatically. When true (and the
    * user has granted the broad all-sites optional host permission), the
    * background SW registers an all-sites content script that self-bails on
@@ -188,6 +200,8 @@ export function defaultSettings(language: Lang, site?: Site): Settings {
     seekSeconds: 10,
     volumeBoost: 1,
     showTimeSaved: true,
+    dimOtherScreens: false,
+    dimLevel: DEFAULT_DIM_LEVEL,
     autoFollowMirrors: false,
   };
 }

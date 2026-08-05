@@ -24,7 +24,8 @@
     "test:smoke": "playwright test",
     "drift": "node scripts/check-drift.mjs",
     "postinstall": "wxt prepare",
-    "test:smoke:fullscreen": "node tests/smoke/fullscreen-no-ui.mjs"
+    "test:smoke:fullscreen": "node tests/smoke/fullscreen-no-ui.mjs",
+    "test:smoke:dim": "node tests/smoke/dim-other-screens.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",

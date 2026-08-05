@@ -64,7 +64,18 @@ export default defineConfig({
     // - activeTab: lets the popup read the active tab's URL for the
     //              "Add current site as mirror" button (granted on toolbar
     //              click, no install-time warning).
-    permissions: ['storage', 'scripting', 'activeTab'],
+    // - system.display: FEAT-020 only — bounds of the attached monitors, so
+    //                   the worker knows which screens are NOT showing the
+    //                   fullscreen video and can cover them. Chrome-only:
+    //                   Firefox doesn't implement the API, and an unknown
+    //                   permission there is just a validation warning, so it
+    //                   is added per-target rather than shipped to both.
+    permissions: [
+      'storage',
+      'scripting',
+      'activeTab',
+      ...(browser === 'firefox' ? [] : ['system.display']),
+    ],
     // Full set of built-in HDRezka mirrors (src/sites/mirror-hosts.ts).
     host_permissions: builtinMatchPatterns(),
     // User-added mirrors are requested at runtime (permissions.request from

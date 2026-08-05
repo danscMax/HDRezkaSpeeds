@@ -37,6 +37,7 @@ import { reportToClipboardText } from './health/report';
 import type { DiagnosticReport } from './health/types';
 import { detectBrowserLang } from './i18n/detect';
 import { createTranslator } from './i18n/translator';
+import { CAN_DIM_SCREENS, DEFAULT_DIM_LEVEL, readScreenGeom } from './screens/dim-screens';
 import {
   detectSite,
   extractHDRezkaEpisodeKey,
@@ -466,6 +467,38 @@ export async function bootstrap(
       });
   };
 
+  // FEAT-020: ask the background worker to raise / drop the dim overlays on
+  // the other monitors. Same lazy-import-and-swallow shape as the badge: no
+  // toolbar, no worker, no problem (userscript build, worker asleep). The
+  // "off" message is sent unconditionally — cheap, and it also cleans up
+  // after a settings toggle that flipped OFF while fullscreen was live.
+  const requestDim = (on: boolean): void => {
+    if (!CAN_DIM_SCREENS) return;
+    if (on && ctx.settingsStore.getKey('dimOtherScreens') !== true) return;
+    // The page's own screen. Firefox has no display API, so this is the only
+    // way the worker can tell WHICH monitor to leave alone. Reported in
+    // PHYSICAL pixels: this page carries the site's zoom level, the probe
+    // windows don't, and raw CSS pixels made the same monitor look like two
+    // different screens — which dimmed the screen showing the video.
+    const message = on
+      ? {
+          type: 'vs:dim-on',
+          level: ctx.settingsStore.getKey('dimLevel') ?? DEFAULT_DIM_LEVEL,
+          screen: readScreenGeom(window),
+        }
+      : { type: 'vs:dim-off' };
+    void import('wxt/browser')
+      .then(({ browser: br }) => br.runtime.sendMessage(message))
+      .catch(() => {
+        /* SW asleep or userscript shim — dimming is best-effort */
+      });
+  };
+  // A page unload while fullscreen (episode switch, tab close mid-playback)
+  // fires no fullscreenchange, so the overlays would outlive the player.
+  ctx.cleanup.addEventListener(window, 'pagehide', () => {
+    requestDim(false);
+  });
+
   const realUi = createUiPort({
     panel,
     playerContainer: () => discoveryPort.resolve('playerContainer'),
@@ -792,6 +825,10 @@ export async function bootstrap(
   //      no stylesheet rule can override — so it is torn down here on
   //      entering fullscreen, and showNotification/showActionChip bail
   //      out while fullscreen is active (ui/notifications.ts).
+  //
+  //      FEAT-020: entering fullscreen is also where the "dim the other
+  //      monitors" overlays go up. Only the background worker can open
+  //      windows, so this is a signal, not an action — see requestDim.
   ctx.cleanup.addEventListener(document, 'fullscreenchange', () => {
     if (document.fullscreenElement) {
       try {
@@ -799,8 +836,10 @@ export async function bootstrap(
       } catch (e) {
         ctx.logger.warn('fullscreen: notification stack teardown failed', e);
       }
+      requestDim(true);
       return;
     }
+    requestDim(false);
     // Leaving fullscreen: the player chrome just resized, so the
     // in-chrome slider ('video' position) needs its geometry recomputed.
     if (ctx.settingsStore.getKey('sliderPosition') === 'video') {

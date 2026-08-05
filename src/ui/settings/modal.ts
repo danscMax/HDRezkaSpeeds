@@ -15,6 +15,11 @@
 
 import type { Site, Translator } from '../../app/ports';
 import { SPEED_POOL, speedBoundsFor } from '../../config';
+import {
+  CAN_DIM_SCREENS,
+  DEFAULT_DIM_LEVEL,
+  NEEDS_SCREEN_CALIBRATION,
+} from '../../screens/dim-screens';
 import type { Settings } from '../../storage/types';
 import { fragment, type HChild, h } from '../dom-h';
 import { vsIcon } from '../icons';
@@ -334,31 +339,8 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
     ),
   );
 
-  const langSection = vsSection(
-    t('lang.section_label'),
-    h(
-      'div',
-      { class: 'vs-segmented', role: 'radiogroup', 'aria-label': t('lang.section_label') },
-      vsSegmentedOption(
-        {
-          'data-vs-lang': 'en',
-          'aria-pressed': settings.language === 'en' ? 'true' : 'false',
-          title: t('lang.tooltip_en'),
-        },
-        vsIcon('globe', 13),
-        ' English',
-      ),
-      vsSegmentedOption(
-        {
-          'data-vs-lang': 'ru',
-          'aria-pressed': settings.language === 'ru' ? 'true' : 'false',
-          title: t('lang.tooltip_ru'),
-        },
-        vsIcon('globe', 13),
-        ' Русский',
-      ),
-    ),
-  );
+  // Language moved OUT of this tab into the modal header (compact EN|RU) —
+  // it gates reading everything else, so it can't live three scrolls down.
 
   const behaviorSection = vsSection(
     t('behavior.section'),
@@ -386,6 +368,60 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
     vsRow(t('behavior.time_saved'), vsToggle('show-time-saved', settings.showTimeSaved !== false), {
       title: t('behavior.time_saved.tip'),
     }),
+    // FEAT-020: dim the other monitors in fullscreen. Hidden entirely where
+    // the screen geometry API doesn't exist (Firefox, userscript) — a toggle
+    // that can never do anything is worse than no toggle.
+    ...(CAN_DIM_SCREENS
+      ? [
+          vsRow(
+            t('behavior.dim_screens'),
+            vsToggle('dim-other-screens', !!settings.dimOtherScreens),
+            {
+              title: t('behavior.dim_screens.tip'),
+            },
+          ),
+          vsRow(
+            t('behavior.dim_screens.level'),
+            h(
+              'span',
+              { class: 'vs-preset-custom-row' },
+              h('input', {
+                type: 'number',
+                class: 'vs-preset-custom-input',
+                'data-vs-dim-level': '',
+                min: 0,
+                max: 100,
+                step: 5,
+                value: String(settings.dimLevel ?? DEFAULT_DIM_LEVEL),
+                'aria-label': t('behavior.dim_screens.level'),
+              }),
+              h('span', { class: 'vs-help-text', style: 'margin: 0;' }, '%'),
+            ),
+          ),
+          h('p', { class: 'vs-help-text' }, t('behavior.dim_screens.tip')),
+          // Firefox has no display API — the monitors have to be probed once
+          // (a brief sweep of small black windows) and the result is cached.
+          ...(NEEDS_SCREEN_CALIBRATION
+            ? [
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    class: 'vs-action',
+                    'data-vs-dim-calibrate': '',
+                    title: t('behavior.dim_screens.calibrate.tip'),
+                  },
+                  t('behavior.dim_screens.calibrate'),
+                ),
+                h(
+                  'p',
+                  { class: 'vs-help-text', 'data-vs-dim-calibrate-status': '' },
+                  t('behavior.dim_screens.calibrate.tip'),
+                ),
+              ]
+            : []),
+        ]
+      : []),
   );
 
   // FEAT-017: volume boost (percent input, 100 = off). Deliberately a
@@ -443,7 +479,6 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
     sliderPosSection,
     presetSection,
     sliderRangeSection,
-    langSection,
     behaviorSection,
     volumeSection,
     advancedSection,
@@ -754,7 +789,7 @@ function donateTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
 /* -------------------------------------------------------------------------- */
 
 export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
-  const { i18n, scriptVersion } = opts;
+  const { i18n, scriptVersion, settings } = opts;
   const t = i18n.t;
   // A persisted 'mirrors' tab with no view model (userscript build) falls
   // back to General instead of rendering an empty panel.
@@ -783,6 +818,40 @@ export function renderSettingsMenu(opts: ModalRenderOptions): DocumentFragment {
     'div',
     { class: 'vs-menu-header' },
     h('div', { class: 'vs-menu-title' }, vsIcon('settings', 14), ' ', t('menu.title')),
+    // Language lives in the HEADER, not buried in General: it is the one
+    // setting a user needs BEFORE they can read the rest of the dialog.
+    // Same [data-vs-lang] hooks as the old segmented control, so the
+    // handlers in settings/handlers.ts are unchanged.
+    h(
+      'div',
+      { class: 'vs-menu-lang', role: 'radiogroup', 'aria-label': t('lang.section_label') },
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'vs-menu-lang-option',
+          role: 'radio',
+          'data-vs-lang': 'en',
+          'aria-pressed': settings.language === 'en' ? 'true' : 'false',
+          'aria-checked': settings.language === 'en' ? 'true' : 'false',
+          title: t('lang.tooltip_en'),
+        },
+        'EN',
+      ),
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'vs-menu-lang-option',
+          role: 'radio',
+          'data-vs-lang': 'ru',
+          'aria-pressed': settings.language === 'ru' ? 'true' : 'false',
+          'aria-checked': settings.language === 'ru' ? 'true' : 'false',
+          title: t('lang.tooltip_ru'),
+        },
+        'RU',
+      ),
+    ),
     // UX-030: Esc already closes the dialog, but nothing said so. A tiny
     // keycap badge in the header makes the affordance discoverable.
     h('span', { class: 'vs-menu-esc', title: t('menu.esc_hint'), 'aria-hidden': 'true' }, 'Esc'),
