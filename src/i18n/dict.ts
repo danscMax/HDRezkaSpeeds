@@ -393,6 +393,8 @@ export const I18N_DICT = {
     'behavior.dim_screens.calibrate.confirm':
       'Firefox has no way to tell an extension where your monitors are, so they have to be measured.\n\nSmall dark windows will flash across your screens for about 10–20 seconds — that is the measurement, not a malfunction. Nothing else is touched, and the result is remembered.\n\nMeasure now?',
     'behavior.dim_screens.last_run': 'Last fullscreen: {placed} of {wanted} monitors dimmed.',
+    'behavior.dim_screens.no_player_screen':
+      'Last fullscreen: nothing was dimmed — the monitor playing the video was not among the ones on record, so covering the wrong one was avoided. Run the search again.',
     'behavior.dim_screens.calibrate.running': 'Looking for monitors…',
     'behavior.dim_screens.calibrate.done': 'Found {n} screen(s). Dimming is ready.',
     'behavior.dim_screens.calibrate.failed': 'Could not measure the monitors. Try again.',
@@ -808,6 +810,8 @@ export const I18N_DICT = {
     'behavior.dim_screens.calibrate.confirm':
       'Firefox не сообщает расширениям, где расположены ваши мониторы, поэтому их нужно измерить.\n\nСейчас по экранам примерно на 10–20 секунд начнут пробегать маленькие тёмные окна — это и есть замер, а не сбой. Больше ничего не затрагивается, результат запоминается.\n\nИзмерить сейчас?',
     'behavior.dim_screens.last_run': 'Прошлый полный экран: затемнено {placed} из {wanted}.',
+    'behavior.dim_screens.no_player_screen':
+      'Прошлый полный экран: ничего не затемнено — монитор с видео не нашёлся среди записанных, и мы не стали закрывать не тот. Запустите поиск мониторов заново.',
     'behavior.dim_screens.calibrate.running': 'Ищу мониторы…',
     'behavior.dim_screens.calibrate.done': 'Найдено экранов: {n}. Затемнение готово.',
     'behavior.dim_screens.calibrate.failed': 'Не удалось измерить мониторы. Попробуйте ещё раз.',

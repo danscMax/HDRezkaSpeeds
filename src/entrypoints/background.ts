@@ -37,12 +37,12 @@ import {
   calibrationPoints,
   DEFAULT_DIM_LEVEL,
   dedupeScreens,
-  otherScreens,
   pickOtherDisplays,
   type Rect,
   type ScreenGeom,
   type ScreenRecipe,
   sameScreen,
+  screensTouchedByPlayer,
 } from '../screens/dim-screens';
 import {
   BUILTIN_MIRROR_HOSTS,
@@ -84,7 +84,7 @@ const SCREEN_MAP_KEY = 'vs-screen-map';
  * so every placement gets rejected and nothing dims — silently, which is the
  * worst way to fail. An unknown version is treated as "not calibrated".
  */
-const SCREEN_MAP_VERSION = 3;
+const SCREEN_MAP_VERSION = 4;
 interface StoredScreenMap {
   v: number;
   screens: ScreenRecipe[];
@@ -100,7 +100,7 @@ const DIM_RESULT_KEY = 'vs-dim-last-result';
 interface DimResult {
   wanted: number;
   placed: number;
-  reason: 'ok' | 'no-map' | 'missed';
+  reason: 'ok' | 'no-map' | 'no-player-screen' | 'missed';
 }
 
 /**
@@ -522,8 +522,9 @@ export default defineBackground(() => {
   /** What a dim window reports about the screen it landed on. */
   interface ProbeReport {
     geom: ScreenGeom;
-    /** The screen the window landed on, as a CSS-pixel rect. */
-    css?: { l?: number; t?: number; w: number; h: number };
+    /** The screen the window landed on, as a CSS-pixel rect. Origin included:
+     *  the handler only forwards it when all four numbers arrived. */
+    css?: { l: number; t: number; w: number; h: number };
     /** The window's own CSS-space position and outer size, for the scale. */
     self?: { x: number; y: number; ow: number; oh: number };
   }
@@ -614,13 +615,18 @@ export default defineBackground(() => {
       if (typeof created?.id === 'number') {
         await browser.windows.remove(created.id).catch(() => undefined);
       }
-      if (report) {
+      // A report without the CSS rect cannot be placed OR matched against a
+      // window later; storing it with a zeroed origin would put a phantom
+      // screen at (0,0) that attracts every overlap test.
+      if (report?.css) {
         found.push({
           ...report.geom,
           rawLeft: point.rawLeft,
           rawTop: point.rawTop,
-          cssWidth: report.css?.w ?? report.geom.availWidth,
-          cssHeight: report.css?.h ?? report.geom.availHeight,
+          cssLeft: report.css.l,
+          cssTop: report.css.t,
+          cssWidth: report.css.w,
+          cssHeight: report.css.h,
         });
       }
     }
@@ -660,7 +666,7 @@ export default defineBackground(() => {
 
   async function placeOverlay(
     target: ScreenRecipe,
-    player: ScreenGeom,
+    player: ScreenGeom | null,
     covered: ScreenGeom[],
     level: number,
   ): Promise<Placement | null> {
@@ -700,14 +706,14 @@ export default defineBackground(() => {
       dimLog(`probe #${probeSeq} at (${point.rawLeft},${point.rawTop}) landed`, {
         landedOn,
         onTarget: landedOn != null && sameScreen(landedOn, target),
-        onPlayerScreen: landedOn != null && sameScreen(landedOn, player),
+        onPlayerScreen: landedOn != null && player != null && sameScreen(landedOn, player),
         alreadyCovered: landedOn != null && covered.some((seen) => sameScreen(seen, landedOn)),
       });
       const good =
         typeof id === 'number' &&
         landedOn != null &&
         sameScreen(landedOn, target) &&
-        !sameScreen(landedOn, player) &&
+        !(player != null && sameScreen(landedOn, player)) &&
         !covered.some((seen) => sameScreen(seen, landedOn));
       if (good && typeof id === 'number') {
         // Tell the window it is now an overlay, so it cancels the self-close
@@ -775,7 +781,9 @@ export default defineBackground(() => {
           .catch(() => undefined);
         const finalGeom = (await recheck)?.geom ?? null;
         const stillRight =
-          finalGeom != null && sameScreen(finalGeom, target) && !sameScreen(finalGeom, player);
+          finalGeom != null &&
+          sameScreen(finalGeom, target) &&
+          !(player != null && sameScreen(finalGeom, player));
         // No answer at all (window busy mid-transition) is not treated as a
         // failure: closing a working overlay is worse than keeping one whose
         // recheck timed out.
@@ -867,10 +875,8 @@ export default defineBackground(() => {
    * ids of the overlays that actually landed where they were meant to.
    * Empty map = the user hasn't calibrated yet; the settings UI says so.
    */
-  async function firefoxOverlays(player: ScreenGeom | null, level: number): Promise<number[]> {
-    if (!player) return [];
+  async function firefoxOverlays(playerWindow: Rect | null, level: number): Promise<number[]> {
     const map = await readScreenMap();
-    dimLog('firefox path', { player, calibratedScreens: map, wanted: otherScreens(map, player) });
     // NO calibration from here. The sweep walks coordinates across the whole
     // desktop, so running it at fullscreen-time flashes probe windows over
     // every monitor INCLUDING the one playing the video. Calibration belongs
@@ -880,9 +886,25 @@ export default defineBackground(() => {
       await recordDimResult({ wanted: 0, placed: 0, reason: 'no-map' });
       return [];
     }
+    // Which monitors is the film on? Decided from the PLAYER'S WINDOW rect,
+    // not from screen.avail* read in the content script: Firefox's
+    // fingerprinting protection falsifies those (it says so in the page
+    // console), so the player's own screen matched nothing and was dimmed
+    // along with the rest.
+    const touched = playerWindow ? screensTouchedByPlayer(map, playerWindow) : [];
+    const wanted = map.filter((s) => !touched.some((t) => sameScreen(t, s)));
+    dimLog('firefox path', { playerWindow, touched, calibratedScreens: map, wanted });
+    // FAIL SAFE. If the window rect is unavailable, or it overlaps no screen
+    // on record (an unplugged monitor, a stale map, a window parked
+    // off-screen), we do NOT know where the film is — and dimming everything
+    // "just in case" is precisely the bug this feature keeps producing: a
+    // black rectangle over the video. Dim nothing and say why.
+    if (touched.length === 0) {
+      await recordDimResult({ wanted: map.length, placed: 0, reason: 'no-player-screen' });
+      return [];
+    }
     const ids: number[] = [];
     const covered: ScreenGeom[] = [];
-    const wanted = otherScreens(map, player);
     // The recipe in the map was recorded by a 160x120 calibration probe, and a
     // full-size overlay does NOT land where a tiny window did — so candidate #1
     // misses, goes fullscreen on the wrong monitor, and is closed again. That
@@ -892,7 +914,7 @@ export default defineBackground(() => {
     // the first try and nothing flashes.
     let learned = false;
     for (const target of wanted) {
-      const placed = await placeOverlay(target, player, covered, level);
+      const placed = await placeOverlay(target, touched[0] ?? null, covered, level);
       if (placed != null) {
         ids.push(placed.id);
         covered.push(target);
@@ -913,13 +935,21 @@ export default defineBackground(() => {
     return ids;
   }
 
-  async function openDimWindows(
-    tabId: number,
-    windowId: number,
-    level: number,
-    player: ScreenGeom | null,
-  ): Promise<void> {
-    dimLog('dim-on', { level, player, engine: systemDisplay() ? 'chrome' : 'firefox' });
+  async function openDimWindows(tabId: number, windowId: number, level: number): Promise<void> {
+    // The player's window rect, straight from the window API. This replaces
+    // the screen geometry the content script used to send: Firefox's
+    // fingerprinting protection falsifies screen.avail* in page context, so
+    // that value could not identify the monitor showing the film.
+    const w = await browser.windows.get(windowId).catch(() => null);
+    const playerWindow: Rect | null =
+      w &&
+      typeof w.left === 'number' &&
+      typeof w.top === 'number' &&
+      typeof w.width === 'number' &&
+      typeof w.height === 'number'
+        ? { left: w.left, top: w.top, width: w.width, height: w.height }
+        : null;
+    dimLog('dim-on', { level, playerWindow, engine: systemDisplay() ? 'chrome' : 'firefox' });
     // Never stack two generations of overlays (re-entering fullscreen, a
     // second tab going fullscreen): the previous set is always closed first.
     await closeDimWindows();
@@ -933,7 +963,7 @@ export default defineBackground(() => {
     // kind, not just in where the coordinates come from.
     const windowIds = systemDisplay()
       ? await raiseOverlays(await chromeTargets(windowId), level)
-      : await firefoxOverlays(player, level);
+      : await firefoxOverlays(playerWindow, level);
     dimLog('overlays raised', { windowIds });
     if (windowIds.length === 0) return;
 
@@ -1082,6 +1112,7 @@ export default defineBackground(() => {
       probeId?: unknown;
       geom?: unknown;
       css?: unknown;
+      self?: unknown;
     };
     // FEAT-020: the content script owns the fullscreen signal, we own the
     // windows. Both handlers return their promise so MV3 can't evict the
@@ -1091,10 +1122,10 @@ export default defineBackground(() => {
       const windowId = sender.tab?.windowId;
       if (typeof tabId !== 'number' || typeof windowId !== 'number') return undefined;
       const level = typeof m.level === 'number' ? m.level : DEFAULT_DIM_LEVEL;
-      // The page's own screen — Firefox has no other way to know which
-      // monitor the player sits on. Chrome ignores it (system.display knows).
-      const player = isScreenGeom(m.screen) ? m.screen : null;
-      return openDimWindows(tabId, windowId, level, player).catch((e: unknown) => {
+      // `m.screen` (the page's own screen geometry) is deliberately IGNORED —
+      // Firefox's fingerprinting protection falsifies it. The monitor showing
+      // the player is derived from the tab's window rect instead.
+      return openDimWindows(tabId, windowId, level).catch((e: unknown) => {
         console.warn('[HDREZKA-SPEEDS] dim on failed', e);
       });
     }
@@ -1105,12 +1136,23 @@ export default defineBackground(() => {
     // A calibration probe reporting the screen it landed on.
     if (m.type === 'vs:screen-report') {
       if (typeof m.probeId === 'string' && isScreenGeom(m.geom)) {
-        const css = m.css as { w?: unknown; h?: unknown } | undefined;
+        // Forward the WHOLE report. Rebuilding it field by field silently
+        // dropped `self` and the rect's origin, which made coverRect() return
+        // null on every call — so the arithmetic placement never ran once and
+        // every overlay fell back to the fullscreen promotion it was written
+        // to replace.
+        const css = m.css as Record<string, unknown> | undefined;
+        const self = m.self as Record<string, unknown> | undefined;
+        const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
         pendingProbes.get(m.probeId)?.({
           geom: m.geom,
           css:
-            typeof css?.w === 'number' && typeof css?.h === 'number'
-              ? { w: css.w, h: css.h }
+            css && num(css.l) && num(css.t) && num(css.w) && num(css.h)
+              ? { l: css.l, t: css.t, w: css.w, h: css.h }
+              : undefined,
+          self:
+            self && num(self.x) && num(self.y) && num(self.ow) && num(self.oh)
+              ? { x: self.x, y: self.y, ow: self.ow, oh: self.oh }
               : undefined,
         });
       }

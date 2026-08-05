@@ -102,8 +102,25 @@ export function readScreenGeom(win: Window): ScreenGeom {
 export interface ScreenRecipe extends ScreenGeom {
   rawLeft: number;
   rawTop: number;
+  cssLeft: number;
+  cssTop: number;
   cssWidth: number;
   cssHeight: number;
+}
+
+/**
+ * The screen as a rectangle in the coordinate space `windows.get` reports and
+ * `windows.update` accepts. Measured 2026-08-05 on a 3-monitor desktop: that
+ * space and the page's own CSS pixels agree, so a calibrated screen can be
+ * compared directly against a browser window's rect.
+ *
+ * This is how the monitor showing the player is identified now. It used to be
+ * identified from `screen.avail*` read in the CONTENT SCRIPT — which Firefox's
+ * fingerprinting protection falsifies, so the player's own monitor matched
+ * nothing and was dimmed along with the rest.
+ */
+export function screenCssRect(s: ScreenRecipe): Rect {
+  return { left: s.cssLeft, top: s.cssTop, width: s.cssWidth, height: s.cssHeight };
 }
 
 /**
@@ -154,6 +171,26 @@ export function dedupeScreens(found: ScreenRecipe[]): ScreenRecipe[] {
   return out;
 }
 
+/**
+ * Every calibrated screen the player's window touches at all.
+ *
+ * Deliberately NOT "the single screen with the largest overlap". Each screen's
+ * CSS rect is expressed in ITS OWN monitor's scale, so on a desktop with mixed
+ * DPI the rects overlap — measured: a primary at 0..2560 and a right-hand
+ * screen at 2176..4352 share a 384px phantom band. Inside that band "largest
+ * overlap" can elect the wrong monitor, and electing wrong means blacking out
+ * the film. Excluding every screen the window touches can only ever dim FEWER
+ * monitors than intended, which is the harmless direction to be wrong in.
+ *
+ * This replaced identifying the screen from `screen.avail*` read in the
+ * content script: Firefox's fingerprinting protection falsifies those values
+ * (it warns about it in the page console), so the player's own monitor matched
+ * no calibrated screen and was dimmed along with the others.
+ */
+export function screensTouchedByPlayer(map: ScreenRecipe[], playerWindow: Rect): ScreenRecipe[] {
+  return map.filter((screen) => overlapArea(screenCssRect(screen), playerWindow) > 0);
+}
+
 /** Every calibrated screen except the one the player is on. */
 export function otherScreens(map: ScreenRecipe[], player: ScreenGeom): ScreenRecipe[] {
   return map.filter((screen) => !sameScreen(screen, player));
@@ -167,7 +204,7 @@ export function dimColor(level: number): string {
 }
 
 /** Area shared by two rectangles, 0 when they don't intersect. */
-function overlapArea(a: Rect, b: Rect): number {
+export function overlapArea(a: Rect, b: Rect): number {
   const w = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
   const h = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
   return w > 0 && h > 0 ? w * h : 0;

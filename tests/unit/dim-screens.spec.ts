@@ -14,7 +14,9 @@ import {
   otherScreens,
   pickOtherDisplays,
   readScreenGeom,
+  type ScreenRecipe,
   sameScreen,
+  screensTouchedByPlayer,
 } from '../../src/screens/dim-screens';
 
 const display = (left: number, top: number, width = 1920, height = 1080) => ({
@@ -87,8 +89,10 @@ describe('Firefox calibration helpers', () => {
     ...geom,
     rawLeft,
     rawTop,
-    // CSS size is what windows.update takes; identity still compares the
-    // physical values above.
+    // CSS rect is what windows.update takes, and what the player's window is
+    // compared against; identity still compares the physical values above.
+    cssLeft: Math.round(geom.availLeft / 1.5),
+    cssTop: Math.round(geom.availTop / 1.5),
     cssWidth: Math.round(geom.availWidth / 1.5),
     cssHeight: Math.round(geom.availHeight / 1.5),
   });
@@ -185,5 +189,57 @@ describe('dimColor', () => {
   it('clamps junk input instead of emitting an invalid colour', () => {
     expect(dimColor(140)).toBe('rgb(0, 0, 0)');
     expect(dimColor(-20)).toBe('rgb(255, 255, 255)');
+  });
+});
+
+describe('screensTouchedByPlayer — which monitors the film window is on', () => {
+  const screen = (
+    cssLeft: number,
+    cssTop: number,
+    cssWidth: number,
+    cssHeight: number,
+  ): ScreenRecipe => ({
+    availLeft: cssLeft,
+    availTop: cssTop,
+    availWidth: cssWidth,
+    availHeight: cssHeight,
+    rawLeft: 0,
+    rawTop: 0,
+    cssLeft,
+    cssTop,
+    cssWidth,
+    cssHeight,
+  });
+
+  // Real geometry, measured on a 3-monitor desktop 2026-08-05.
+  const primary = screen(0, 0, 2560, 1392);
+  const right = screen(2176, 0, 2176, 1176);
+  const below = screen(479, 1440, 2293, 912);
+  const map = [primary, right, below];
+
+  it('excludes the screen the window sits on', () => {
+    expect(screensTouchedByPlayer(map, { left: 10, top: 10, width: 1200, height: 800 })).toEqual([
+      primary,
+    ]);
+    expect(screensTouchedByPlayer(map, { left: 600, top: 1500, width: 800, height: 600 })).toEqual([
+      below,
+    ]);
+  });
+
+  it('excludes BOTH screens when the rects overlap and the answer is ambiguous', () => {
+    // Mixed-DPI desktops store each screen's rect in its own scale, so the
+    // primary (0..2560) and the right-hand screen (2176..4352) share a phantom
+    // band. Picking one of them can black out the film; excluding both can
+    // only dim fewer monitors, which is the safe direction.
+    const touched = screensTouchedByPlayer(map, { left: 2300, top: 40, width: 900, height: 700 });
+    expect(touched).toContain(primary);
+    expect(touched).toContain(right);
+  });
+
+  it('returns nothing when the window is off every screen on record', () => {
+    expect(screensTouchedByPlayer([], { left: 0, top: 0, width: 100, height: 100 })).toEqual([]);
+    expect(
+      screensTouchedByPlayer(map, { left: -9000, top: -9000, width: 100, height: 100 }),
+    ).toEqual([]);
   });
 });

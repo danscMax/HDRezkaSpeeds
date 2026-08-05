@@ -37,7 +37,7 @@ import { reportToClipboardText } from './health/report';
 import type { DiagnosticReport } from './health/types';
 import { detectBrowserLang } from './i18n/detect';
 import { createTranslator } from './i18n/translator';
-import { CAN_DIM_SCREENS, DEFAULT_DIM_LEVEL, readScreenGeom } from './screens/dim-screens';
+import { CAN_DIM_SCREENS, DEFAULT_DIM_LEVEL } from './screens/dim-screens';
 import {
   detectSite,
   extractHDRezkaEpisodeKey,
@@ -475,16 +475,10 @@ export async function bootstrap(
   const requestDim = (on: boolean): void => {
     if (!CAN_DIM_SCREENS) return;
     if (on && ctx.settingsStore.getKey('dimOtherScreens') !== true) return;
-    // The page's own screen. Firefox has no display API, so this is the only
-    // way the worker can tell WHICH monitor to leave alone. Reported in
-    // PHYSICAL pixels: this page carries the site's zoom level, the probe
-    // windows don't, and raw CSS pixels made the same monitor look like two
-    // different screens — which dimmed the screen showing the video.
     const message = on
       ? {
           type: 'vs:dim-on',
           level: ctx.settingsStore.getKey('dimLevel') ?? DEFAULT_DIM_LEVEL,
-          screen: readScreenGeom(window),
         }
       : { type: 'vs:dim-off' };
     void import('wxt/browser')

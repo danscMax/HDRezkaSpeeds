@@ -468,6 +468,13 @@ export function attachSettingsHandlers(
         // problem from "3 screens found" alone, and the user can now see
         // which one they actually have.
         const last = known.last;
+        // The one outcome the user can act on: we could not tell which monitor
+        // the film is on, so nothing was dimmed rather than risk covering it.
+        // Almost always a screen map recorded on a different layout.
+        if (last?.reason === 'no-player-screen') {
+          status.textContent = `${found} ${ctx.i18n.t('behavior.dim_screens.no_player_screen')}`;
+          return;
+        }
         status.textContent =
           last && last.reason !== 'ok'
             ? `${found} ${ctx.i18n
