@@ -745,6 +745,15 @@ export default defineBackground(() => {
         // Raise it only now: measured on Windows, an unfocused window is not
         // raised and would sit behind whatever is already on that monitor.
         await browser.windows.update(id, { focused: true }).catch(() => undefined);
+        // Now — and only now — go fullscreen, to drop Firefox's title bar and
+        // cover the taskbar. Doing this to place the window is what threw it
+        // onto the monitor playing the film; doing it to a window ALREADY
+        // sitting on the right monitor is safe: measured over 7 probes on a
+        // 3-monitor desktop, the transition never moved a window off the
+        // screen it was on. The recheck below still verifies it.
+        if (rect) {
+          await browser.windows.update(id, { state: 'fullscreen' }).catch(() => undefined);
+        }
         const settled = await browser.windows.get(id).catch(() => null);
         dimLog(rect ? 'sized to cover the monitor' : 'no measurement — used fullscreen', {
           id,

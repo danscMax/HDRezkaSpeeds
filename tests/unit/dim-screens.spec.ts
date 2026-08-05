@@ -226,12 +226,18 @@ describe('screensTouchedByPlayer — which monitors the film window is on', () =
     ]);
   });
 
-  it('excludes BOTH screens when the rects overlap and the answer is ambiguous', () => {
+  it('does NOT claim a neighbour touched only by the phantom band', () => {
     // Mixed-DPI desktops store each screen's rect in its own scale, so the
-    // primary (0..2560) and the right-hand screen (2176..4352) share a phantom
-    // band. Picking one of them can black out the film; excluding both can
-    // only dim fewer monitors, which is the safe direction.
-    const touched = screensTouchedByPlayer(map, { left: 2300, top: 40, width: 900, height: 700 });
+    // primary (0..2560) and the right-hand screen (2176..4352) overlap by
+    // 384px of nothing. A window filling the primary clips that band, and
+    // excluding the neighbour on that basis left it permanently undimmed.
+    const touched = screensTouchedByPlayer(map, { left: 0, top: 0, width: 2560, height: 1392 });
+    expect(touched).toEqual([primary]);
+  });
+
+  it('claims both when the window genuinely straddles two monitors', () => {
+    // Half the window on each — blacking out either one would cover the film.
+    const touched = screensTouchedByPlayer(map, { left: 1800, top: 100, width: 1400, height: 800 });
     expect(touched).toContain(primary);
     expect(touched).toContain(right);
   });

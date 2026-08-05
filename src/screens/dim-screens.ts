@@ -188,7 +188,22 @@ export function dedupeScreens(found: ScreenRecipe[]): ScreenRecipe[] {
  * no calibrated screen and was dimmed along with the others.
  */
 export function screensTouchedByPlayer(map: ScreenRecipe[], playerWindow: Rect): ScreenRecipe[] {
-  return map.filter((screen) => overlapArea(screenCssRect(screen), playerWindow) > 0);
+  const windowArea = Math.max(1, playerWindow.width * playerWindow.height);
+  const scored = map
+    .map((screen) => ({ screen, area: overlapArea(screenCssRect(screen), playerWindow) }))
+    .filter((s) => s.area > 0);
+  if (scored.length === 0) return [];
+  const best = scored.reduce((a, b) => (b.area > a.area ? b : a));
+  // The screen with the largest overlap is certainly the film's. A second
+  // screen is only claimed as well when it holds a real share of the window —
+  // a sliver of contact is the phantom band, not a monitor the film is on.
+  // Without the threshold a neighbour was excluded on 384px of phantom and
+  // never got dimmed at all; without the "claim more than one" rule at all, a
+  // window genuinely straddling two monitors blacks out half the film.
+  const SHARE_TO_CLAIM = 0.2;
+  return scored
+    .filter((s) => s === best || s.area / windowArea >= SHARE_TO_CLAIM)
+    .map((s) => s.screen);
 }
 
 /** Every calibrated screen except the one the player is on. */
