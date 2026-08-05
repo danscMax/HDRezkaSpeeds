@@ -69,6 +69,11 @@ WHAT IT DOES
   the site's light or dark mode, including when you toggle the theme
   on the fly. In fullscreen the panel steps out of the way — no extension
   UI on top of the picture; the keyboard shortcuts keep working.
+- Dim the other monitors (optional, off by default). On a multi-monitor
+  desk the bright windows beside the film keep pulling your eye. While
+  the video plays fullscreen, the other displays are covered with a dark
+  window — never the one showing the film. Leaving fullscreen removes
+  them instantly. The darkness level is adjustable.
 - Accessibility: aria-labels on the gear button, aria-live status
   announcements for diagnostic state and speed changes,
   prefers-reduced-motion support.
@@ -145,6 +150,11 @@ Controller ставит ряд кнопок скорости прямо под �
   светлый или тёмный режим сайта, в том числе при переключении темы
   «на лету». В полноэкранном режиме панель не мешает — интерфейс
   расширения не показывается поверх картинки, горячие клавиши работают.
+- Затемнение других мониторов (по желанию, по умолчанию выключено). На
+  многомониторном столе яркие окна сбоку тянут взгляд с фильма. Пока
+  видео идёт в полноэкранном режиме, остальные экраны закрываются
+  тёмным — монитор с фильмом не трогаем. Выход из полноэкранного
+  режима сразу всё убирает. Яркость шторки настраивается ползунком.
 - Доступность: aria-labels на шестерёнке, объявление через aria-live
   при смене скорости и при обновлении статуса диагностики, поддержка
   prefers-reduced-motion.
@@ -173,8 +183,15 @@ Controller ставит ряд кнопок скорости прямо под �
 
 ## Single-purpose statement (Chrome Web Store requires this)
 
-> Manage HDRezka video playback speed via in-player buttons, a slider,
-> and configurable keyboard shortcuts.
+> Control how HDRezka video plays: speed via in-player buttons, a slider
+> and configurable keyboard shortcuts, plus an optional dark cover on the
+> other monitors while the film runs fullscreen.
+
+(The optional dimming is deliberately named here. It is part of the same
+purpose — how the video is watched — and a reviewer who meets
+`system.display` in the manifest without having read about it in the
+listing has every reason to ask why a speed controller enumerates
+displays.)
 
 ---
 
@@ -186,6 +203,7 @@ Controller ставит ряд кнопок скорости прямо под �
 | `host_permissions` (HDRezka mirrors) | Inject the speed-control UI on the supported HDRezka mirrors. The extension never reads page content beyond the player container and never sends any data off-device. |
 | `scripting` | Register the extension's own bundled content script on mirror domains the user adds in the Mirrors tab (`scripting.registerContentScripts`). No remote code, no arbitrary injection — the registered file is the same content script declared in the manifest. |
 | `activeTab` | Read the active tab's URL when the popup is opened so the "Add current site as a mirror" button can offer the right domain, and reload that tab on the user's click after access is granted. |
+| `system.display` | The optional "dim the other monitors" feature (off by default) needs the bounds of the attached displays to know which ones are NOT showing the fullscreen video, so it can cover those and leave the film's monitor alone. Only `chrome.system.display.getInfo()` is called, only while a video is playing fullscreen with the setting enabled. No display data is stored or sent anywhere. Chrome-only: the Firefox build ships without this permission and measures the layout by probing instead. |
 | `optional_host_permissions: *://*/*` | HDRezka mirror domains rotate constantly. New mirrors the user adds are requested individually at runtime via `permissions.request` behind an explicit user gesture (per-domain browser prompt). Nothing is granted silently at install. |
 
 ---

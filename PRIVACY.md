@@ -45,6 +45,9 @@ want to send it to the developer.
 |---|---|
 | `storage` | Persist your settings between sessions. |
 | `host_permissions` (HDRezka mirrors) | Inject the speed-control UI into the HDRezka video player. The extension does not run on any other site. |
+| `scripting` | Register the extension's own bundled content script on mirror domains you add yourself. No remote code is ever loaded or executed. |
+| `activeTab` | Read the current tab's address when you open the toolbar popup, so "Add current site as a mirror" can offer the right domain. |
+| `system.display` (Chrome only) | **Off by default.** Used solely by Settings → "Dim the other monitors": to cover the screens that are *not* showing your fullscreen video, the extension needs to know where the attached displays are. It reads their bounds (`getInfo()`) while the video plays fullscreen with the setting on, and nothing else — no display data is stored, logged, or transmitted. The Firefox build does not have this permission: it works out the layout by opening and measuring a small window instead. |
 | `*://*/*` (optional — "Auto-follow mirrors") | **Off by default.** Only if you turn on Settings → Mirrors → "Work on any HDRezka mirror" and accept the browser prompt. It lets the extension recognise HDRezka on a new mirror domain — by the domain name (an `hdrezka.*`/`rezka.*` pattern) or by the player's DOM signature — so a moved site keeps working without a store update. The content script self-bails on pages that are neither, and you can revoke this anytime from the browser's extension settings. |
 
 The **"Open HDRezka"** button (popup → Mirrors) and the Mirrors tab's live
@@ -152,6 +155,9 @@ issue, если хотите отправить разработчику.
 |---|---|
 | `storage` | Сохранять ваши настройки между сессиями. |
 | `host_permissions` (зеркала HDRezka) | Встраивать панель управления скоростью в плеер HDRezka. Расширение не работает на других сайтах. |
+| `scripting` | Регистрировать собственный контент-скрипт расширения на зеркалах, которые вы добавили сами. Никакой удалённый код не загружается и не выполняется. |
+| `activeTab` | Читать адрес текущей вкладки, когда вы открываете попап, чтобы кнопка «Добавить текущий сайт как зеркало» предложила нужный домен. |
+| `system.display` (только Chrome) | **По умолчанию выключено.** Нужно исключительно настройке «Затемнять другие мониторы»: чтобы закрыть экраны, на которых *нет* вашего полноэкранного видео, расширению надо знать, где находятся подключённые мониторы. Оно читает их границы (`getInfo()`), пока видео идёт в полноэкранном режиме с включённой настройкой, и больше ничего — данные о мониторах не сохраняются, не логируются и никуда не передаются. В сборке для Firefox этого разрешения нет: там раскладка определяется открытием и замером маленького окна. |
 | `*://*/*` (опционально — «Автозеркала») | **По умолчанию выключено.** Только если вы включите Настройки → Зеркала → «Работать на любом зеркале HDRezka» и подтвердите запрос браузера. Позволяет распознавать HDRezka на новом домене — по имени домена (шаблон `hdrezka.*`/`rezka.*`) или по DOM-сигнатуре плеера — чтобы переехавший сайт продолжал работать без обновления в сторе. На страницах, которые ни то, ни другое, контент-скрипт сразу выходит; право можно отозвать в любой момент в настройках расширения браузера. |
 
 Кнопка **«Открыть HDRezka»** (попап → Зеркала) и живые точки статуса на вкладке
