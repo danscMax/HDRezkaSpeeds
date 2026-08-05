@@ -30,6 +30,7 @@ import { createTranslator } from '../../i18n/translator';
 import { detectSite } from '../../sites/detect';
 import {
   BUILTIN_MIRROR_HOSTS,
+  builtinMatchPatterns,
   isCoveredByHostList,
   originPatternsFor,
 } from '../../sites/mirror-hosts';
@@ -193,7 +194,19 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
     return { host: norm.host, eligible: true, offerReload: false };
   }
 
+  // Mirrors the toolbar badge: the icon says "click to allow", so the first
+  // thing the click shows must be the way to allow it — not a tab the user has
+  // to find. Unknown state counts as fine; a false alarm on a working install
+  // is worse than a missed broken one.
+  let missingAccess = false;
+  async function refreshMissingAccess(): Promise<void> {
+    missingAccess = !(await browser.permissions
+      .contains({ origins: builtinMatchPatterns() })
+      .catch(() => true));
+  }
+
   async function refreshMirrorsVm(): Promise<void> {
+    await refreshMissingAccess();
     const userHosts = await readUserMirrors(adapter);
     const status: Record<string, boolean> = {};
     const builtinStatus: Record<string, boolean> = {};
@@ -332,6 +345,33 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
     // (audit 0.2.0). Goes BEFORE the menu so the user sees it before
     // they reach for the (greyed-out) action buttons.
     const children: Node[] = [];
+    if (missingAccess) {
+      const grantBtn = h(
+        'button',
+        { type: 'button', class: 'vs-popup-grant-btn' },
+        ctx.i18n.t('popup.grant.button'),
+      );
+      grantBtn.addEventListener('click', () => {
+        // No await before the request: Firefox only honours it while the
+        // click's user-gesture token is alive.
+        void browser.permissions
+          .request({ origins: builtinMatchPatterns() })
+          .then((granted) => {
+            if (!granted) return;
+            void refreshMirrorsVm().then(rerender);
+          })
+          .catch(() => undefined);
+      });
+      children.push(
+        h(
+          'div',
+          { class: 'vs-popup-grant' },
+          h('div', { class: 'vs-popup-grant-title' }, ctx.i18n.t('popup.grant.title')),
+          h('div', { class: 'vs-popup-grant-body' }, ctx.i18n.t('popup.grant.body')),
+          grantBtn,
+        ),
+      );
+    }
     if (activeTab === 'diag') {
       children.push(
         h(

@@ -254,6 +254,32 @@ html, body {
   margin: 0 0 28px;
 }
 
+/* Host permission gate — only rendered while access to HDRezka is missing,
+   so it is allowed to be loud: an extension the user cannot see working is
+   worse than a blunt banner. Orange, not red: nothing is broken, one click
+   away from done. */
+.welcome-perm {
+  max-width: 560px;
+  margin: 0 auto 36px;
+  padding: 20px 24px;
+  text-align: center;
+  border: 1px solid var(--vs-orange);
+  border-radius: 12px;
+  background: rgba(255, 122, 0, 0.08);
+}
+.welcome-perm-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--vs-fg);
+}
+.welcome-perm-body {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vs-fg-soft);
+}
+
 .welcome-sites {
   display: flex;
   justify-content: center;
