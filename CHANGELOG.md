@@ -19,6 +19,44 @@ versioning is [SemVer](https://semver.org/).
   nothing on it, with no panel and no error. The toolbar icon now shows a red
   "!" with an explanation, and clicking it offers to fix it in one click. The
   same offer appears on the welcome page after installing.
+- **Liked it? There is now a way to say so.** After you send positive feedback,
+  the form offers a link to the add-on's review page. It never interrupts you
+  and only appears once the message has actually gone.
+
+### Fixed
+
+- **The "no access" warning used to be wrong more often than right.** It asked
+  about all eleven mirrors at once, so a single mirror added in an update — and
+  therefore never granted by Firefox — lit a permanent red "!" even though the
+  mirror you actually use worked fine. It now asks about the site you last
+  watched something on, and means what it says.
+- **On Firefox, the button that grants access appeared to do nothing.** The
+  browser anchors its own permission window to the toolbar button, which is
+  exactly where our panel hangs — so its "Allow" landed behind our own window.
+  The panel now steps aside first.
+- **The speed panel could silently never appear.** If any script on the page
+  had left behind an invisible element with a common name like `speed-button`,
+  the extension assumed a rival speed control was present and shut itself down,
+  with nothing on screen to explain it. Only controls you can actually see
+  count now. If the HDrezka-Improvement userscript is running alongside, the
+  diagnostics report says so.
+- **Dimming: several ways it could quietly do the wrong thing.** A monitor
+  reported late during the search could be skipped, or worse, remembered from
+  the previous search and used after your monitor layout had already changed. A
+  measurement that made no sense was used anyway. And if the browser hides your
+  real screen sizes for anti-tracking reasons, the settings now say so instead
+  of claiming it found one monitor.
+
+### Internal
+
+- The logic that decides which monitor to cover was unreachable by any test —
+  both of the bugs fixed in this release lived there. It is now a separate,
+  tested module, and the message format between the overlay window and the
+  extension has one definition instead of two that could drift apart.
+- The manifest, the mirror list and the site detector are cross-checked by
+  tests; the twin-project drift checker can now fail a build instead of only
+  reporting; and `docs/CAVEATS.md` records the browser behaviours that were
+  measured the hard way, so they are not rediscovered a third time.
 
 ## [0.6.1] — 2026-07-28
 
