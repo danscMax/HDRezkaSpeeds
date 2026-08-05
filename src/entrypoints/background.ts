@@ -32,6 +32,7 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { storageKeysFor } from '../config';
+import { refreshPermissionBadge as refreshBadge } from '../health/permission-badge';
 import { detectBrowserLang } from '../i18n/detect';
 import {
   calibrationPoints,
@@ -44,6 +45,12 @@ import {
   sameScreen,
   screensTouchedByPlayer,
 } from '../screens/dim-screens';
+import {
+  coverRect,
+  isPlacementAcceptable,
+  type ProbeReport,
+  parseScreenReport,
+} from '../screens/placement';
 import {
   BUILTIN_MIRROR_HOSTS,
   builtinMatchPatterns,
@@ -146,21 +153,6 @@ export default defineBackground(() => {
   }
 
   /**
-   * Say it out loud when the extension has no right to run.
-   *
-   * Firefox 127+ grants host permissions as part of the install flow, so a
-   * normal install needs nothing from the user. But permissions added by an
-   * extension UPDATE are documented as NOT shown and NOT granted — that is how
-   * a newly added mirror ends up unusable — and the user can revoke access at
-   * any time from about:addons. In both cases the content script simply never
-   * starts: no panel, no error, nothing to click, and no reason for anyone to
-   * suspect a permission. The toolbar icon is the only surface left, so it
-   * carries the warning instead of the user being expected to know.
-   *
-   * The badge is set GLOBALLY; the per-tab speed badge overrides it wherever
-   * the content script runs, which by definition is only where access exists.
-   */
-  /**
    * The one string this worker shows. Deliberately NOT in src/i18n/dict.ts:
    * importing the translator pulls the whole 60 kB dictionary into a service
    * worker that wakes on every browser event, to render a single tooltip.
@@ -170,19 +162,15 @@ export default defineBackground(() => {
     en: 'HDRezka Speed Controller has no access to HDRezka — click to allow it, or the panel will not appear',
   } as const;
 
-  async function refreshPermissionBadge(): Promise<void> {
-    // Unable to tell → stay silent. Crying wolf on a working install is worse
-    // than missing the rare broken one.
-    const held = await browser.permissions
-      .contains({ origins: builtinMatchPatterns() })
-      .catch(() => true);
-    const title = NO_ACCESS_TITLE[detectBrowserLang()];
-    await browser.action.setBadgeText({ text: held ? '' : '!' }).catch(() => undefined);
-    await browser.action
-      .setBadgeBackgroundColor({ color: held ? '#0e7490' : '#c0392b' })
-      .catch(() => undefined);
-    await browser.action.setTitle({ title: held ? '' : title }).catch(() => undefined);
-  }
+  // The rule itself lives in src/health/permission-badge.ts — shared with the
+  // twin and therefore watched by the drift checker. This used to be duplicated
+  // verbatim in both background.ts files, where nothing would have noticed a
+  // fix landing in only one of them.
+  const refreshPermissionBadge = (): Promise<boolean> =>
+    refreshBadge(browser.action, browser.permissions, {
+      origins: builtinMatchPatterns(),
+      alertTitle: NO_ACCESS_TITLE[detectBrowserLang()],
+    });
   void refreshPermissionBadge();
 
   function hasOriginPermission(host: string): Promise<boolean> {
@@ -485,18 +473,6 @@ export default defineBackground(() => {
     }
   }
 
-  /** Wire-crossing guard: screen geometry arrives from a page. */
-  function isScreenGeom(value: unknown): value is ScreenGeom {
-    if (!value || typeof value !== 'object') return false;
-    const g = value as Record<string, unknown>;
-    return (
-      typeof g.availLeft === 'number' &&
-      typeof g.availTop === 'number' &&
-      typeof g.availWidth === 'number' &&
-      typeof g.availHeight === 'number'
-    );
-  }
-
   async function readScreenMap(): Promise<ScreenRecipe[]> {
     try {
       const got = await browser.storage.local.get(SCREEN_MAP_KEY);
@@ -517,49 +493,6 @@ export default defineBackground(() => {
     await browser.storage.local
       .set({ [SCREEN_MAP_KEY]: { v: SCREEN_MAP_VERSION, screens: map } satisfies StoredScreenMap })
       .catch(() => undefined);
-  }
-
-  /** What a dim window reports about the screen it landed on. */
-  interface ProbeReport {
-    geom: ScreenGeom;
-    /** The screen the window landed on, as a CSS-pixel rect. Origin included:
-     *  the handler only forwards it when all four numbers arrived. */
-    css?: { l: number; t: number; w: number; h: number };
-    /** The window's own CSS-space position and outer size, for the scale. */
-    self?: { x: number; y: number; ow: number; oh: number };
-  }
-
-  /**
-   * Turn "this small window is on the monitor we want" into "cover that
-   * monitor", in the coordinates windows.update actually speaks.
-   *
-   * Measured on a real 3-monitor desktop (Firefox Dev 154, mixed 150%/176%
-   * scaling): windows.get() and the page's own screenX/availLeft report the
-   * SAME space, but only at 100% page zoom — the page's numbers are CSS
-   * pixels, so any zoom divides them. The factor is therefore measured from
-   * this very window (API width over outer width) rather than assumed, which
-   * makes the result zoom-proof without knowing the zoom.
-   *
-   * Returns null when the report is too incomplete to compute from.
-   */
-  function coverRect(
-    report: ProbeReport | null,
-    api: { left?: number; top?: number; width?: number } | null,
-  ): { left: number; top: number; width: number; height: number } | null {
-    const css = report?.css;
-    const self = report?.self;
-    if (!css || !self || !api) return null;
-    if (typeof css.l !== 'number' || typeof css.t !== 'number') return null;
-    if (typeof api.left !== 'number' || typeof api.top !== 'number') return null;
-    if (typeof api.width !== 'number' || !(self.ow > 0)) return null;
-    const k = api.width / self.ow;
-    if (!Number.isFinite(k) || k <= 0) return null;
-    return {
-      left: Math.round(api.left - (self.x - css.l) * k),
-      top: Math.round(api.top - (self.y - css.t) * k),
-      width: Math.round(css.w * k),
-      height: Math.round(css.h * k),
-    };
   }
 
   /** Probe id → resolver, for the reports coming back from dim.html. */
@@ -710,11 +643,7 @@ export default defineBackground(() => {
         alreadyCovered: landedOn != null && covered.some((seen) => sameScreen(seen, landedOn)),
       });
       const good =
-        typeof id === 'number' &&
-        landedOn != null &&
-        sameScreen(landedOn, target) &&
-        !(player != null && sameScreen(landedOn, player)) &&
-        !covered.some((seen) => sameScreen(seen, landedOn));
+        typeof id === 'number' && isPlacementAcceptable({ landedOn, target, player, covered });
       if (good && typeof id === 'number') {
         // Tell the window it is now an overlay, so it cancels the self-close
         // deadline every candidate window carries (see dim/main.ts).
@@ -1144,27 +1073,8 @@ export default defineBackground(() => {
     if (m.type === 'vs:dim-ping') return dimIsActive().then((ok) => ({ ok }));
     // A calibration probe reporting the screen it landed on.
     if (m.type === 'vs:screen-report') {
-      if (typeof m.probeId === 'string' && isScreenGeom(m.geom)) {
-        // Forward the WHOLE report. Rebuilding it field by field silently
-        // dropped `self` and the rect's origin, which made coverRect() return
-        // null on every call — so the arithmetic placement never ran once and
-        // every overlay fell back to the fullscreen promotion it was written
-        // to replace.
-        const css = m.css as Record<string, unknown> | undefined;
-        const self = m.self as Record<string, unknown> | undefined;
-        const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-        pendingProbes.get(m.probeId)?.({
-          geom: m.geom,
-          css:
-            css && num(css.l) && num(css.t) && num(css.w) && num(css.h)
-              ? { l: css.l, t: css.t, w: css.w, h: css.h }
-              : undefined,
-          self:
-            self && num(self.x) && num(self.y) && num(self.ow) && num(self.oh)
-              ? { x: self.x, y: self.y, ow: self.ow, oh: self.oh }
-              : undefined,
-        });
-      }
+      const parsed = parseScreenReport(m);
+      if (parsed) pendingProbes.get(parsed.probeId)?.(parsed.report);
       return undefined;
     }
     // Settings → "find my monitors" (Firefox). Returns the resulting map so

@@ -68,3 +68,20 @@ describe('detectSite: standby-rezka.tv (0.5.0)', () => {
     expect(detectSite('notstandby-rezka.tv')).toBeNull();
   });
 });
+
+describe('every built-in mirror stays wired end to end', () => {
+  // mirror-hosts.ts asks a human to "mirror the change" into detect.ts by hand.
+  // A host present in the manifest patterns but missing from the detector is
+  // exactly the failure this extension exists to survive: the mirror loads, the
+  // content script is injected, and bootstrap then bails with "unsupported
+  // host" — no panel, no error. One loop is cheaper than remembering.
+  it.each([...BUILTIN_MIRROR_HOSTS])('detectSite recognises %s and its subdomains', (host) => {
+    expect(detectSite(host)).toBe('hdrezka');
+    expect(detectSite(`www.${host}`)).toBe('hdrezka');
+  });
+
+  it.each([...BUILTIN_MIRROR_HOSTS])('stays anchored against spoofing of %s', (host) => {
+    expect(detectSite(`${host}.evil.com`)).toBeNull();
+    expect(detectSite(`not${host}`)).toBeNull();
+  });
+});
