@@ -48,6 +48,7 @@ import {
 import {
   coverRect,
   isPlacementAcceptable,
+  looksLikeSpoofedScreen,
   type ProbeReport,
   parseScreenReport,
 } from '../screens/placement';
@@ -107,7 +108,7 @@ const DIM_RESULT_KEY = 'vs-dim-last-result';
 interface DimResult {
   wanted: number;
   placed: number;
-  reason: 'ok' | 'no-map' | 'no-player-screen' | 'missed';
+  reason: 'ok' | 'no-map' | 'no-player-screen' | 'spoofed-screen' | 'missed';
 }
 
 /**
@@ -498,7 +499,32 @@ export default defineBackground(() => {
   /** Probe id → resolver, for the reports coming back from dim.html. */
   const pendingProbes = new Map<string, (report: ProbeReport) => void>();
 
+  /**
+   * Reports that arrived before anyone was waiting.
+   *
+   * Every caller does `await browser.windows.create(...)` FIRST and only then
+   * calls waitForProbe — so a dim page that loads and reports before the create
+   * promise resolves used to hit an empty registry and have its report dropped
+   * on the floor. The caller then waited out its full timeout and treated a
+   * perfectly good probe as "no answer": a real screen missing from the map, or
+   * a valid candidate closed so the next (wrong) one could flash on a monitor.
+   * Same failure class as the truncated report — a message lost at a boundary
+   * with nothing to show for it.
+   */
+  const earlyProbes = new Map<string, ProbeReport>();
+
+  function deliverProbe(probeId: string, report: ProbeReport): void {
+    const waiting = pendingProbes.get(probeId);
+    if (waiting) waiting(report);
+    else earlyProbes.set(probeId, report);
+  }
+
   function waitForProbe(probeId: string, ms: number): Promise<ProbeReport | null> {
+    const early = earlyProbes.get(probeId);
+    if (early) {
+      earlyProbes.delete(probeId);
+      return Promise.resolve(early);
+    }
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         pendingProbes.delete(probeId);
@@ -520,8 +546,30 @@ export default defineBackground(() => {
    * makes the placement itself unreliable. Probes are black, so the sweep
    * reads as a flicker rather than a strobe.
    */
+  /**
+   * How long one calibration probe may take to say where it landed.
+   *
+   * Measured with the web-ext harness (.claude/skills/twin-extensions/
+   * probe-firefox-coords): a probe that is going to answer answers in well
+   * under a second. The old 2500ms was pure worst-case padding, and with 35
+   * grid points it made a fully failing sweep take a minute and a half — long
+   * enough for Firefox to evict the background event page mid-sweep and leave
+   * a silently partial map.
+   *
+   * NOT an early exit. The obvious "stop after a barren row" was measured to be
+   * WRONG here: on this desktop the third monitor is only reachable from
+   * (-FAR, FAR), which lives in the LAST row of the grid, so any row-based
+   * bail-out would drop a real screen. Cheaper probes, same coverage.
+   */
+  const CALIBRATION_PROBE_MS = 1500;
+
   async function calibrateScreens(): Promise<ScreenRecipe[]> {
     const found: ScreenRecipe[] = [];
+    // Counted to tell "this desktop really has one monitor" apart from "the
+    // browser is reporting the probe window as the screen" (see
+    // looksLikeSpoofedScreen).
+    let answered = 0;
+    let spoofed = 0;
     let n = 0;
     // A previous run that was cut short (worker evicted, browser busy) can
     // have left overlays up; they'd sit under the probe sweep and confuse it.
@@ -544,7 +592,7 @@ export default defineBackground(() => {
       } catch {
         continue;
       }
-      const report = await waitForProbe(probeId, 2500);
+      const report = await waitForProbe(probeId, CALIBRATION_PROBE_MS);
       if (typeof created?.id === 'number') {
         await browser.windows.remove(created.id).catch(() => undefined);
       }
@@ -552,6 +600,8 @@ export default defineBackground(() => {
       // window later; storing it with a zeroed origin would put a phantom
       // screen at (0,0) that attracts every overlap test.
       if (report?.css) {
+        answered += 1;
+        if (looksLikeSpoofedScreen(report)) spoofed += 1;
         found.push({
           ...report.geom,
           rawLeft: point.rawLeft,
@@ -565,6 +615,12 @@ export default defineBackground(() => {
     }
     const map = dedupeScreens(found);
     await saveScreenMap(map);
+    // If the browser was reporting the probe window's own size as "the screen",
+    // the map is fiction — say so instead of letting the settings panel claim a
+    // monitor was found. Reuses the last-result channel the panel already reads.
+    if (spoofed > 0 && spoofed === answered) {
+      await recordDimResult({ wanted: 0, placed: 0, reason: 'spoofed-screen' });
+    }
     return map;
   }
 
@@ -1074,7 +1130,7 @@ export default defineBackground(() => {
     // A calibration probe reporting the screen it landed on.
     if (m.type === 'vs:screen-report') {
       const parsed = parseScreenReport(m);
-      if (parsed) pendingProbes.get(parsed.probeId)?.(parsed.report);
+      if (parsed) deliverProbe(parsed.probeId, parsed.report);
       return undefined;
     }
     // Settings → "find my monitors" (Firefox). Returns the resulting map so

@@ -471,6 +471,13 @@ export function attachSettingsHandlers(
         // The one outcome the user can act on: we could not tell which monitor
         // the film is on, so nothing was dimmed rather than risk covering it.
         // Almost always a screen map recorded on a different layout.
+        // The browser reported the probe window's own size as "the screen", so
+        // the count above is fiction. Saying "1 monitor found" would send the
+        // user hunting for a bug in us.
+        if (last?.reason === 'spoofed-screen') {
+          status.textContent = ctx.i18n.t('behavior.dim_screens.spoofed');
+          return;
+        }
         if (last?.reason === 'no-player-screen') {
           status.textContent = `${found} ${ctx.i18n.t('behavior.dim_screens.no_player_screen')}`;
           return;

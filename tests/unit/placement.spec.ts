@@ -12,6 +12,7 @@ import {
   buildScreenReport,
   coverRect,
   isPlacementAcceptable,
+  looksLikeSpoofedScreen,
   parseScreenReport,
 } from '../../src/screens/placement';
 
@@ -153,5 +154,50 @@ describe('isPlacementAcceptable', () => {
     expect(isPlacementAcceptable({ landedOn: target, target, player: null, covered: [] })).toBe(
       true,
     );
+  });
+});
+
+describe('coverRect rejects an implausible scale', () => {
+  const geom = { availLeft: 0, availTop: 0, availWidth: 3840, availHeight: 2088 };
+  const css = { l: 0, t: 0, w: 2560, h: 1392 };
+
+  it('refuses a window that reported a near-zero outer width', () => {
+    // The page answered before the window had settled: k explodes and the rect
+    // would cover every monitor at once, film included.
+    const report = { geom, css, self: { x: 0, y: 0, ow: 1, oh: 1 } };
+    expect(coverRect(report, { left: 0, top: 0, width: 240 })).toBeNull();
+  });
+
+  it('refuses a scale far below any real zoom', () => {
+    const report = { geom, css, self: { x: 0, y: 0, ow: 4000, oh: 3000 } };
+    expect(coverRect(report, { left: 0, top: 0, width: 100 })).toBeNull();
+  });
+
+  it('still accepts an ordinary zoomed page', () => {
+    // 125% zoom: outer 192 CSS px reported for a 240px window.
+    const report = { geom, css, self: { x: 0, y: 0, ow: 192, oh: 128 } };
+    expect(coverRect(report, { left: 0, top: 0, width: 240 })).not.toBeNull();
+  });
+});
+
+describe('looksLikeSpoofedScreen', () => {
+  const self = { x: 0, y: 0, ow: 240, oh: 160 };
+  const geom = { availLeft: 0, availTop: 0, availWidth: 3840, availHeight: 2088 };
+
+  it('flags a "screen" that is really the probe window', () => {
+    // Firefox's anti-fingerprinting rewrites screen.avail* to the window size.
+    expect(looksLikeSpoofedScreen({ geom, css: { l: 0, t: 0, w: 240, h: 160 }, self })).toBe(true);
+  });
+
+  it('does NOT flag a genuine single-monitor desktop', () => {
+    // The trap a naive "all probes agree" check falls into.
+    expect(looksLikeSpoofedScreen({ geom, css: { l: 0, t: 0, w: 2560, h: 1392 }, self })).toBe(
+      false,
+    );
+  });
+
+  it('says nothing when the report is incomplete', () => {
+    expect(looksLikeSpoofedScreen({ geom })).toBe(false);
+    expect(looksLikeSpoofedScreen({ geom, css: { l: 0, t: 0, w: 240, h: 160 } })).toBe(false);
   });
 });

@@ -97,6 +97,13 @@ export function parseScreenReport(msg: unknown): { probeId: string; report: Prob
 }
 
 /**
+ * Plausible range for the page-CSS → window-API scale. Firefox's own zoom
+ * range is 0.3x-3x; the extra margin absorbs OS scaling and window chrome.
+ */
+const MIN_SCALE = 0.2;
+const MAX_SCALE = 5;
+
+/**
  * Turn "this small window is on the monitor we want" into "cover that
  * monitor", in the coordinates windows.update actually speaks.
  *
@@ -120,13 +127,42 @@ export function coverRect(
   if (typeof api.left !== 'number' || typeof api.top !== 'number') return null;
   if (typeof api.width !== 'number' || !(self.ow > 0)) return null;
   const k = api.width / self.ow;
-  if (!Number.isFinite(k) || k <= 0) return null;
+  // Bound it. A page that reports its size before the window has settled, or
+  // whose values are being spoofed, yields a scale that produces either a
+  // sliver or a rect big enough to cover every monitor at once — and the
+  // resulting rect is indistinguishable from an ordinary placement error. The
+  // real range is browser zoom (0.3x-3x per Firefox's own limits) against
+  // window chrome; anything outside this is a measurement failure, and
+  // refusing is safer than covering the film.
+  if (!Number.isFinite(k) || k < MIN_SCALE || k > MAX_SCALE) return null;
   return {
     left: Math.round(api.left - (self.x - css.l) * k),
     top: Math.round(api.top - (self.y - css.t) * k),
     width: Math.round(css.w * k),
     height: Math.round(css.h * k),
   };
+}
+
+/**
+ * Is the browser lying about the screen this window is on?
+ *
+ * Firefox's fingerprinting protection rewrites `screen.availWidth/Height` to
+ * the WINDOW's own size instead of the monitor's. A calibration probe is a
+ * 240x160 window, so a "screen" reported at 240x160 is not a monitor — it is
+ * the protection talking. Without this the whole grid reports one identical
+ * tiny screen, dedupe collapses it to a single entry, and the user is told
+ * "1 monitor found" with no hint that the number is fiction.
+ *
+ * Deliberately NOT "all probes agree" — on a genuine single-monitor desktop
+ * they legitimately do.
+ */
+export function looksLikeSpoofedScreen(report: ProbeReport): boolean {
+  const { css, self } = report;
+  if (!css || !self || !(self.ow > 0) || !(self.oh > 0)) return false;
+  // A few px of slack for window chrome; a real monitor is nowhere near a
+  // probe window's size, so the margin can be generous without false alarms.
+  const near = (a: number, b: number): boolean => Math.abs(a - b) <= 40;
+  return near(css.w, self.ow) && near(css.h, self.oh);
 }
 
 /**
