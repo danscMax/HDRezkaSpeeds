@@ -22,6 +22,8 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+# Store API credentials for `npm run submit` — AMO shows its JWT secret once.
+.env.submit
 
 # Stats
 stats.html

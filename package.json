@@ -25,7 +25,10 @@
     "drift": "node scripts/check-drift.mjs",
     "postinstall": "wxt prepare",
     "test:smoke:fullscreen": "node tests/smoke/fullscreen-no-ui.mjs",
-    "test:smoke:dim": "node tests/smoke/dim-other-screens.mjs"
+    "test:smoke:dim": "node tests/smoke/dim-other-screens.mjs",
+    "submit": "node scripts/submit.mjs",
+    "submit:check": "node scripts/submit.mjs --dry-run",
+    "submit:status": "publish-extension status --chrome-api-version v2"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
@@ -33,6 +36,7 @@
     "@vitest/coverage-v8": "^4.1.6",
     "@vitest/ui": "^4.1.5",
     "happy-dom": "^20.10.2",
+    "publish-browser-extension": "^6.0.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.12",
     "vite-plugin-monkey": "^8.0.4",
