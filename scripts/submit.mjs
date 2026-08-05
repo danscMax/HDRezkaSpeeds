@@ -35,19 +35,33 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+const dryRun = process.argv.includes('--dry-run');
+
+// Chrome goes through the CLI — that half works.
 const args = [
   'publish-extension',
   '--chrome-api-version',
   'v2',
   '--chrome-zip',
   zip('chrome'),
-  '--firefox-zip',
-  zip('firefox'),
-  '--firefox-sources-zip',
-  zip('sources'),
   ...process.argv.slice(2),
 ];
 
 console.log(`submitting ${pkg.name} ${pkg.version}`);
-const { status } = spawnSync('npx', args, { cwd: root, stdio: 'inherit', shell: true });
-process.exit(status ?? 1);
+const chrome = spawnSync('npx', args, { cwd: root, stdio: 'inherit', shell: true });
+if (chrome.status !== 0) process.exit(chrome.status ?? 1);
+
+// Firefox does NOT: publish-browser-extension@6 rejects a perfectly good
+// sources .zip with "Unsupported file type" and mislabels a valid upload as
+// "1 error" (verified against AMO's own upload records, 2026-08-05). Our own
+// API call does the same job — see scripts/submit-amo.mjs.
+if (dryRun) {
+  console.log('dry run: skipping the AMO upload (credentials are checked by the Chrome step)');
+  process.exit(0);
+}
+const amo = spawnSync('node', ['scripts/submit-amo.mjs'], {
+  cwd: root,
+  stdio: 'inherit',
+  shell: true,
+});
+process.exit(amo.status ?? 1);
