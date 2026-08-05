@@ -206,6 +206,33 @@ try {
     check(`[${scenario.name}] the hotkey shows the speed popup in fullscreen`, fsFeedback.present && fsFeedback.display !== 'none', JSON.stringify(fsFeedback));
     check(`[${scenario.name}] the popup sits inside the fullscreen subtree (otherwise it never paints)`, fsFeedback.insideFs === true, JSON.stringify(fsFeedback));
 
+    // Fullscreen styling, in the theme that nearly broke it: the per-theme rule
+    // (html[data-vs-theme="light"] … / html:not([dark]) …) outranks a single-id
+    // fullscreen rule, so the popup silently kept its light page look while
+    // floating over VIDEO. Assert the OSD scale AND the dark plate.
+    const fsLook = await page.evaluate(() => {
+      const prev = document.documentElement.dataset.vsTheme;
+      document.documentElement.dataset.vsTheme = 'light';
+      const el = document.getElementById('speed-popup');
+      const cs = el ? getComputedStyle(el) : null;
+      const out = cs
+        ? { fontSize: cs.fontSize, background: cs.backgroundColor, color: cs.color }
+        : { fontSize: null, background: null, color: null };
+      if (prev === undefined) delete document.documentElement.dataset.vsTheme;
+      else document.documentElement.dataset.vsTheme = prev;
+      return out;
+    });
+    check(
+      `[${scenario.name}] the fullscreen popup keeps its OSD size in light theme`,
+      fsLook.fontSize === '30px',
+      JSON.stringify(fsLook),
+    );
+    check(
+      `[${scenario.name}] the fullscreen popup keeps its dark plate in light theme`,
+      /^rgba\(0, 0, 0/.test(fsLook.background ?? ''),
+      JSON.stringify(fsLook),
+    );
+
     await page.evaluate(() => document.exitFullscreen()).catch(() => null);
     await page.waitForTimeout(1500);
     const after = await probe();

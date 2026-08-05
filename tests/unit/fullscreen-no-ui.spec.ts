@@ -155,3 +155,60 @@ describe('fullscreen: persistent UI hidden, messages allowed', () => {
     }
   });
 });
+
+describe('the fullscreen popup rule must outrank the per-theme rule', () => {
+  // The regression this pins: `:is(:fullscreen, …) #speed-popup.speed-popup`
+  // scores (1,2,0), while `html[data-vs-theme="light"] #speed-popup.speed-popup
+  // [data-vs-site="…"]` scores (1,3,1). Source order cannot save the weaker
+  // one, so the fullscreen popup silently kept the light page's white plate
+  // while floating over video. Specificity is computed here rather than
+  // eyeballed because that is exactly what was got wrong by eye.
+  const specificity = (selector: string): [number, number, number] => {
+    let s = selector;
+    // :is() contributes the weight of its most specific branch.
+    s = s.replace(/:is\(([^)]*)\)/g, (_m, inner: string) => {
+      const best = inner
+        .split(',')
+        .map((b) => b.trim())
+        .sort((a, b) => specificity(b)[1] - specificity(a)[1])[0];
+      return best ?? '';
+    });
+    const ids = (s.match(/#[\w-]+/g) ?? []).length;
+    const classes =
+      (s.match(/\.[\w-]+/g) ?? []).length +
+      (s.match(/\[[^\]]+\]/g) ?? []).length +
+      (s.match(/:(?!:)[\w-]+/g) ?? []).length;
+    const elements = (s.match(/(^|[\s>+~])[a-zA-Z][\w-]*/g) ?? []).length;
+    return [ids, classes, elements];
+  };
+  const beats = (a: [number, number, number], b: [number, number, number]): boolean => {
+    for (let i = 0; i < 3; i++) {
+      if (a[i] !== b[i]) return a[i] > b[i];
+    }
+    return false;
+  };
+
+  it('wins on specificity, not on source order', () => {
+    injectStyles('hdrezka', document);
+    const css = document.getElementById('vs-styles')?.textContent ?? '';
+    // Strip comments FIRST: the naive split treats everything before a `{` as
+    // the selector, so a comment that mentions other selectors silently
+    // inflates the specificity it computes — which is how the first version of
+    // this guard passed against a stylesheet it should have rejected.
+    const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    const selectors = [...bare.matchAll(/([^{}]+)\{[^}]*\}/g)].map((m) => m[1].trim());
+    const fsRule = selectors.find(
+      (s) =>
+        s.includes(':fullscreen') &&
+        s.includes('#speed-popup') &&
+        s.includes('font-size') === false,
+    );
+    const themeRule = selectors.find((s) => s.includes('#speed-popup') && /html[[:]/.test(s));
+    expect(fsRule, 'no fullscreen popup rule found').toBeDefined();
+    expect(themeRule, 'no per-theme popup rule found').toBeDefined();
+    expect(
+      beats(specificity(fsRule as string), specificity(themeRule as string)),
+      `fullscreen ${JSON.stringify(specificity(fsRule as string))} does not beat theme ${JSON.stringify(specificity(themeRule as string))}`,
+    ).toBe(true);
+  });
+});

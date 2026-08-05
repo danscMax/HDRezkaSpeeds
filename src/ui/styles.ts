@@ -1221,7 +1221,14 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
    the middle of the screen is looking. Full screen gets its own scale and a
    top-centre anchor: away from the player controls at the bottom, away from
    the picture's focal centre, where video players conventionally put an OSD. */
-:is(:fullscreen, .plyr--fullscreen-fallback) #speed-popup.speed-popup {
+/* The doubled id is deliberate, not a typo. The per-theme rule above —
+   html[data-vs-theme] + the popup id/class + the per-site attribute — scores
+   (1,3,1), which beats a single-id selector no matter where it sits in the
+   file, so source order cannot rescue it. In fullscreen the popup floats over
+   VIDEO, not over the site's light page, so the dark translucent OSD is right
+   regardless of the site theme; without the extra id it silently kept the
+   light background. (No backticks in this file: it is one template literal.) */
+:is(:fullscreen, .plyr--fullscreen-fallback) #speed-popup#speed-popup.speed-popup {
   top: 7%;
   right: auto;
   left: 50%;

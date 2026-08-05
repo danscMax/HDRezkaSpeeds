@@ -811,22 +811,25 @@ export async function bootstrap(
     reattach();
   });
 
-  // 12b. Fullscreen: show NO extension UI at all (user directive
-  //      2026-07-27, replaces the v0.3.5 MAJ-9 "stays visible in
-  //      fullscreen" behaviour).
+  // 12b. Fullscreen: hide the PERSISTENT interface, keep the feedback
+  //      (user directive 2026-08-05, narrowing the 2026-07-27 blanket ban,
+  //      which itself replaced the v0.3.5 MAJ-9 "panel stays visible").
   //
   //      Native fullscreen renders ONLY the fullscreenElement's subtree,
   //      and the panel is inserted as a SIBLING of the player container
   //      (ui/insertion.ts), so simply NOT re-parenting it is enough for
   //      the common case. The `:fullscreen` rules in ui/styles.ts cover
-  //      the surfaces that live INSIDE the player (slider-in-chrome, the
-  //      "1.50x" popup) plus the case where the site fullscreens an
-  //      ancestor that contains our panel.
+  //      the surfaces that live INSIDE the player (slider-in-chrome) plus
+  //      the case where the site fullscreens an ancestor that contains
+  //      our panel.
   //
-  //      The toast/chip stack carries inline `display !important`, which
-  //      no stylesheet rule can override — so it is torn down here on
-  //      entering fullscreen, and showNotification/showActionChip bail
-  //      out while fullscreen is active (ui/notifications.ts).
+  //      What is NOT hidden: the "1.50x" popup and the toast/chip stack.
+  //      In fullscreen the panel is gone, so the hotkey is the only
+  //      control and these are its only confirmation. Both are re-parented
+  //      INTO the fullscreen element by ui/popup.ts and ui/notifications.ts
+  //      for the same subtree reason. disposeNotificationStack() below is
+  //      not "hide the toasts" — it drops a stack still positioned for the
+  //      windowed layout so the next message is built in the right place.
   //
   //      FEAT-020: entering fullscreen is also where the "dim the other
   //      monitors" overlays go up. Only the background worker can open
