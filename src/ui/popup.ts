@@ -18,6 +18,7 @@ const hideTimers = new WeakMap<HTMLElement, number>();
 
 export function showSpeedPopup(speed: number, container: Element | null = null): void {
   const popup = ensurePopup(container);
+  mountForFullscreen(popup, container);
   popup.textContent = `${speed.toFixed(2)}x`;
   popup.classList.add('show');
 
@@ -81,8 +82,21 @@ function ensurePopup(container: Element | null): HTMLElement {
   return popup;
 }
 
-// The fullscreen re-parent that used to live here (.user.js:2599-2622,
-// port of the "popup follows you into fullscreen" behaviour) is gone: the
-// extension shows no UI in fullscreen at all (user directive 2026-07-27).
-// The popup is hidden by the `:fullscreen .speed-popup` rule in styles.ts
-// whenever its host lands inside the fullscreen subtree.
+/**
+ * Follow the user into fullscreen (restored 2026-08-05; the behaviour comes
+ * from .user.js:2599-2622 and was dropped by the 2026-07-27 "no UI in
+ * fullscreen" directive, which turned out to silence the hotkey too).
+ *
+ * Native fullscreen paints ONLY the fullscreen element's subtree. The popup
+ * normally hangs off the player container, which is the wrong side of that
+ * boundary whenever a DESCENDANT is what went fullscreen — the node exists,
+ * has the `show` class, and is never painted. So while fullscreen is active
+ * the popup is re-parented under the element that owns the screen, and put
+ * back afterwards.
+ */
+function mountForFullscreen(popup: HTMLElement, container: Element | null): void {
+  const fs = document.fullscreenElement;
+  const host =
+    fs ?? (container instanceof HTMLElement ? container : (popup.parentElement ?? document.body));
+  if (popup.parentElement !== host) host.appendChild(popup);
+}

@@ -167,14 +167,31 @@ try {
     const fsError = await page.evaluate(() => window.__vsFsError ?? null);
     check(`[${scenario.name}] the page really entered fullscreen`, inFs.fullscreen != null, `fullscreenElement is null (${fsError ?? 'no error reported'}) — focus stolen by another tab?`);
     check(`[${scenario.name}] panel is not rendered in fullscreen`, hidden(inFs.panel), JSON.stringify(inFs.panel));
-    check(`[${scenario.name}] speed popup is not rendered in fullscreen`, hidden(inFs.popup), JSON.stringify(inFs.popup));
     check(`[${scenario.name}] in-chrome slider is not rendered in fullscreen`, hidden(inFs.slider), JSON.stringify(inFs.slider));
-    check(`[${scenario.name}] toast stack was torn down on entering fullscreen`, !inFs.stack.present, JSON.stringify(inFs.stack));
-
-    // A toast raised WHILE fullscreen is active must not appear either.
-    await page.dblclick('.speed-button:nth-child(5)').catch(() => null);
+    // Messages are ALLOWED in fullscreen since 2026-08-05 — only the
+    // persistent chrome above is hidden. What must hold is that a toast
+    // raised there is actually PAINTED, i.e. mounted inside the element that
+    // owns the screen (native fullscreen paints only that subtree).
+    // Raise it the way a user actually can in fullscreen: the panel is hidden
+    // there, so the ONLY way to change speed is the hotkey — which is exactly
+    // the path that used to give no feedback at all.
+    await page.keyboard.press('Alt+Period').catch(() => null);
     await page.waitForTimeout(600);
-    check(`[${scenario.name}] a toast raised in fullscreen does not appear`, !(await probe()).stack.present, 'a stack was built while fullscreen');
+    const fsFeedback = await page.evaluate(() => {
+      const el = document.getElementById('speed-popup');
+      if (!el) return { present: false };
+      const fs = document.fullscreenElement;
+      const cs = getComputedStyle(el);
+      return {
+        present: true,
+        insideFs: fs ? fs.contains(el) : null,
+        display: cs.display,
+        opacity: cs.opacity,
+        text: el.textContent.trim(),
+      };
+    });
+    check(`[${scenario.name}] the hotkey shows the speed popup in fullscreen`, fsFeedback.present && fsFeedback.display !== 'none', JSON.stringify(fsFeedback));
+    check(`[${scenario.name}] the popup sits inside the fullscreen subtree (otherwise it never paints)`, fsFeedback.insideFs === true, JSON.stringify(fsFeedback));
 
     await page.evaluate(() => document.exitFullscreen()).catch(() => null);
     await page.waitForTimeout(1500);
@@ -198,12 +215,11 @@ try {
     const inFallback = await probe();
     await shot('04-plyr-fallback');
     console.log('  in Plyr fallback:', JSON.stringify(inFallback));
-    check(`[${scenario.name}] speed popup is hidden in Plyr pseudo-fullscreen`, hidden(inFallback.popup), JSON.stringify(inFallback.popup));
     check(`[${scenario.name}] in-chrome slider is hidden in Plyr pseudo-fullscreen`, hidden(inFallback.slider), JSON.stringify(inFallback.slider));
 
     await page.dblclick('.speed-button:nth-child(4)').catch(() => null);
     await page.waitForTimeout(600);
-    check(`[${scenario.name}] a toast raised in Plyr pseudo-fullscreen does not appear`, !(await probe()).stack.present, 'a stack was built during the CSS-only fullscreen');
+    check(`[${scenario.name}] a toast raised in Plyr pseudo-fullscreen IS shown`, (await probe()).stack.present, 'no stack was built during the CSS-only fullscreen');
 
     await page.evaluate((playerSelector) => {
       document.querySelector(playerSelector)?.classList.remove('plyr--fullscreen-fallback');

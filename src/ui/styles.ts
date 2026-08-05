@@ -536,9 +536,15 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
    display-!important declaration, which an author stylesheet cannot
    override — it is guarded in JS instead (ui/notifications.ts + the
    fullscreenchange listener in index.ts). */
-:is(:fullscreen, .plyr--fullscreen-fallback) :is(.vs-panel, .vs-slider-in-chrome, .speed-popup) {
+:is(:fullscreen, .plyr--fullscreen-fallback) :is(.vs-panel, .vs-slider-in-chrome) {
   display: none !important;
 }
+/* .speed-popup is deliberately NOT in that list (2026-08-05). It is the
+   centred "1.50x" that flashes for two seconds after a speed change — and in
+   fullscreen the panel is hidden, so the hotkey is the only way to change
+   speed and this popup is the only confirmation that anything happened.
+   Hiding it made the hotkey silent: you pressed and guessed. The persistent
+   chrome above stays hidden; this one disappears on its own. */
 /* sliderPosition='bottom' -- buttons + gear share the top row; slider
    takes its own row below them. Mirrors .user.js:2873-2877 layout-bottom
    where wrapperDiv (buttons + settings) sat above sliderContainer.

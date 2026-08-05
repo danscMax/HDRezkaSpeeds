@@ -11,5 +11,5 @@
   "src/ui/settings/export-import.ts": "40e54d4471f60e6495c1aad767fd70cd779b60e9cce61dc0102435b46a3071ce",
   "src/ui/settings/handlers.ts": "5f33ef40497d6f0a2edbbff098520a0b63f485987af0fdd15ccce1b9934039c2",
   "src/ui/settings/modal.ts": "acc711ba96affd21f8e33b4bdef57ab5f97d971aef43bae633d61c45fe720fef",
-  "src/ui/styles.ts": "9466217daf8faaaf99cbb4e266f503f317b604b50a3a53dd162ec48f33a2722a"
+  "src/ui/styles.ts": "145172f599ebabecb6b43c5cfddbe513f841c6d7e44069eba8d850a50b2c7a3c"
 }

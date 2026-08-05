@@ -20,51 +20,33 @@ import { type IconName, vsIcon } from './icons';
 const STACK_ID = 'speed-notifications';
 
 /**
- * True while the page is showing fullscreen playback — either native
- * fullscreen, or Plyr's CSS-only fallback (used when the Fullscreen API is
- * unavailable). The fallback fires NO fullscreenchange event, so it can only
- * be detected by sniffing the class Plyr puts on the player.
- */
-function isFullscreen(): boolean {
-  return (
-    document.fullscreenElement != null ||
-    document.querySelector('.plyr--fullscreen-fallback') != null
-  );
-}
-
-/**
- * Chips raised while fullscreen is active are DEFERRED, not dropped — a
- * durable chip (resume offer, "panel failed → reload") still carries
- * information the user needs once they leave fullscreen. Time-sensitive
- * chips don't go stale: their caller's close() cancels the pending raise
- * (see showActionChip below).
- *
- * Only NATIVE fullscreen defers: leaving Plyr's CSS-only pseudo-fullscreen
- * fires no event, so a chip queued there could never be flushed — it is
- * dropped instead of queued forever (see showActionChip).
- */
-const deferredChips: Array<() => void> = [];
-let flushListenerInstalled = false;
-
-/**
- * Drop everything still pending. Called from panel.dispose() so a chip
- * deferred by a torn-down panel cannot surface against a fresh one (the
- * flush listener itself is process-wide and installed at most once).
+ * Kept as a no-op: nothing is deferred any more (messages show in fullscreen
+ * as of 2026-08-05), but panel.dispose() calls this and an exported name is
+ * cheaper to keep than to chase through both twins.
  */
 export function clearDeferredChips(): void {
-  deferredChips.length = 0;
+  /* nothing is queued any more — see showActionChip */
 }
 
-function deferUntilFullscreenExit(raise: () => void): void {
-  deferredChips.push(raise);
-  if (flushListenerInstalled) return;
-  // Installed at most once per page lifetime (not per panel), so an SPA
-  // re-attach cannot stack listeners.
-  flushListenerInstalled = true;
-  document.addEventListener('fullscreenchange', () => {
-    if (isFullscreen()) return;
-    for (const raiseChip of deferredChips.splice(0)) raiseChip();
-  });
+/**
+ * Native fullscreen renders ONLY the fullscreen element's subtree. The toast
+ * stack normally lives inside the player container, which is the WRONG side of
+ * that boundary whenever the element that went fullscreen is a descendant —
+ * the toast exists, is styled, and is simply not painted. So while fullscreen
+ * is active the stack is re-parented under whatever element owns the screen,
+ * and switched to viewport-anchored positioning (inside the top layer, `fixed`
+ * means "relative to the fullscreen area").
+ */
+function mountForFullscreen(stack: HTMLElement, playerContainer: Element | null): void {
+  const fs = document.fullscreenElement;
+  if (fs) {
+    if (stack.parentElement !== fs) fs.appendChild(stack);
+    stack.style.position = 'fixed';
+    return;
+  }
+  const host = playerContainer instanceof HTMLElement ? playerContainer : document.body;
+  if (stack.parentElement !== host) host.appendChild(stack);
+  stack.style.position = playerContainer instanceof HTMLElement ? 'absolute' : 'fixed';
 }
 
 const DOT_COLORS: Record<NotificationKind, string> = {
@@ -86,16 +68,18 @@ export interface NotificationOptions {
  * the same `#speed-notifications` div.
  */
 export function showNotification(text: string, opts: NotificationOptions = {}): void {
-  // No extension UI in fullscreen (user directive 2026-07-27). The stack
-  // lives INSIDE the player container and carries inline
-  // `display …!important`, so no stylesheet rule can hide it — the only
-  // reliable guard is not building it in the first place.
-  if (isFullscreen()) return;
+  // Toasts DO show in fullscreen (user directive 2026-08-05, reversing the
+  // 2026-07-27 blanket ban). The ban was aimed at persistent chrome sitting on
+  // top of the picture — panel, slider, gear — but it also silenced the only
+  // feedback a hotkey gives: pressing Alt+. in fullscreen changed the speed
+  // with nothing on screen to confirm it. The panel and slider stay hidden;
+  // what comes back is the transient message that disappears on its own.
   const kind: NotificationKind = opts.kind ?? 'info';
   const duration = opts.duration ?? 3000;
   const dotColor = DOT_COLORS[kind] ?? DOT_COLORS.info;
 
   const stack = ensureStack(opts.playerContainer ?? null);
+  mountForFullscreen(stack, opts.playerContainer ?? null);
 
   // The toast lives outside .vs-panel/.settings-menu and carries an inline
   // `transition …!important`, so the stylesheet's reduced-motion block can't
@@ -200,29 +184,16 @@ export interface ActionChipOptions {
  * saved point, or a new episode loads).
  */
 export function showActionChip(text: string, opts: ActionChipOptions = {}): () => void {
-  // Same fullscreen rule as showNotification, but chips are durable, so
-  // they wait for the user to leave fullscreen instead of vanishing. The
-  // returned close() cancels a still-pending chip, which is what keeps a
-  // time-sensitive offer (resume) from resurfacing stale.
-  if (isFullscreen()) {
-    // Plyr's CSS-only pseudo-fullscreen is the exception: its exit fires no
-    // event, so deferring there would queue a chip that never surfaces.
-    // Drop it — a queue with no flush is worse than a lost chip.
-    if (document.fullscreenElement == null) return () => {};
-    let cancelled = false;
-    let closeRaised: (() => void) | null = null;
-    deferUntilFullscreenExit(() => {
-      if (!cancelled) closeRaised = showActionChip(text, opts);
-    });
-    return () => {
-      cancelled = true;
-      closeRaised?.();
-    };
-  }
+  // Chips show in fullscreen too (user directive 2026-08-05). They used to be
+  // queued until the user left it; the queue is kept only for the code path
+  // that still needs it — see deferUntilFullscreenExit — because a chip the
+  // user never sees is a message that never arrived, and the whole point of a
+  // durable chip is that it waits for a decision.
   const kind: NotificationKind = opts.kind ?? 'info';
   const color = DOT_COLORS[kind] ?? DOT_COLORS.info;
   const duration = opts.duration ?? 0;
   const stack = ensureStack(opts.playerContainer ?? null);
+  mountForFullscreen(stack, opts.playerContainer ?? null);
 
   const reduceMotion =
     typeof window.matchMedia === 'function' &&
