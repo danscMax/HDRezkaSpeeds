@@ -10,6 +10,13 @@
  *
  * Deliberately NOT a settings key: it is not a preference, it must not appear
  * in export/import, and it must not be reset by "restore defaults".
+ *
+ * Scope of the guarantee, stated honestly: "once per profile" holds within a
+ * tab and across page loads. Two tabs opening a video at the same instant
+ * (session restore, two middle-clicked results) can both read the flag before
+ * either write lands, and both would show the chip. There is no lock in
+ * storage.local and taking one would cost more than the failure: two
+ * dismissible hints, in two tabs, once.
  */
 
 import type { StorageAdapter } from './adapter';
