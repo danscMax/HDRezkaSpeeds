@@ -184,9 +184,14 @@ console.log(
 
 // `--strict` turns the report into a gate. Plain `npm run drift` stays
 // informational (site-specific divergence inside a shared file is sometimes
-// legitimate and the human decides), but CI and the release checklist can now
-// demand that every divergence has been LOOKED AT and acknowledged. Without
-// this the checker could only ever be ignored.
+// legitimate and the human decides), while `--strict` demands that every
+// divergence has been LOOKED AT and acknowledged. Without it the checker could
+// only ever be ignored.
+//
+// Its consumer is the LOCAL release ritual (.claude/skills/twin-extensions),
+// not GitHub Actions: this check needs BOTH checkouts side by side, and CI
+// clones one repository. Wiring it into ci.yml would need the twin cloned as a
+// second step — worth doing only if the two repos ever share an owner/CI.
 if (STRICT && unexpected.length) {
   console.error('\n--strict: unacknowledged drift is a failure.');
   process.exit(1);

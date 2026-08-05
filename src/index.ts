@@ -51,6 +51,7 @@ import {
   looksLikeHDRezka,
 } from './sites/detect';
 import { bootstrapHDRezkaSite, patchPlyrLocalStorage } from './sites/hdrezka';
+import { warnIfHdrezkaImprovementPresent } from './sites/hdrezka-improvement';
 import { BUILTIN_MIRROR_HOSTS, isCoveredByHostList } from './sites/mirror-hosts';
 import {
   applyTransient,
@@ -86,11 +87,7 @@ import { disposeNotificationStack, showActionChip, showNotification } from './ui
 import type { PanelMirrors } from './ui/panel';
 import type { MirrorsViewModel } from './ui/settings/modal';
 import { createLogger } from './utils/logger';
-import {
-  detectAndClaim,
-  release as releaseCoexistMarker,
-  warnIfHdrezkaImprovementPresent,
-} from './utils/tm-coexist';
+import { detectAndClaim, release as releaseCoexistMarker } from './utils/tm-coexist';
 
 declare const __VS_VERSION__: string | undefined;
 const SCRIPT_VERSION = typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.1.0';
