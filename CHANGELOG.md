@@ -4,6 +4,17 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.6.5] — 2026-08-05
+
+### Fixed
+
+- **In fullscreen the speed confirmation stayed white on a light-themed site.**
+  It floats over video, not over the page, so it now keeps its dark plate
+  whatever theme the site is in.
+- **Messages that wait for a decision could park on the picture** in players
+  that fake fullscreen with CSS instead of the browser's own (HDRezka's does).
+  They now fade after eight seconds there too, like everywhere else.
+
 ## [0.6.4] — 2026-08-05
 
 ### Fixed
