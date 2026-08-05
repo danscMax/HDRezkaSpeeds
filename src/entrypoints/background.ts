@@ -169,7 +169,9 @@ export default defineBackground(() => {
   // fix landing in only one of them.
   const refreshPermissionBadge = (): Promise<boolean> =>
     refreshBadge(browser.action, browser.permissions, {
-      origins: builtinMatchPatterns(),
+      // One group per mirror: any single working mirror means the extension is
+      // usable, and the badge stays quiet.
+      originGroups: BUILTIN_MIRROR_HOSTS.map((host) => originPatternsFor(host)),
       alertTitle: NO_ACCESS_TITLE[detectBrowserLang()],
     });
   void refreshPermissionBadge();
@@ -1094,6 +1096,16 @@ export default defineBackground(() => {
   // before resolving.
   const ALLOWED_PAGES = new Set(['/feedback.html', '/welcome.html']);
   browser.runtime.onMessage.addListener((msg: unknown, sender): Promise<unknown> | undefined => {
+    // Reject messages from other extensions. This side owns windows.create and
+    // scripting.registerContentScripts — strictly more power than the content
+    // script, whose own handler has validated its sender since audit 2026-05-09
+    // (src/index.ts). The asymmetry was an oversight, not a decision.
+    //
+    // Deliberately NOT rejecting tab senders the way index.ts does: our own
+    // content scripts and extension pages are exactly who talks to this worker.
+    // `sender.id` is absent for same-extension messages in some engines, so
+    // only a PRESENT and FOREIGN id is refused.
+    if (sender?.id && sender.id !== browser.runtime.id) return undefined;
     if (!msg || typeof msg !== 'object') return undefined;
     const m = msg as {
       type?: unknown;
