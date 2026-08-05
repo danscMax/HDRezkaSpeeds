@@ -216,11 +216,6 @@ export function screensTouchedByPlayer(map: ScreenRecipe[], playerWindow: Rect):
     .map((s) => s.screen);
 }
 
-/** Every calibrated screen except the one the player is on. */
-export function otherScreens(map: ScreenRecipe[], player: ScreenGeom): ScreenRecipe[] {
-  return map.filter((screen) => !sameScreen(screen, player));
-}
-
 /** Level (0..100) → opaque grey fill. 100 → black, 0 → white. */
 export function dimColor(level: number): string {
   const pct = Math.min(100, Math.max(0, Math.round(level)));

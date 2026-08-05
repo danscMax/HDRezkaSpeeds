@@ -11,7 +11,6 @@ import {
   DEFAULT_DIM_LEVEL,
   dedupeScreens,
   dimColor,
-  otherScreens,
   pickOtherDisplays,
   readScreenGeom,
   type ScreenRecipe,
@@ -155,19 +154,6 @@ describe('Firefox calibration helpers', () => {
     expect(map).toHaveLength(2);
     expect(map[0]?.rawLeft).toBe(-100000);
     expect(map[1]?.rawLeft).toBe(100000);
-  });
-
-  it('excludes the player screen and nothing else', () => {
-    const primary = screen(0, 0);
-    const second = screen(2176, 0, 2176, 1176);
-    const third = screen(0, 1392, 2293, 960);
-    const map = [recipe(0, 0, primary), recipe(100000, 0, second), recipe(2500, 100000, third)];
-    expect(otherScreens(map, primary).map((s) => s.rawLeft)).toEqual([100000, 2500]);
-    expect(otherScreens(map, second).map((s) => s.rawLeft)).toEqual([0, 2500]);
-  });
-
-  it('dims nothing when the map is empty (not yet calibrated)', () => {
-    expect(otherScreens([], screen(0, 0))).toEqual([]);
   });
 });
 
