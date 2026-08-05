@@ -4,6 +4,22 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.6.2] — 2026-08-05
+
+### Added
+
+- **Dim the other monitors while a video plays fullscreen.** Off by default;
+  turn it on in the settings, and set how dark the other screens go (100 = pure
+  black). Firefox has no API for "where are the monitors", so it learns the
+  layout once from a "find my monitors" button in the settings; Chrome reads it
+  directly. The screen playing the video is never covered.
+- **The extension now tells you when it has no access to the site.** Firefox
+  grants site access when you install an add-on, but it does *not* grant access
+  it gains in an update — so a version that adds a new mirror silently does
+  nothing on it, with no panel and no error. The toolbar icon now shows a red
+  "!" with an explanation, and clicking it offers to fix it in one click. The
+  same offer appears on the welcome page after installing.
+
 ## [0.6.1] — 2026-07-28
 
 ### Changed
