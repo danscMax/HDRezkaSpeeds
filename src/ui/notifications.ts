@@ -20,6 +20,14 @@ import { type IconName, vsIcon } from './icons';
 const STACK_ID = 'speed-notifications';
 
 /**
+ * How long a normally-sticky chip stays up when it is raised in fullscreen.
+ * Long enough to read "Continue from 42:15" and click it, short enough that
+ * ignoring it does not leave a box parked on the film. In a window a sticky
+ * chip stays sticky — there the picture is not the whole screen.
+ */
+const FULLSCREEN_CHIP_MS = 8000;
+
+/**
  * Kept as a no-op: nothing is deferred any more (messages show in fullscreen
  * as of 2026-08-05), but panel.dispose() calls this and an exported name is
  * cheaper to keep than to chase through both twins.
@@ -184,14 +192,18 @@ export interface ActionChipOptions {
  * saved point, or a new episode loads).
  */
 export function showActionChip(text: string, opts: ActionChipOptions = {}): () => void {
-  // Chips show in fullscreen too (user directive 2026-08-05). They used to be
-  // queued until the user left it; the queue is kept only for the code path
-  // that still needs it — see deferUntilFullscreenExit — because a chip the
-  // user never sees is a message that never arrived, and the whole point of a
-  // durable chip is that it waits for a decision.
+  // Chips show in fullscreen too (user directive 2026-08-05) — they used to be
+  // queued until the user left it, which meant a message that never arrived.
+  // But a chip is normally STICKY (duration 0, waits for a decision), and a
+  // rectangle parked on top of a film until someone finds its ✕ is exactly the
+  // chrome the fullscreen rule exists to keep off the picture. So in
+  // fullscreen a sticky chip gets a deadline instead: long enough to read and
+  // act on, short enough that ignoring it costs nothing.
   const kind: NotificationKind = opts.kind ?? 'info';
   const color = DOT_COLORS[kind] ?? DOT_COLORS.info;
-  const duration = opts.duration ?? 0;
+  const sticky = (opts.duration ?? 0) === 0;
+  const duration =
+    sticky && document.fullscreenElement != null ? FULLSCREEN_CHIP_MS : (opts.duration ?? 0);
   const stack = ensureStack(opts.playerContainer ?? null);
   mountForFullscreen(stack, opts.playerContainer ?? null);
 

@@ -148,6 +148,37 @@ try {
       .catch(() => null);
   }
 
+  // ── the two features have to coexist: dimming raises real browser windows
+  //    and hands focus around, and the speed popup is the only feedback the
+  //    hotkey gives in fullscreen. Neither had ever been exercised with the
+  //    other switched on. ──
+  await page.bringToFront();
+  await page.keyboard.press('Alt+Period');
+  await page.waitForTimeout(500);
+  const feedback = await page.evaluate(() => {
+    const el = document.getElementById('speed-popup');
+    if (!el) return { present: false };
+    const fs = document.fullscreenElement;
+    const cs = getComputedStyle(el);
+    return {
+      present: true,
+      insideFs: fs ? fs.contains(el) : null,
+      display: cs.display,
+      opacity: cs.opacity,
+      text: el.textContent.trim(),
+    };
+  });
+  check(
+    'the hotkey still confirms the speed while the screens are dimmed',
+    feedback.present && feedback.display !== 'none' && feedback.insideFs === true,
+    JSON.stringify(feedback),
+  );
+  check(
+    'raising the speed popup did not drop the player out of fullscreen',
+    await page.evaluate(() => document.fullscreenElement != null),
+    'fullscreen was lost when the popup appeared',
+  );
+
   // ── leaving fullscreen must clear every overlay ──
   await page.evaluate(() => document.exitFullscreen()).catch(() => null);
   await page.waitForTimeout(2500);

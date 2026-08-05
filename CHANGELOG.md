@@ -4,6 +4,21 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.6.4] — 2026-08-05
+
+### Fixed
+
+- **In fullscreen the hotkey now confirms what it did.** The July rule "no
+  extension UI over the picture" had swept up the "1.50x" that flashes after a
+  speed change — and since the panel is hidden in fullscreen, the hotkey is the
+  only control there. You pressed it and nothing on screen said whether
+  anything happened. The panel and the in-player slider stay hidden; the speed
+  confirmation and short messages are back, and in fullscreen the confirmation
+  is bigger and sits at the top centre where you can actually see it.
+- Messages that wait for a decision ("Continue from 42:15", "Panel failed →
+  Reload") now appear in fullscreen too, but there they fade after eight
+  seconds instead of parking on the film until you find their ✕.
+
 ## [0.6.3] — 2026-08-05
 
 ### Changed

@@ -1,22 +1,17 @@
-0.6.3 — onboarding only. No new permissions, no new remote endpoints.
+0.6.4 — one behaviour change, no new permissions, no new endpoints.
 
-1. Default playback speed for a FRESH profile changed from 1.4 to 1.0
-   (src/config.ts SPEED_BOUNDS). Stored speeds are untouched — the value is
-   only used as a fallback and by the "full reset" action.
+The fullscreen rule changed: persistent chrome (speed panel, in-player slider)
+stays hidden, but the transient speed confirmation ("1.50x") and the toast/chip
+stack are shown again. Reason: in fullscreen the panel is hidden, so the
+keyboard shortcut is the only control, and it gave no feedback at all.
 
-2. New one-time hint chip on first panel render (src/index.ts
-   showFirstRunHint + src/storage/onboarding-store.ts). Local flag in
-   storage.local, no network.
-
-3. The welcome page's "Open HDRezka" button now asks the background worker
-   for a reachable mirror (existing message `mirrors:open-reachable`,
-   unchanged) instead of linking to one hardcoded domain. The plain link
-   remains as a no-JS fallback.
-
-4. welcome.html now also opens on runtime.onInstalled reason === 'update',
-   and only when permissions.contains() reports no access — this is the
-   Firefox case where an update-added host permission is not granted
-   (bug 1893232) and the add-on is silently inert.
+Implementation notes:
+- src/ui/styles.ts — `.speed-popup` removed from the `:fullscreen` hide list,
+  plus a fullscreen-only size/position block (top centre, larger type).
+- src/ui/popup.ts, src/ui/notifications.ts — both surfaces are re-parented
+  under `document.fullscreenElement` while it is set, because native fullscreen
+  paints only that subtree. Restored to the player container on exit.
+- Sticky chips get an 8s deadline while fullscreen is active.
 
 Build: WXT + Vite, output minified; source archive attached.
 Build it with `npm ci && npm run zip:firefox` on Node 22.

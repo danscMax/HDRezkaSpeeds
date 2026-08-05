@@ -160,6 +160,19 @@ try {
     }, scenario.playerSelector);
     await page.click('#vs-smoke-fs');
     await page.waitForTimeout(1500);
+    // Chrome refuses fullscreen ("TypeError: not granted") when another tab
+    // holds focus — and the extension opens welcome.html on install, which
+    // races the close loop above. One retry after re-claiming focus turns a
+    // recurring false alarm into a real signal.
+    if (await page.evaluate(() => document.fullscreenElement == null)) {
+      for (const other of ctx.pages()) if (other !== page) await other.close().catch(() => null);
+      await page.bringToFront();
+      await page.evaluate(() => {
+        window.__vsFsError = null;
+      });
+      await page.click('#vs-smoke-fs').catch(() => null);
+      await page.waitForTimeout(1500);
+    }
 
     const inFs = await probe();
     await shot('02-native-fullscreen');

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { showActionChip, showNotification } from '../../src/ui/notifications';
 import { injectStyles, removeStyles } from '../../src/ui/styles';
 
@@ -58,6 +58,27 @@ describe('fullscreen: persistent UI hidden, messages allowed', () => {
     setFullscreen(document.body);
     showActionChip('continue from 42:15');
     expect(document.body.textContent).toContain('continue from 42:15');
+  });
+
+  it('gives a sticky chip a deadline in fullscreen, but not in a window', () => {
+    // A chip is normally sticky (duration 0) and waits for a decision. On top
+    // of a film that means a box parked on the picture until someone hunts
+    // for its ✕ — so fullscreen swaps "sticky" for "long enough to act".
+    vi.useFakeTimers();
+    try {
+      setFullscreen(document.body);
+      showActionChip('continue from 42:15');
+      expect(document.body.textContent).toContain('continue from 42:15');
+      vi.advanceTimersByTime(8000 + 300);
+      expect(document.body.textContent).not.toContain('continue from 42:15');
+
+      setFullscreen(null);
+      showActionChip('still here');
+      vi.advanceTimersByTime(60_000);
+      expect(document.body.textContent).toContain('still here');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('mounts the stack INSIDE the element that owns the screen', () => {

@@ -540,11 +540,12 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   display: none !important;
 }
 /* .speed-popup is deliberately NOT in that list (2026-08-05). It is the
-   centred "1.50x" that flashes for two seconds after a speed change — and in
+   "1.50x" that flashes for two seconds after a speed change — and in
    fullscreen the panel is hidden, so the hotkey is the only way to change
    speed and this popup is the only confirmation that anything happened.
    Hiding it made the hotkey silent: you pressed and guessed. The persistent
    chrome above stays hidden; this one disappears on its own. */
+
 /* sliderPosition='bottom' -- buttons + gear share the top row; slider
    takes its own row below them. Mirrors .user.js:2873-2877 layout-bottom
    where wrapperDiv (buttons + settings) sat above sliderContainer.
@@ -1213,6 +1214,26 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 #speed-popup.speed-popup.show { opacity: 1; }
+
+/* Fullscreen sizing. Measured on a real 1920×1080 fullscreen: the windowed
+   geometry (18px type, pinned 20px from the right edge) put the confirmation
+   in the far periphery at 79×44 px — present, and not where a person watching
+   the middle of the screen is looking. Full screen gets its own scale and a
+   top-centre anchor: away from the player controls at the bottom, away from
+   the picture's focal centre, where video players conventionally put an OSD. */
+:is(:fullscreen, .plyr--fullscreen-fallback) #speed-popup.speed-popup {
+  top: 7%;
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 30px;
+  padding: 14px 26px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 
 /* Settings modal -- glassmorphic floating popover (parity
    .user.js:3019-3066). Dark translucent fill + backdrop-filter blur so
