@@ -2,8 +2,8 @@
 
 [![Firefox Add-on](https://img.shields.io/amo/v/hdrezka-speed-controller?label=Firefox%20Add-on&logo=firefoxbrowser)](https://addons.mozilla.org/firefox/addon/hdrezka-speed-controller/)
 [![Users](https://img.shields.io/amo/users/hdrezka-speed-controller?label=users)](https://addons.mozilla.org/firefox/addon/hdrezka-speed-controller/)
-<!-- TODO: add the Chrome Web Store badge once the listing is public:
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/EXTENSION_ID?label=Chrome%20Web%20Store&logo=googlechrome)](https://chromewebstore.google.com/detail/EXTENSION_ID) -->
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/bledompcjiepahghecekpeodipnpbhpl?label=Chrome%20Web%20Store&logo=googlechrome)](https://chromewebstore.google.com/detail/bledompcjiepahghecekpeodipnpbhpl)
+[![Chrome users](https://img.shields.io/chrome-web-store/users/bledompcjiepahghecekpeodipnpbhpl?label=chrome%20users)](https://chromewebstore.google.com/detail/bledompcjiepahghecekpeodipnpbhpl)
 
 [English](#english) | [Русский](#russian)
 
