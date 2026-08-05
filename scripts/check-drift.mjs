@@ -27,8 +27,9 @@
  * agree. Only check-drift.mjs itself still needs a manual copy to the
  * twin when the script changes.
  *
- * Exit code 0 always — this is an informational report, not a CI gate
+ * Exit code 0 by default — an informational report, not a CI gate
  * (site-specific divergence inside shared files is sometimes legitimate).
+ * Pass `--strict` to make unacknowledged drift exit 1, for CI and releases.
  */
 
 import { createHash } from 'node:crypto';
@@ -41,14 +42,17 @@ const SELF_ROOT = resolve(__dirname, '..');
 const SELF_NAME = basename(SELF_ROOT);
 const TWIN_NAME = SELF_NAME === 'HDRezkaSpeeds' ? 'VideoSpeeds' : 'HDRezkaSpeeds';
 const cliArgs = process.argv.slice(2);
-const unknownFlag = cliArgs.find((a) => a.startsWith('-') && a !== '--accept');
+const KNOWN_FLAGS = new Set(['--accept', '--strict']);
+const unknownFlag = cliArgs.find((a) => a.startsWith('-') && !KNOWN_FLAGS.has(a));
 if (unknownFlag) {
   console.error(`unknown flag: ${unknownFlag}`);
-  console.error('usage: node scripts/check-drift.mjs [--accept] [path-to-twin]');
+  console.error('usage: node scripts/check-drift.mjs [--accept] [--strict] [path-to-twin]');
   process.exit(1);
 }
 const ACCEPT = cliArgs.includes('--accept');
-const twinArg = cliArgs.find((a) => a !== '--accept');
+const STRICT = cliArgs.includes('--strict');
+// Any non-flag argument is the twin's path; flags must not be mistaken for one.
+const twinArg = cliArgs.find((a) => !a.startsWith('-'));
 const TWIN_ROOT = resolve(twinArg ?? join(SELF_ROOT, '..', TWIN_NAME));
 const BASELINE_NAME = 'drift-baseline.json';
 const BASELINE_PATH = join(__dirname, BASELINE_NAME);
@@ -56,7 +60,17 @@ const BASELINE_PATH = join(__dirname, BASELINE_NAME);
 // Shared core — directories whose files are expected to stay in lockstep.
 // site-specific dirs (sites/, entrypoints/) are skipped: they legitimately
 // diverge per product.
-const SHARED_DIRS = ['src/app', 'src/discovery', 'src/health', 'src/speed', 'src/storage', 'src/ui', 'src/utils', 'src/i18n'];
+const SHARED_DIRS = [
+  'src/app',
+  'src/discovery',
+  'src/health',
+  'src/screens',
+  'src/speed',
+  'src/storage',
+  'src/ui',
+  'src/utils',
+  'src/i18n',
+];
 
 if (!existsSync(TWIN_ROOT)) {
   console.error(`twin checkout not found: ${TWIN_ROOT}`);
@@ -167,3 +181,13 @@ console.log(
     ? `\n${unexpected.length} unexpectedly drifted file(s) — diff them before the next release, then port or \`npm run drift -- --accept\`.`
     : '\nshared core is in lockstep ✅ (modulo acknowledged divergence)',
 );
+
+// `--strict` turns the report into a gate. Plain `npm run drift` stays
+// informational (site-specific divergence inside a shared file is sometimes
+// legitimate and the human decides), but CI and the release checklist can now
+// demand that every divergence has been LOOKED AT and acknowledged. Without
+// this the checker could only ever be ignored.
+if (STRICT && unexpected.length) {
+  console.error('\n--strict: unacknowledged drift is a failure.');
+  process.exit(1);
+}

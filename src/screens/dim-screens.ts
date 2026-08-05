@@ -192,8 +192,18 @@ export function screensTouchedByPlayer(map: ScreenRecipe[], playerWindow: Rect):
   const scored = map
     .map((screen) => ({ screen, area: overlapArea(screenCssRect(screen), playerWindow) }))
     .filter((s) => s.area > 0);
+  // Nothing overlaps: refuse to guess. Chrome's sibling policy elects a host
+  // anyway because its bounds are exact; here they are not (see
+  // indexOfLargestOverlap), and a wrong guess blacks out the film.
   if (scored.length === 0) return [];
-  const best = scored.reduce((a, b) => (b.area > a.area ? b : a));
+  const best =
+    scored[
+      indexOfLargestOverlap(
+        scored.map((s) => screenCssRect(s.screen)),
+        playerWindow,
+      )
+    ];
+  if (!best) return [];
   // The screen with the largest overlap is certainly the film's. A second
   // screen is only claimed as well when it holds a real share of the window —
   // a sliver of contact is the phantom band, not a monitor the film is on.
@@ -235,14 +245,40 @@ export function overlapArea(a: Rect, b: Rect): number {
  */
 export function pickOtherDisplays<T extends { bounds: Rect }>(displays: T[], window: Rect): T[] {
   if (displays.length < 2) return [];
-  let hostIndex = 0;
-  let bestOverlap = -1;
-  displays.forEach((display, i) => {
-    const area = overlapArea(display.bounds, window);
-    if (area > bestOverlap) {
-      bestOverlap = area;
-      hostIndex = i;
+  const hostIndex = indexOfLargestOverlap(
+    displays.map((d) => d.bounds),
+    window,
+    // -1 seed: Chrome ALWAYS elects a host, even when the window overlaps
+    // nothing (minimised, off-screen). Dimming every display including the
+    // player's is the one unacceptable outcome, so it falls back to the first.
+    { seed: -1 },
+  );
+  return displays.filter((_, i) => i !== hostIndex);
+}
+
+/**
+ * Index of the rect with the largest overlap — the one shared measurement both
+ * engines' "which screen is the film on" policies are built from.
+ *
+ * The POLICIES stay separate on purpose and are not a copy-paste to unify away:
+ * Chrome has exact display bounds and can always name a host (seed -1), while
+ * Firefox works from per-monitor-scaled rects that overlap on a mixed-DPI
+ * desktop, so it must refuse to guess (`screensTouchedByPlayer`). Same
+ * arithmetic, deliberately different defaults.
+ */
+export function indexOfLargestOverlap(
+  rects: Rect[],
+  window: Rect,
+  { seed }: { seed: number } = { seed: 0 },
+): number {
+  let bestIndex = 0;
+  let best = seed;
+  rects.forEach((rect, i) => {
+    const area = overlapArea(rect, window);
+    if (area > best) {
+      best = area;
+      bestIndex = i;
     }
   });
-  return displays.filter((_, i) => i !== hostIndex);
+  return bestIndex;
 }

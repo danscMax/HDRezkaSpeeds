@@ -32,6 +32,7 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { storageKeysFor } from '../config';
+import { refreshPermissionBadge as refreshBadge } from '../health/permission-badge';
 import { detectBrowserLang } from '../i18n/detect';
 import {
   calibrationPoints,
@@ -45,12 +46,20 @@ import {
   screensTouchedByPlayer,
 } from '../screens/dim-screens';
 import {
+  coverRect,
+  isPlacementAcceptable,
+  looksLikeSpoofedScreen,
+  type ProbeReport,
+  parseScreenReport,
+} from '../screens/placement';
+import {
   BUILTIN_MIRROR_HOSTS,
   builtinMatchPatterns,
   originPatternsFor,
 } from '../sites/mirror-hosts';
 import { classifyMirrorBody, type MirrorReach } from '../sites/mirror-reach';
 import { createBrowserStorageAdapter } from '../storage/adapter';
+import { readLastWorkingHost } from '../storage/last-host-store';
 import { MIRRORS_STORAGE_KEY, readUserMirrors, sanitizeMirrorList } from '../storage/mirrors-store';
 
 /** Single dynamic-registration id covering ALL user mirrors. */
@@ -100,7 +109,7 @@ const DIM_RESULT_KEY = 'vs-dim-last-result';
 interface DimResult {
   wanted: number;
   placed: number;
-  reason: 'ok' | 'no-map' | 'no-player-screen' | 'missed';
+  reason: 'ok' | 'no-map' | 'no-player-screen' | 'spoofed-screen' | 'missed';
 }
 
 /**
@@ -146,21 +155,6 @@ export default defineBackground(() => {
   }
 
   /**
-   * Say it out loud when the extension has no right to run.
-   *
-   * Firefox 127+ grants host permissions as part of the install flow, so a
-   * normal install needs nothing from the user. But permissions added by an
-   * extension UPDATE are documented as NOT shown and NOT granted — that is how
-   * a newly added mirror ends up unusable — and the user can revoke access at
-   * any time from about:addons. In both cases the content script simply never
-   * starts: no panel, no error, nothing to click, and no reason for anyone to
-   * suspect a permission. The toolbar icon is the only surface left, so it
-   * carries the warning instead of the user being expected to know.
-   *
-   * The badge is set GLOBALLY; the per-tab speed badge overrides it wherever
-   * the content script runs, which by definition is only where access exists.
-   */
-  /**
    * The one string this worker shows. Deliberately NOT in src/i18n/dict.ts:
    * importing the translator pulls the whole 60 kB dictionary into a service
    * worker that wakes on every browser event, to render a single tooltip.
@@ -170,19 +164,26 @@ export default defineBackground(() => {
     en: 'HDRezka Speed Controller has no access to HDRezka — click to allow it, or the panel will not appear',
   } as const;
 
-  async function refreshPermissionBadge(): Promise<void> {
-    // Unable to tell → stay silent. Crying wolf on a working install is worse
-    // than missing the rare broken one.
-    const held = await browser.permissions
-      .contains({ origins: builtinMatchPatterns() })
-      .catch(() => true);
-    const title = NO_ACCESS_TITLE[detectBrowserLang()];
-    await browser.action.setBadgeText({ text: held ? '' : '!' }).catch(() => undefined);
-    await browser.action
-      .setBadgeBackgroundColor({ color: held ? '#0e7490' : '#c0392b' })
-      .catch(() => undefined);
-    await browser.action.setTitle({ title: held ? '' : title }).catch(() => undefined);
-  }
+  // The rule itself lives in src/health/permission-badge.ts — shared with the
+  // twin and therefore watched by the drift checker. This used to be duplicated
+  // verbatim in both background.ts files, where nothing would have noticed a
+  // fix landing in only one of them.
+  const refreshPermissionBadge = async (): Promise<boolean> => {
+    // Which mirrors count? "Any one of eleven" alone would go quiet for the
+    // user this badge exists for: the one whose ONLY reachable mirror arrived
+    // in an update and was therefore never granted, while some other, ISP-
+    // blocked mirror still holds its permission. So the host we last actually
+    // worked on is checked on its own — and only when we have no such record
+    // does the question fall back to "is ANY mirror usable".
+    const lastHost = await readLastWorkingHost(adapter).catch(() => null);
+    const groups = lastHost
+      ? [originPatternsFor(lastHost)]
+      : BUILTIN_MIRROR_HOSTS.map((host) => originPatternsFor(host));
+    return refreshBadge(browser.action, browser.permissions, {
+      originGroups: groups,
+      alertTitle: NO_ACCESS_TITLE[detectBrowserLang()],
+    });
+  };
   void refreshPermissionBadge();
 
   function hasOriginPermission(host: string): Promise<boolean> {
@@ -485,18 +486,6 @@ export default defineBackground(() => {
     }
   }
 
-  /** Wire-crossing guard: screen geometry arrives from a page. */
-  function isScreenGeom(value: unknown): value is ScreenGeom {
-    if (!value || typeof value !== 'object') return false;
-    const g = value as Record<string, unknown>;
-    return (
-      typeof g.availLeft === 'number' &&
-      typeof g.availTop === 'number' &&
-      typeof g.availWidth === 'number' &&
-      typeof g.availHeight === 'number'
-    );
-  }
-
   async function readScreenMap(): Promise<ScreenRecipe[]> {
     try {
       const got = await browser.storage.local.get(SCREEN_MAP_KEY);
@@ -519,53 +508,43 @@ export default defineBackground(() => {
       .catch(() => undefined);
   }
 
-  /** What a dim window reports about the screen it landed on. */
-  interface ProbeReport {
-    geom: ScreenGeom;
-    /** The screen the window landed on, as a CSS-pixel rect. Origin included:
-     *  the handler only forwards it when all four numbers arrived. */
-    css?: { l: number; t: number; w: number; h: number };
-    /** The window's own CSS-space position and outer size, for the scale. */
-    self?: { x: number; y: number; ow: number; oh: number };
-  }
-
-  /**
-   * Turn "this small window is on the monitor we want" into "cover that
-   * monitor", in the coordinates windows.update actually speaks.
-   *
-   * Measured on a real 3-monitor desktop (Firefox Dev 154, mixed 150%/176%
-   * scaling): windows.get() and the page's own screenX/availLeft report the
-   * SAME space, but only at 100% page zoom — the page's numbers are CSS
-   * pixels, so any zoom divides them. The factor is therefore measured from
-   * this very window (API width over outer width) rather than assumed, which
-   * makes the result zoom-proof without knowing the zoom.
-   *
-   * Returns null when the report is too incomplete to compute from.
-   */
-  function coverRect(
-    report: ProbeReport | null,
-    api: { left?: number; top?: number; width?: number } | null,
-  ): { left: number; top: number; width: number; height: number } | null {
-    const css = report?.css;
-    const self = report?.self;
-    if (!css || !self || !api) return null;
-    if (typeof css.l !== 'number' || typeof css.t !== 'number') return null;
-    if (typeof api.left !== 'number' || typeof api.top !== 'number') return null;
-    if (typeof api.width !== 'number' || !(self.ow > 0)) return null;
-    const k = api.width / self.ow;
-    if (!Number.isFinite(k) || k <= 0) return null;
-    return {
-      left: Math.round(api.left - (self.x - css.l) * k),
-      top: Math.round(api.top - (self.y - css.t) * k),
-      width: Math.round(css.w * k),
-      height: Math.round(css.h * k),
-    };
-  }
-
   /** Probe id → resolver, for the reports coming back from dim.html. */
   const pendingProbes = new Map<string, (report: ProbeReport) => void>();
 
+  /**
+   * Reports that arrived before anyone was waiting.
+   *
+   * Every caller does `await browser.windows.create(...)` FIRST and only then
+   * calls waitForProbe — so a dim page that loads and reports before the create
+   * promise resolves used to hit an empty registry and have its report dropped
+   * on the floor. The caller then waited out its full timeout and treated a
+   * perfectly good probe as "no answer": a real screen missing from the map, or
+   * a valid candidate closed so the next (wrong) one could flash on a monitor.
+   * Same failure class as the truncated report — a message lost at a boundary
+   * with nothing to show for it.
+   */
+  const earlyProbes = new Map<string, { report: ProbeReport; at: number }>();
+
+  /**
+   * How long a report nobody asked for stays useful. Beyond this it describes a
+   * layout that may already be gone — and a screen map is re-recorded precisely
+   * BECAUSE the monitors changed, so serving a stale answer there is worse than
+   * serving none.
+   */
+  const EARLY_PROBE_TTL_MS = 10_000;
+
+  function deliverProbe(probeId: string, report: ProbeReport): void {
+    const waiting = pendingProbes.get(probeId);
+    if (waiting) waiting(report);
+    else earlyProbes.set(probeId, { report, at: Date.now() });
+  }
+
   function waitForProbe(probeId: string, ms: number): Promise<ProbeReport | null> {
+    const early = earlyProbes.get(probeId);
+    if (early) {
+      earlyProbes.delete(probeId);
+      if (Date.now() - early.at <= EARLY_PROBE_TTL_MS) return Promise.resolve(early.report);
+    }
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         pendingProbes.delete(probeId);
@@ -587,16 +566,44 @@ export default defineBackground(() => {
    * makes the placement itself unreliable. Probes are black, so the sweep
    * reads as a flicker rather than a strobe.
    */
+  /**
+   * How long one calibration probe may take to say where it landed.
+   *
+   * Measured with the web-ext harness (.claude/skills/twin-extensions/
+   * probe-firefox-coords): a probe that is going to answer answers in well
+   * under a second. The old 2500ms was pure worst-case padding, and with 35
+   * grid points it made a fully failing sweep take a minute and a half — long
+   * enough for Firefox to evict the background event page mid-sweep and leave
+   * a silently partial map.
+   *
+   * NOT an early exit. The obvious "stop after a barren row" was measured to be
+   * WRONG here: on this desktop the third monitor is only reachable from
+   * (-FAR, FAR), which lives in the LAST row of the grid, so any row-based
+   * bail-out would drop a real screen. Cheaper probes, same coverage.
+   */
+  const CALIBRATION_PROBE_MS = 1500;
+
   async function calibrateScreens(): Promise<ScreenRecipe[]> {
     const found: ScreenRecipe[] = [];
+    // Counted to tell "this desktop really has one monitor" apart from "the
+    // browser is reporting the probe window as the screen" (see
+    // looksLikeSpoofedScreen).
+    let answered = 0;
+    let spoofed = 0;
     let n = 0;
+    // Unique per sweep. `p1..pN` alone repeated every run, so a report that
+    // arrived after its waiter had timed out sat in the buffer and was handed
+    // to the NEXT sweep under the same id — freezing one grid point a full
+    // layout behind, forever.
+    const sweep = Date.now().toString(36);
+    earlyProbes.clear();
     // A previous run that was cut short (worker evicted, browser busy) can
     // have left overlays up; they'd sit under the probe sweep and confuse it.
     // Keep the active flag: this sweep may be running inside a live dim
     // request, whose overlays are raised right after it.
     await closeDimWindows(true);
     for (const point of calibrationPoints()) {
-      const probeId = `p${++n}`;
+      const probeId = `p${sweep}-${++n}`;
       let created: { id?: number } | undefined;
       try {
         created = await browser.windows.create({
@@ -611,7 +618,7 @@ export default defineBackground(() => {
       } catch {
         continue;
       }
-      const report = await waitForProbe(probeId, 2500);
+      const report = await waitForProbe(probeId, CALIBRATION_PROBE_MS);
       if (typeof created?.id === 'number') {
         await browser.windows.remove(created.id).catch(() => undefined);
       }
@@ -619,6 +626,8 @@ export default defineBackground(() => {
       // window later; storing it with a zeroed origin would put a phantom
       // screen at (0,0) that attracts every overlap test.
       if (report?.css) {
+        answered += 1;
+        if (looksLikeSpoofedScreen(report)) spoofed += 1;
         found.push({
           ...report.geom,
           rawLeft: point.rawLeft,
@@ -632,6 +641,12 @@ export default defineBackground(() => {
     }
     const map = dedupeScreens(found);
     await saveScreenMap(map);
+    // If the browser was reporting the probe window's own size as "the screen",
+    // the map is fiction — say so instead of letting the settings panel claim a
+    // monitor was found. Reuses the last-result channel the panel already reads.
+    if (spoofed > 0 && spoofed === answered) {
+      await recordDimResult({ wanted: 0, placed: 0, reason: 'spoofed-screen' });
+    }
     return map;
   }
 
@@ -678,7 +693,7 @@ export default defineBackground(() => {
     let probeSeq = 0;
     dimLog('place: target', { target, candidates });
     for (const point of candidates) {
-      const probeId = `o${Date.now() % 100000}-${++probeSeq}`;
+      const probeId = `o${Date.now().toString(36)}-${++probeSeq}`;
       let created: { id?: number } | undefined;
       try {
         created = await browser.windows.create({
@@ -710,19 +725,11 @@ export default defineBackground(() => {
         alreadyCovered: landedOn != null && covered.some((seen) => sameScreen(seen, landedOn)),
       });
       const good =
-        typeof id === 'number' &&
-        landedOn != null &&
-        sameScreen(landedOn, target) &&
-        !(player != null && sameScreen(landedOn, player)) &&
-        !covered.some((seen) => sameScreen(seen, landedOn));
+        typeof id === 'number' && isPlacementAcceptable({ landedOn, target, player, covered });
       if (good && typeof id === 'number') {
         // Tell the window it is now an overlay, so it cancels the self-close
         // deadline every candidate window carries (see dim/main.ts).
         await browser.runtime.sendMessage({ type: 'vs:dim-keep', probeId }).catch(() => undefined);
-        // Raise it: measured on Windows, an unfocused window is NOT raised, so
-        // the overlay would sit behind whatever is already on that monitor and
-        // dim nothing. Focusing does not move a window.
-        await browser.windows.update(id, { focused: true }).catch(() => undefined);
         // Cover the monitor this window is ALREADY on, by arithmetic.
         //
         // state: 'fullscreen' is not used for placement: the transition
@@ -737,10 +744,15 @@ export default defineBackground(() => {
         if (rect) {
           await browser.windows.update(id, rect).catch(() => undefined);
         } else {
-          // Nothing measurable came back (page never reported, or an older
-          // overlay build). Fall back to the historical behaviour rather than
-          // leaving a 160x120 window pretending to dim a monitor.
-          await browser.windows.update(id, { state: 'fullscreen' }).catch(() => undefined);
+          // Nothing measurable came back (the page never reported, an older
+          // overlay build, an implausible scale). The old fallback promoted the
+          // window to fullscreen anyway — but that transition re-picks the
+          // display and is exactly how a black rectangle landed on the film, so
+          // "we could not measure" must not become "cover something blind".
+          // Drop this candidate; the loop tries the next coordinate.
+          dimLog('no measurable rect — candidate dropped', { id, probeId });
+          await browser.windows.remove(id).catch(() => undefined);
+          continue;
         }
         // Raise it only now: measured on Windows, an unfocused window is not
         // raised and would sit behind whatever is already on that monitor.
@@ -974,7 +986,14 @@ export default defineBackground(() => {
       ? await raiseOverlays(await chromeTargets(windowId), level)
       : await firefoxOverlays(playerWindow, level);
     dimLog('overlays raised', { windowIds });
-    if (windowIds.length === 0) return;
+    if (windowIds.length === 0) {
+      // Nothing is on screen, so nothing may answer the heartbeat as "active".
+      // Leaving the flag set kept a stray overlay — one whose close() failed —
+      // alive forever, and tabs.onRemoved could not reach it because no state
+      // was ever written.
+      await browser.storage.session.remove(DIM_ACTIVE_KEY).catch(() => undefined);
+      return;
+    }
 
     // Hand focus back to the player. The overlays had to take it to be raised
     // above whatever was already on those monitors (see raiseOverlays), but
@@ -1109,6 +1128,16 @@ export default defineBackground(() => {
   // before resolving.
   const ALLOWED_PAGES = new Set(['/feedback.html', '/welcome.html']);
   browser.runtime.onMessage.addListener((msg: unknown, sender): Promise<unknown> | undefined => {
+    // Reject messages from other extensions. This side owns windows.create and
+    // scripting.registerContentScripts — strictly more power than the content
+    // script, whose own handler has validated its sender since audit 2026-05-09
+    // (src/index.ts). The asymmetry was an oversight, not a decision.
+    //
+    // Deliberately NOT rejecting tab senders the way index.ts does: our own
+    // content scripts and extension pages are exactly who talks to this worker.
+    // `sender.id` is absent for same-extension messages in some engines, so
+    // only a PRESENT and FOREIGN id is refused.
+    if (sender?.id && sender.id !== browser.runtime.id) return undefined;
     if (!msg || typeof msg !== 'object') return undefined;
     const m = msg as {
       type?: unknown;
@@ -1144,27 +1173,8 @@ export default defineBackground(() => {
     if (m.type === 'vs:dim-ping') return dimIsActive().then((ok) => ({ ok }));
     // A calibration probe reporting the screen it landed on.
     if (m.type === 'vs:screen-report') {
-      if (typeof m.probeId === 'string' && isScreenGeom(m.geom)) {
-        // Forward the WHOLE report. Rebuilding it field by field silently
-        // dropped `self` and the rect's origin, which made coverRect() return
-        // null on every call — so the arithmetic placement never ran once and
-        // every overlay fell back to the fullscreen promotion it was written
-        // to replace.
-        const css = m.css as Record<string, unknown> | undefined;
-        const self = m.self as Record<string, unknown> | undefined;
-        const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-        pendingProbes.get(m.probeId)?.({
-          geom: m.geom,
-          css:
-            css && num(css.l) && num(css.t) && num(css.w) && num(css.h)
-              ? { l: css.l, t: css.t, w: css.w, h: css.h }
-              : undefined,
-          self:
-            self && num(self.x) && num(self.y) && num(self.ow) && num(self.oh)
-              ? { x: self.x, y: self.y, ow: self.ow, oh: self.oh }
-              : undefined,
-        });
-      }
+      const parsed = parseScreenReport(m);
+      if (parsed) deliverProbe(parsed.probeId, parsed.report);
       return undefined;
     }
     // Settings → "find my monitors" (Firefox). Returns the resulting map so

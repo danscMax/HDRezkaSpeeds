@@ -3,6 +3,7 @@ import {
   __resetForTests,
   detectAndClaim,
   EXT_MARKER_ATTR,
+  hasVisibleArtifact,
   release,
   TM_MARKER_ATTR,
 } from '../../src/utils/tm-coexist';
@@ -37,9 +38,25 @@ describe('tm-coexist', () => {
       expect(document.documentElement.hasAttribute(EXT_MARKER_ATTR)).toBe(false);
     });
 
+    it('PROCEEDS when the only artifact is invisible — a hidden leftover is not a rival', () => {
+      // Three or more userscripts run on a real HDRezka page; a generic
+      // `.speed-button` left hidden by any of them (or by our own failed
+      // teardown) used to deny our entire UI with nothing on screen to explain
+      // it. Denial-of-service by collateral, not by conflict.
+      const ghost = document.createElement('div');
+      ghost.className = 'speed-button';
+      document.body.appendChild(ghost);
+
+      expect(detectAndClaim().proceed).toBe(true);
+    });
+
     it('refuses when legacy TM DOM artifact is present (.speed-button)', () => {
       const btn = document.createElement('div');
       btn.className = 'speed-button';
+      // A REAL userscript control occupies space. jsdom reports a zero box for
+      // everything, and a zero box now means "hidden leftover, not a rival" —
+      // so the fixture has to say which of the two it is modelling.
+      btn.getBoundingClientRect = () => ({ width: 44, height: 24 }) as DOMRect;
       document.body.appendChild(btn);
 
       const result = detectAndClaim();
@@ -52,6 +69,7 @@ describe('tm-coexist', () => {
     it('refuses when legacy TM DOM artifact is present (#more-speeds-container)', () => {
       const cont = document.createElement('div');
       cont.id = 'more-speeds-container';
+      cont.getBoundingClientRect = () => ({ width: 180, height: 40 }) as DOMRect;
       document.body.appendChild(cont);
 
       const result = detectAndClaim();
@@ -113,5 +131,32 @@ describe('tm-coexist', () => {
       release();
       expect(detectAndClaim().proceed).toBe(true);
     });
+  });
+});
+
+describe('hasVisibleArtifact — a control nobody can see is not a conflict', () => {
+  const withBody = (html: string): Document => {
+    const doc = document.implementation.createHTMLDocument('t');
+    doc.body.innerHTML = html;
+    return doc;
+  };
+
+  it('ignores an artifact with no box', () => {
+    // jsdom gives every element a zero rect, which is exactly the "hidden
+    // leftover" case: our own failed teardown, or an unrelated script's node.
+    // Three or more userscripts run on a real HDRezka page, so this collision
+    // is routine — and its old cost was the whole UI never appearing.
+    expect(hasVisibleArtifact(withBody('<div class="speed-button">1.5x</div>'))).toBe(false);
+  });
+
+  it('still bails on an artifact that occupies space', () => {
+    const doc = withBody('<div id="more-speeds-container"></div>');
+    const el = doc.getElementById('more-speeds-container') as HTMLElement;
+    el.getBoundingClientRect = () => ({ width: 120, height: 32 }) as DOMRect;
+    expect(hasVisibleArtifact(doc)).toBe(true);
+  });
+
+  it('says no when the page is clean', () => {
+    expect(hasVisibleArtifact(withBody('<div class="unrelated"></div>'))).toBe(false);
   });
 });

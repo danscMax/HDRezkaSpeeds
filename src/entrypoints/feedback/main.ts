@@ -29,6 +29,15 @@ import { vsIcon } from '../../ui/icons';
 declare const __VS_VERSION__: string | undefined;
 const SCRIPT_VERSION = typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.1.0';
 
+/**
+ * Review page of the add-on. Shown to a happy user right after a successful
+ * send — the only moment we know they are pleased. Firefox-only: AMO is the
+ * sole store this extension is listed in, and a Chrome user cannot rate there.
+ * `import.meta.env.BROWSER` is WXT's build-time target — no UA sniffing.
+ */
+const AMO_REVIEW_URL = 'https://addons.mozilla.org/firefox/addon/hdrezka-speed-controller/reviews/';
+const IS_FIREFOX = import.meta.env.BROWSER === 'firefox';
+
 type Rating = 'positive' | 'neutral' | 'negative';
 
 interface FormState {
@@ -214,7 +223,7 @@ function renderForm(host: HTMLElement, t: Translator): void {
 
     try {
       await submit(state);
-      renderSuccess(host, t);
+      renderSuccess(host, t, state.rating);
     } catch (e) {
       const code = e instanceof FeedbackError ? e.code : 'network';
       errorBox.hidden = false;
@@ -244,7 +253,7 @@ function renderForm(host: HTMLElement, t: Translator): void {
   );
 }
 
-function renderSuccess(host: HTMLElement, t: Translator): void {
+function renderSuccess(host: HTMLElement, t: Translator, rating: Rating): void {
   const closeBtn = h(
     'button',
     { class: 'primary' },
@@ -262,6 +271,22 @@ function renderSuccess(host: HTMLElement, t: Translator): void {
       h('div', { class: 'fb-success-icon' }, vsIcon('check-circle', 32)),
       h('h1', { class: 'fb-success-title' }, t.t('feedback.success.title')),
       h('p', { class: 'fb-success-body' }, t.t('feedback.success.body')),
+      // Inline nudge, never a modal: an extra line the user can ignore.
+      // Reuses .fb-mailto (the page's small-print link style); the margin is
+      // inline because the block sits between two styled siblings.
+      rating === 'positive' && IS_FIREFOX
+        ? h(
+            'div',
+            { class: 'fb-mailto', style: 'margin-bottom:20px;' },
+            t.t('feedback.review.prompt'),
+            ' ',
+            h(
+              'a',
+              { href: AMO_REVIEW_URL, target: '_blank', rel: 'noopener noreferrer' },
+              t.t('feedback.review.link'),
+            ),
+          )
+        : null,
       h('div', { class: 'fb-success-actions' }, closeBtn, againBtn),
     ),
   );

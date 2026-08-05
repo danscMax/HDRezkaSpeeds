@@ -14,7 +14,8 @@
  */
 
 import { browser } from 'wxt/browser';
-import { DEFAULT_DIM_LEVEL, dimColor, readScreenGeom } from '../../screens/dim-screens';
+import { DEFAULT_DIM_LEVEL, dimColor } from '../../screens/dim-screens';
+import { buildScreenReport } from '../../screens/placement';
 
 const params = new URLSearchParams(location.hash.slice(1));
 const level = Number.parseInt(params.get('l') ?? '', 10);
@@ -36,35 +37,13 @@ const MAX_MISSES = 3;
 /** Set once the worker confirms this window is a real overlay, not a trial. */
 let keep = false;
 
-/** availLeft/availTop are non-standard, so they are not on the Screen type. */
-const screenRect = (): { l: number; t: number; w: number; h: number } => {
-  const s = window.screen as Screen & { availLeft?: number; availTop?: number };
-  return { l: s.availLeft ?? 0, t: s.availTop ?? 0, w: s.availWidth, h: s.availHeight };
-};
-
 const probeId = params.get('p');
 // `probe=1` marks a throwaway calibration window; an overlay also reports its
 // screen (that is how placement is verified) but must NOT self-destruct.
 const isProbe = params.get('probe') === '1';
 if (probeId) {
-  // The screen this window sits on, in physical pixels — the ONLY way Firefox
-  // can tell one monitor from another, and zoom-proof (see readScreenGeom).
   browser.runtime
-    .sendMessage({
-      type: 'vs:screen-report',
-      probeId,
-      geom: readScreenGeom(window),
-      // The same screen as a CSS-pixel rectangle — the space windows.update
-      // works in when the worker grows this window to cover the monitor.
-      // Origin included, not just size: growing a window without moving it
-      // only covers whatever lies down-right of wherever it happened to land.
-      css: screenRect(),
-      // Where this window sits inside that screen, in the SAME CSS space, plus
-      // its outer size. Together with the size windows.get() reports, these let
-      // the worker measure the scale between page pixels and window-API pixels
-      // instead of assuming the two agree — they only agree at 100% zoom.
-      self: { x: window.screenX, y: window.screenY, ow: window.outerWidth, oh: window.outerHeight },
-    })
+    .sendMessage({ type: 'vs:screen-report', probeId, ...buildScreenReport(window) })
     .catch(() => {
       /* worker gone — the timer below still gets rid of this window */
     });
@@ -82,22 +61,7 @@ browser.runtime.onMessage.addListener((msg: unknown) => {
     keep = true;
   } else if (m.type === 'vs:dim-recheck') {
     void browser.runtime
-      .sendMessage({
-        type: 'vs:screen-report',
-        probeId,
-        geom: readScreenGeom(window),
-        css: screenRect(),
-        // Where this window sits inside that screen, in the SAME CSS space, plus
-        // its outer size. Together with the size windows.get() reports, these let
-        // the worker measure the scale between page pixels and window-API pixels
-        // instead of assuming the two agree — they only agree at 100% zoom.
-        self: {
-          x: window.screenX,
-          y: window.screenY,
-          ow: window.outerWidth,
-          oh: window.outerHeight,
-        },
-      })
+      .sendMessage({ type: 'vs:screen-report', probeId, ...buildScreenReport(window) })
       .catch(() => undefined);
   }
 });

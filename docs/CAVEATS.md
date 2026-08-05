@@ -5,20 +5,50 @@ Operational summary for contributors. Mirrors the sibling project's
 
 ## Build & dev workflow
 
-### Cyrillic in the project path
+### Project path
 
-The repo lives at `E:\Scripts\Расширения\HDRezkaSpeeds\`. npm/Node/WXT/Vite
-handle this fine, but a few tools choke on the non-ASCII path:
+The repo lives at `E:\Scripts\Browser extensions\HDRezkaSpeeds\`. It used to sit
+under a Cyrillic path, which several tools choked on; the folder was renamed and
+the ASCII path is the only supported one now. Two habits survive from that era:
 
-- **Chrome `--load-extension=`** rejects Cyrillic in the path on Windows.
-  The Playwright smoke test (`tests/smoke/extension-loads.spec.ts`) sidesteps
-  this by copying the build into an ASCII tmpdir before launching Chromium.
-  If you ever load the unpacked build manually with `--load-extension=`,
-  copy `.output/chrome-mv3` to e.g. `C:\Temp\hdrezka-build` first.
+- **Chrome `--load-extension=`** is fussy about exotic characters and about
+  spaces on some Windows setups. `tests/smoke/extension-loads.spec.ts` copies
+  the build into a tmpdir before launching Chromium; do the same if you load
+  `.output/chrome-mv3` by hand.
 
 - **PowerShell** for npm/wxt commands needs the explicit UTF-8 prefix
-  (`[Console]::OutputEncoding = [System.Text.Encoding]::UTF8`) and
-  `Set-Location -LiteralPath '...'` with single quotes around the path.
+  (`[Console]::OutputEncoding = [System.Text.Encoding]::UTF8`) so Russian output
+  is not mangled, and `-LiteralPath '...'` with single quotes around the path.
+
+## Browser facts we MEASURED (do not re-derive them)
+
+Each of these cost a debugging session. None are in any spec; they were measured
+on Firefox Developer Edition 154 / Windows 11 with a 3-monitor mixed-DPI desktop,
+and they are why several pieces of code look odd.
+
+- **Firefox falsifies `screen.availWidth/availHeight` in content scripts.** Its
+  fingerprinting protection rewrites them and says so in the page console.
+  Anything needing to know which monitor something is on must NOT read them from
+  page context — FEAT-020 derives the player's monitor from the window rect
+  returned by `browser.windows.get()` instead.
+- **Firefox MV3 grants NO host permission when one is added by an UPDATE.**
+  Neither shown nor granted (Mozilla bug 1893232), and the user can revoke access
+  at any time. The content script then never runs: no panel, no error, nothing in
+  the console. `src/health/permission-badge.ts` exists to make that visible.
+- **`focused: false` is ignored by `windows.create` since Firefox 86.** Every
+  window an extension opens takes focus. Any design assuming an unobtrusive
+  background window is wrong on Firefox.
+- **`state: 'fullscreen'` re-picks which display a window belongs to.** Using it
+  to PLACE a window threw the dim overlay onto the monitor playing the video.
+  Place by explicit rect first, promote to fullscreen only afterwards.
+- **Each screen's CSS rect is in its OWN monitor's scale.** On a mixed-DPI
+  desktop the rects overlap — measured: 384px between a 150% primary and a 176%
+  neighbour — so "which screen is this window on" cannot be settled by a naive
+  largest-overlap test alone.
+- **Firefox cannot be driven by Playwright for extension work, but it CAN be
+  measured:** `web-ext run` installs the extension for real, and a throwaway MV2
+  extension can POST its findings to a local HTTP server. The working harness is
+  in `.claude/skills/twin-extensions/probe-firefox-coords/`.
 
 ### Build cadence
 
