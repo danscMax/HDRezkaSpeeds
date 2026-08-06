@@ -99,6 +99,55 @@ if (dryRun) {
   process.exit(0);
 }
 
+/**
+ * `--check` answers the question that let the drift happen in the first place:
+ * is the live card still the text in this repo? Exits 1 when it is not, so it
+ * can sit in the release ritual instead of being noticed months later.
+ */
+if (process.argv.includes('--check')) {
+  /**
+   * Comparable form. Two things make a byte comparison useless here, both
+   * learned by watching it cry wolf on a listing that had just been pushed:
+   * AMO stores the text as HTML (it turns "- " bullets into <ul><li>), and it
+   * returns ONE locale per request — `?lang=all` answers with the default
+   * locale only, so the Russian side looked empty and therefore "drifted".
+   */
+  const comparable = (s) =>
+    String(s ?? '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/^[\s ]*[-•]\s+/gm, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  let drifted = false;
+  for (const lang of ['en-US', 'ru']) {
+    const live = await fetch(
+      `https://addons.mozilla.org/api/v5/addons/addon/${env.FIREFOX_EXTENSION_ID}/?lang=${lang}`,
+      { headers: { Authorization: `JWT ${jwt()}` } },
+    ).then((r) => r.json());
+    for (const [field, want] of [
+      ['summary', summary],
+      ['description', description],
+    ]) {
+      const value = live[field];
+      const got = comparable(typeof value === 'string' ? value : value?.[lang]);
+      if (got !== comparable(want[lang])) {
+        drifted = true;
+        console.error(`DRIFT ${field} [${lang}]: live differs from store-listing.md`);
+      }
+    }
+  }
+  console.log(
+    drifted ? 'listing is STALE — run without --check to push' : 'listing matches the repo',
+  );
+  process.exit(drifted ? 1 : 0);
+}
+
 const res = await fetch(
   `https://addons.mozilla.org/api/v5/addons/addon/${env.FIREFOX_EXTENSION_ID}/`,
   {
