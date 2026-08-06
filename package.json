@@ -31,7 +31,8 @@
     "submit:status": "publish-extension status --chrome-api-version v2",
     "listing:check": "node scripts/push-amo-listing.mjs --check",
     "listing:push": "node scripts/push-amo-listing.mjs",
-    "test:smoke:first-run": "node tests/smoke/first-run-hint.mjs"
+    "test:smoke:first-run": "node tests/smoke/first-run-hint.mjs",
+    "listing:paste": "node scripts/push-amo-listing.mjs --paste ../plans/promotion/cws-paste"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",

@@ -18,7 +18,7 @@
  */
 
 import { createHmac } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -96,6 +96,41 @@ console.log(`summary     en-US ${summary['en-US'].length} chars | ru ${summary.r
 console.log(`description en-US ${description['en-US'].length} | ru ${description.ru.length}`);
 if (dryRun) {
   console.log('dry run: nothing sent');
+  process.exit(0);
+}
+
+/**
+ * `--paste <dir>` writes the same four texts as plain files, one per Chrome Web
+ * Store form field. Chrome has no listing API, so those fields are filled by
+ * hand — and hand-cut files are exactly how the two stores drifted apart
+ * before. Generating them from store-listing.md keeps one source for both.
+ */
+if (process.argv.includes('--paste')) {
+  const outDir = process.argv[process.argv.indexOf('--paste') + 1];
+  if (!outDir) {
+    console.error('--paste needs a target directory');
+    process.exit(1);
+  }
+  mkdirSync(outDir, { recursive: true });
+  // Named after the package so the two twins cannot collide in one folder,
+  // and so nothing here needs per-repo configuration.
+  const slug = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).name;
+  // Chrome's short description caps at 132 characters — AMO allows 250, so a
+  // summary that passed the check above can still be rejected by the other
+  // store. Catch it here rather than in the form, after the paste.
+  for (const [lang, text] of Object.entries(summary)) {
+    if (text.length > 132) {
+      console.error(`summary ${lang} is ${text.length} chars; Chrome Web Store caps at 132`);
+      process.exit(1);
+    }
+  }
+  for (const [field, byLang] of Object.entries({ summary, description })) {
+    for (const [lang, text] of Object.entries(byLang)) {
+      const file = join(outDir, `${slug}-${field}-${lang === 'ru' ? 'RU' : 'EN'}.txt`);
+      writeFileSync(file, `${text}\n`, 'utf8');
+      console.log(`wrote ${file} (${text.length} chars)`);
+    }
+  }
   process.exit(0);
 }
 
