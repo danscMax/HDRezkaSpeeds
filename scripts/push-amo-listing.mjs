@@ -111,7 +111,14 @@ if (process.argv.includes('--paste')) {
     console.error('--paste needs a target directory');
     process.exit(1);
   }
-  mkdirSync(outDir, { recursive: true });
+  try {
+    mkdirSync(outDir, { recursive: true });
+  } catch (e) {
+    // recursive:true is not silent when the path exists as a FILE — it throws
+    // EEXIST. Every other failure here exits cleanly; this one should too.
+    console.error(`cannot write to ${outDir}: ${e.code === 'EEXIST' ? 'it is a file' : e.message}`);
+    process.exit(1);
+  }
   // Named after the package so the two twins cannot collide in one folder,
   // and so nothing here needs per-repo configuration.
   const slug = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).name;

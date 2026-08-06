@@ -128,7 +128,10 @@ data = await res.json();
 // Re-running after a successful submit is a normal mistake (the Chrome half of
 // `npm run submit` may need a retry while this half already landed). AMO tells
 // us plainly; say so plainly instead of dumping a stack trace.
-if (res.status === 409 && /already exists/i.test(JSON.stringify(data))) {
+// Matched on the `version` field specifically — a 409 about something else
+// must still surface as a failure, not be swallowed because the phrase happens
+// to appear somewhere in the payload.
+if (res.status === 409 && /already exists/i.test(String(data?.version ?? ''))) {
   console.log(`AMO: version ${pkg.version} is already there — nothing to do`);
   process.exit(0);
 }

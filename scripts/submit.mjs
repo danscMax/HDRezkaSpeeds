@@ -36,6 +36,17 @@ if (missing.length > 0) {
 }
 
 const dryRun = process.argv.includes('--dry-run');
+const noNotes = process.argv.includes('--no-notes');
+
+// Checked HERE, not only inside submit-amo.mjs: Chrome uploads first, so a
+// missing-notes abort further down would leave Chrome live and Firefox behind —
+// the two stores out of step, which is worse than not shipping at all.
+const notesFile = join(root, 'dist-store-assets', 'release-notes', `${pkg.version}.md`);
+if (!dryRun && !noNotes && !existsSync(notesFile)) {
+  console.error(`no release notes at ${notesFile}`);
+  console.error('write them (RU, then ---, then EN — see 0.6.5.md), or pass --no-notes on purpose');
+  process.exit(1);
+}
 
 // Chrome goes through the CLI — that half works.
 const args = [
@@ -44,7 +55,9 @@ const args = [
   'v2',
   '--chrome-zip',
   zip('chrome'),
-  ...process.argv.slice(2),
+  // Our own flags are not the CLI's — passing them through makes it complain
+  // about unused arguments.
+  ...process.argv.slice(2).filter((a) => a !== '--no-notes'),
 ];
 
 console.log(`submitting ${pkg.name} ${pkg.version}`);
@@ -59,7 +72,7 @@ if (dryRun) {
   console.log('dry run: skipping the AMO upload (credentials are checked by the Chrome step)');
   process.exit(0);
 }
-const amo = spawnSync('node', ['scripts/submit-amo.mjs'], {
+const amo = spawnSync('node', ['scripts/submit-amo.mjs', ...(noNotes ? ['--no-notes'] : [])], {
   cwd: root,
   stdio: 'inherit',
   shell: true,
