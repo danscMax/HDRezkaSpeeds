@@ -261,7 +261,12 @@ export function showActionChip(text: string, opts: ActionChipOptions = {}): () =
     iconEl.style.color = color;
     iconEl.style.flexShrink = '0';
   }
-  const label = h('span', { style: 'line-height:1.3; white-space:nowrap;' }, String(text ?? ''));
+  // Wraps, unlike the toast label above. A chip carries sentences — the
+  // first-run hint is ~130 characters — and the plate is capped at 480px, so
+  // nowrap cut the text mid-word and pushed the ✕ off screen entirely
+  // (seen 2026-08-06 in tests/smoke/first-run-hint.mjs). Short chips are
+  // unaffected: they fit on one line whether or not wrapping is allowed.
+  const label = h('span', { style: 'line-height:1.3;' }, String(text ?? ''));
 
   // Body: a real button when it is itself the action (resume), else a plain
   // wrapper. Either way it holds the icon + label.

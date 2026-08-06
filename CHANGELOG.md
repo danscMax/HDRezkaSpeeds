@@ -4,6 +4,16 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.6.6] — 2026-08-06
+
+### Fixed
+
+- **The tip shown to a brand-new user was cut off mid-sentence** and its close
+  button was pushed off screen. It now wraps onto a second line and reads in
+  full.
+- **The same tip could be skipped** when the panel settled in a fallback spot.
+  It now appears as soon as the panel is on screen, wherever it landed.
+
 ## [0.6.5] — 2026-08-05
 
 ### Fixed

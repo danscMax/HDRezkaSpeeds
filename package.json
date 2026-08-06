@@ -1,6 +1,6 @@
 {
   "name": "hdrezka-speeds",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "description": "HDRezka Speed Controller — speed buttons, slider, hotkeys, diagnostics. Bilingual (EN/RU).",
   "private": true,
   "license": "GPL-3.0-or-later",
@@ -30,7 +30,8 @@
     "submit:check": "node scripts/submit.mjs --dry-run",
     "submit:status": "publish-extension status --chrome-api-version v2",
     "listing:check": "node scripts/push-amo-listing.mjs --check",
-    "listing:push": "node scripts/push-amo-listing.mjs"
+    "listing:push": "node scripts/push-amo-listing.mjs",
+    "test:smoke:first-run": "node tests/smoke/first-run-hint.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",

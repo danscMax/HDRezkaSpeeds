@@ -1105,13 +1105,18 @@ function scheduleInsertWithRetry(panelEl: HTMLElement, ctx: AppContext): void {
     const inDoc = document.contains(panelEl);
     const placed = result.anchor !== 'no-anchor' && inDoc;
 
+    // The moment the panel is on screen is the moment the hint is about, and a
+    // TENTATIVE placement is already on screen. Hanging the hint off the
+    // final-anchor branch alone meant a new user could see the panel and get
+    // no explanation at all. The latch inside makes the repeated call a no-op.
+    if (placed) showFirstRunHint(ctx);
+
     if (placed && !result.tentative) {
       ctx.logger.info(`panel inserted via ${result.anchor} on attempt ${attempts}`);
       if (!observerInstalled) {
         installRemovalObserver(panelEl, ctx, scheduleInsertWithRetry);
         observerInstalled = true;
       }
-      showFirstRunHint(ctx);
       return;
     }
 
