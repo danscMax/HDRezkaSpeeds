@@ -25,6 +25,7 @@ import { createBrowserStorageAdapter } from '../../storage/adapter';
 import type { Settings } from '../../storage/types';
 import { h } from '../../ui/dom-h';
 import { vsIcon } from '../../ui/icons';
+import { shouldOfferReview } from '../../ui/surface-policy';
 
 declare const __VS_VERSION__: string | undefined;
 const SCRIPT_VERSION = typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.1.0';
@@ -274,7 +275,7 @@ function renderSuccess(host: HTMLElement, t: Translator, rating: Rating): void {
       // Inline nudge, never a modal: an extra line the user can ignore.
       // Reuses .fb-mailto (the page's small-print link style); the margin is
       // inline because the block sits between two styled siblings.
-      rating === 'positive' && IS_FIREFOX
+      shouldOfferReview({ rating, isFirefox: IS_FIREFOX })
         ? h(
             'div',
             { class: 'fb-mailto', style: 'margin-bottom:20px;' },

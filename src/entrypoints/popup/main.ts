@@ -60,6 +60,7 @@ import {
 } from '../../ui';
 import { h } from '../../ui/dom-h';
 import type { MirrorsViewModel } from '../../ui/settings/modal';
+import { needsDetachedGrant } from '../../ui/surface-policy';
 import { createLogger } from '../../utils/logger';
 
 declare const __VS_VERSION__: string | undefined;
@@ -368,7 +369,7 @@ async function bootstrapPopup(host: HTMLElement): Promise<void> {
       grantBtn.addEventListener('click', () => {
         // Panel mode on Firefox: the doorhanger would open behind us — reopen
         // as a detached window and let the button there do the real request.
-        if (IS_FIREFOX && !DETACHED) {
+        if (needsDetachedGrant({ isFirefox: IS_FIREFOX, isDetached: DETACHED })) {
           openDetachedPopup();
           return;
         }
