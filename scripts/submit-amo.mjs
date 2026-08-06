@@ -51,6 +51,20 @@ for (const kind of ['firefox', 'sources']) {
   }
 }
 
+const notesDir = join(root, 'dist-store-assets', 'release-notes');
+const notesFile = join(notesDir, `${pkg.version}.md`);
+const reviewerFile = join(notesDir, 'reviewer.md');
+
+// Checked here, before anything is uploaded: a version published with an empty
+// "What's new" cannot be fixed by re-running this script — the version already
+// exists, and the notes then have to be PATCHed onto it by hand. That happened
+// on 0.6.6 precisely because a warning scrolled past inside a green run.
+if (!existsSync(notesFile) && !process.argv.includes('--no-notes')) {
+  console.error(`no release notes at ${notesFile}`);
+  console.error('write them (RU, then ---, then EN — see 0.6.5.md), or pass --no-notes on purpose');
+  process.exit(1);
+}
+
 /** Short-lived JWT — AMO rejects anything older than 5 minutes. */
 function jwt() {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -96,10 +110,6 @@ for (let i = 0; ; i++) {
   break;
 }
 
-const notesDir = join(root, 'dist-store-assets', 'release-notes');
-const notesFile = join(notesDir, `${pkg.version}.md`);
-const reviewerFile = join(notesDir, 'reviewer.md');
-
 const version = new FormData();
 version.append('upload', uuid);
 // The build is minified, so AMO requires the sources archive.
@@ -107,7 +117,6 @@ version.append('source', blob(zipPath('sources')), basename(zipPath('sources')))
 // Multipart carries no nested objects — the locale goes in the field NAME.
 // A JSON string here returns "You must provide an object of {lang-code:value}".
 if (existsSync(notesFile)) version.append('release_notes[en-US]', readFileSync(notesFile, 'utf8'));
-else console.warn(`no release notes at ${notesFile} — submitting without them`);
 if (existsSync(reviewerFile)) version.append('approval_notes', readFileSync(reviewerFile, 'utf8'));
 
 res = await fetch(`${API}/addons/addon/${env.FIREFOX_EXTENSION_ID}/versions/`, {
@@ -116,5 +125,12 @@ res = await fetch(`${API}/addons/addon/${env.FIREFOX_EXTENSION_ID}/versions/`, {
   body: version,
 });
 data = await res.json();
+// Re-running after a successful submit is a normal mistake (the Chrome half of
+// `npm run submit` may need a retry while this half already landed). AMO tells
+// us plainly; say so plainly instead of dumping a stack trace.
+if (res.status === 409 && /already exists/i.test(JSON.stringify(data))) {
+  console.log(`AMO: version ${pkg.version} is already there — nothing to do`);
+  process.exit(0);
+}
 if (!res.ok) throw new Error(`version create failed ${res.status}: ${JSON.stringify(data)}`);
 console.log(`AMO: version ${data.version} created (id ${data.id}, channel ${data.channel})`);
