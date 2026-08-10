@@ -1,23 +1,15 @@
-0.7.0 — two presentation fixes. No new permissions, no new endpoints, no new
-hosts. The permission set is byte-identical to 0.6.6.
+0.7.1 — one CSS fix on top of 0.7.0. No new permissions, no new endpoints, no
+new hosts. The permission set is byte-identical to 0.7.0.
 
-1. src/ui/styles.ts — the fullscreen rule no longer hides
-   `.vs-slider-in-chrome`. That class is the speed slider when the user has
-   chosen to mount it inside the player's own control bar; it is a player
-   control, fades with the rest of the bar, and hiding it left that display
-   mode blank in fullscreen. The floating panel (`.vs-panel`) stays hidden
-   there, unchanged.
+1. src/index.ts — the content page now tags `<html>` with `data-vs-site`. The
+   per-site accent colour is declared on `.vs-panel[data-vs-site]`, and the
+   "in player" slider position deliberately moves the slider OUT of the panel
+   into the player's own control bar, where that rule cannot match; it fell
+   back to the `:root` default, which is red. One attribute fixes it for every
+   surface that leaves the panel rather than per-surface. The toolbar popup
+   already did the same on its own document.
 
-2. src/ui/styles.ts — `#speed-popup` now uses one anchor in both modes (top
-   centre of the player). Previously the base rule pinned it to the right edge
-   and the fullscreen rule re-anchored it to the top centre, so the readout
-   moved when the user went fullscreen. The fullscreen block now only changes
-   scale and keeps the dark plate; it declares no position properties.
-
-3. src/ui/settings/modal.ts — whether the "in player" slider position is
-   offered is now derived from the selector table rather than rendered
-   unconditionally. No behaviour change in this extension (one site, and it has
-   a control bar); it keeps both twins asking the question the same way.
+Nothing else changed. Same build as 0.7.0 otherwise.
 
 Build: WXT + Vite, output minified; source archive attached.
 Build it with `npm ci && npm run zip:firefox` on Node 22.
