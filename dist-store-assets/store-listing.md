@@ -277,13 +277,13 @@ Re-generate any time with: `node tests/store-screenshots/render.mjs`
 
 ## Files to upload
 
-Current version is **0.6.5** (`package.json` is the source of truth — the
+Current version is **0.7.0** (`package.json` is the source of truth — the
 zips are named from it, so read the version there instead of trusting this
 table if the two ever disagree). Regenerate with `npm run zip` +
 `npm run zip:firefox`.
 
 | Store | File |
 |---|---|
-| Chrome Web Store | `.output/hdrezka-speeds-0.6.5-chrome.zip` |
-| Firefox AMO (extension) | `.output/hdrezka-speeds-0.6.5-firefox.zip` |
-| Firefox AMO (sources) | `.output/hdrezka-speeds-0.6.5-sources.zip` |
+| Chrome Web Store | `.output/hdrezka-speeds-0.7.0-chrome.zip` |
+| Firefox AMO (extension) | `.output/hdrezka-speeds-0.7.0-firefox.zip` |
+| Firefox AMO (sources) | `.output/hdrezka-speeds-0.7.0-sources.zip` |

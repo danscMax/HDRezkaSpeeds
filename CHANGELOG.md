@@ -4,7 +4,7 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.7.0] — 2026-08-10
 
 ### Changed
 
