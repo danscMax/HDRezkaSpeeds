@@ -1192,10 +1192,17 @@ html[data-vs-theme="light"] .speed-value::after {
    RuTube has no light mode). */
 #speed-popup.speed-popup {
   position: absolute;
-  top: 50%;
-  right: 20px;
-  left: auto;
-  transform: translateY(-50%);
+  /* Top centre of the player, in BOTH modes. It used to sit at the middle of
+     the right edge in a window and jump to top-centre in fullscreen, and the
+     jump read as a bug rather than as a feature (owner report 2026-08-10).
+     Top-centre is the anchor that survives both: it is where video players
+     conventionally put an OSD, it is clear of the controls along the bottom,
+     and it is out of the picture's focal centre. Only the SCALE still changes
+     with fullscreen — that is proportion, not a different place. */
+  top: 7%;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.8);
   color: #fff;
   font-size: 16px;
@@ -1237,10 +1244,10 @@ html[data-vs-theme="light"] #speed-popup.speed-popup[data-vs-site="hdrezka"] {
    regardless of the site theme; without the extra id it silently kept the
    light background. (No backticks in this file: it is one template literal.) */
 :is(:fullscreen, .plyr--fullscreen-fallback) #speed-popup#speed-popup.speed-popup {
-  top: 7%;
-  right: auto;
-  left: 50%;
-  transform: translateX(-50%);
+  /* Position is inherited from the base rule now — this block only scales.
+     Keep the doubled id: the per-theme rule still outranks a single-id
+     selector, and in fullscreen the popup floats over VIDEO, so it must keep
+     the dark plate whatever theme the page is in. */
   font-size: 30px;
   padding: 14px 26px;
   border-radius: 10px;

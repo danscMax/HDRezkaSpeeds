@@ -8,6 +8,16 @@ versioning is [SemVer](https://semver.org/).
 
 ### Changed
 
+- **The speed confirmation no longer moves between modes.** It hung at the
+  middle of the right edge in a window and jumped to the top centre in
+  fullscreen; both spots had a reason, but a control that relocates reads as a
+  bug. It now sits at the top centre of the player in both, where video players
+  conventionally put an OSD — clear of the controls along the bottom and out of
+  the picture's focal centre. It still grows in fullscreen; that is scale, not a
+  different place.
+
+### Changed
+
 - The settings menu now decides whether to offer the "in player" slider
   position by asking the selector table (`supportsInPlayerSlider`) instead of
   rendering it unconditionally. No behaviour change here — this twin has one
