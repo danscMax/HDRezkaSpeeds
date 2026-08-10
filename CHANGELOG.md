@@ -4,6 +4,17 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **The "leave a review" ask was hidden from most users.** It only appeared in
+  the Firefox build, on the reasoning that AMO was the only store the extension
+  was listed in. That stopped being true when the Chrome listing went live, and
+  nobody revisited the rule — so the ask was withheld from the larger half of
+  the audience while the review count sat at zero. It now appears after positive
+  feedback in both builds, and the link goes to the store that build came from.
+
 ## [0.7.1] — 2026-08-10
 
 ### Fixed

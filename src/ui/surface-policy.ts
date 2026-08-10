@@ -36,8 +36,6 @@ export function needsDetachedGrant({ isFirefox, isDetached }: GrantContext): boo
 export interface ReviewOfferContext {
   /** What the user picked in the feedback form. */
   rating: 'positive' | 'neutral' | 'negative';
-  /** Build target is Firefox. */
-  isFirefox: boolean;
 }
 
 /**
@@ -45,9 +43,25 @@ export interface ReviewOfferContext {
  *
  * Only after positive feedback — asking someone who just reported a problem to
  * go rate the add-on is tone-deaf, and it is the one moment we know they are
- * pleased. Firefox only: AMO is the store this build is listed in, and a
- * Chrome user cannot rate there.
+ * pleased.
+ *
+ * It used to also require Firefox, on the reasoning that AMO was "the sole
+ * store this extension is listed in". That stopped being true when the Chrome
+ * listings went live, and nobody revisited the rule: the ask was then withheld
+ * from most of the audience, while the count of reviews across the portfolio
+ * sat at zero. The store now only decides WHICH url to open — see reviewUrl.
  */
-export function shouldOfferReview({ rating, isFirefox }: ReviewOfferContext): boolean {
-  return isFirefox && rating === 'positive';
+export function shouldOfferReview({ rating }: ReviewOfferContext): boolean {
+  return rating === 'positive';
+}
+
+/**
+ * Where "leave a review" goes, for the store this build is listed in.
+ *
+ * `isFirefox` is WXT's build-time target, not UA sniffing: a Firefox build is
+ * only ever installed from AMO and a Chrome build only from the Web Store, so
+ * the target IS the store.
+ */
+export function reviewUrl(isFirefox: boolean, urls: { amo: string; chrome: string }): string {
+  return isFirefox ? urls.amo : urls.chrome;
 }

@@ -258,7 +258,10 @@ export const I18N_DICT = {
     // feedback.review.* — shown only after a happy user's message went
     // through; the extension has no other path to a public review.
     'feedback.review.prompt': 'Glad it works! A short review helps other people find it.',
-    'feedback.review.link': 'Leave a review on addons.mozilla.org',
+    // Store-neutral on purpose: the same string ships in the Firefox and the
+    // Chrome build, and naming one store made the other build's link read as a
+    // mistake. The href is chosen per build target (reviewUrl).
+    'feedback.review.link': 'Leave a review in the store',
     'feedback.error.title': 'Could not send',
     'feedback.error.network': 'Network error. Check your connection and try again.',
     'feedback.error.rate_limit': 'Slow down — limit is 5 messages per hour. Try later.',
@@ -691,7 +694,7 @@ export const I18N_DICT = {
     'feedback.success.close': 'Закрыть',
     'feedback.review.prompt':
       'Рады, что всё работает! Короткий отзыв поможет другим найти расширение.',
-    'feedback.review.link': 'Оставить отзыв на addons.mozilla.org',
+    'feedback.review.link': 'Оставить отзыв в магазине',
     'feedback.error.title': 'Не удалось отправить',
     'feedback.error.network': 'Ошибка сети. Проверьте подключение и попробуйте снова.',
     'feedback.error.rate_limit': 'Не так быстро — лимит 5 сообщений в час. Попробуйте позже.',

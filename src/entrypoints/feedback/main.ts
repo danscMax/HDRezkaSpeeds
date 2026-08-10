@@ -25,7 +25,7 @@ import { createBrowserStorageAdapter } from '../../storage/adapter';
 import type { Settings } from '../../storage/types';
 import { h } from '../../ui/dom-h';
 import { vsIcon } from '../../ui/icons';
-import { shouldOfferReview } from '../../ui/surface-policy';
+import { reviewUrl, shouldOfferReview } from '../../ui/surface-policy';
 
 declare const __VS_VERSION__: string | undefined;
 const SCRIPT_VERSION = typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.1.0';
@@ -33,10 +33,14 @@ const SCRIPT_VERSION = typeof __VS_VERSION__ === 'string' ? __VS_VERSION__ : '0.
 /**
  * Review page of the add-on. Shown to a happy user right after a successful
  * send — the only moment we know they are pleased. Firefox-only: AMO is the
- * sole store this extension is listed in, and a Chrome user cannot rate there.
+ * store this BUILD is listed in — a Firefox build only ever comes from AMO and
+ * a Chrome build only from the Web Store, so the target is the store.
  * `import.meta.env.BROWSER` is WXT's build-time target — no UA sniffing.
  */
-const AMO_REVIEW_URL = 'https://addons.mozilla.org/firefox/addon/hdrezka-speed-controller/reviews/';
+const REVIEW_URLS = {
+  amo: 'https://addons.mozilla.org/firefox/addon/hdrezka-speed-controller/reviews/',
+  chrome: 'https://chromewebstore.google.com/detail/bledompcjiepahghecekpeodipnpbhpl/reviews',
+};
 const IS_FIREFOX = import.meta.env.BROWSER === 'firefox';
 
 type Rating = 'positive' | 'neutral' | 'negative';
@@ -275,7 +279,7 @@ function renderSuccess(host: HTMLElement, t: Translator, rating: Rating): void {
       // Inline nudge, never a modal: an extra line the user can ignore.
       // Reuses .fb-mailto (the page's small-print link style); the margin is
       // inline because the block sits between two styled siblings.
-      shouldOfferReview({ rating, isFirefox: IS_FIREFOX })
+      shouldOfferReview({ rating })
         ? h(
             'div',
             { class: 'fb-mailto', style: 'margin-bottom:20px;' },
@@ -283,7 +287,11 @@ function renderSuccess(host: HTMLElement, t: Translator, rating: Rating): void {
             ' ',
             h(
               'a',
-              { href: AMO_REVIEW_URL, target: '_blank', rel: 'noopener noreferrer' },
+              {
+                href: reviewUrl(IS_FIREFOX, REVIEW_URLS),
+                target: '_blank',
+                rel: 'noopener noreferrer',
+              },
               t.t('feedback.review.link'),
             ),
           )

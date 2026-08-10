@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { needsDetachedGrant, shouldOfferReview } from '../../src/ui/surface-policy';
+import { needsDetachedGrant, reviewUrl, shouldOfferReview } from '../../src/ui/surface-policy';
 
 describe('needsDetachedGrant', () => {
   it('hands off to a detached window on Firefox, where the doorhanger hides behind the panel', () => {
@@ -24,18 +24,40 @@ describe('needsDetachedGrant', () => {
 });
 
 describe('shouldOfferReview', () => {
-  it('offers the review link after positive feedback on Firefox', () => {
-    expect(shouldOfferReview({ rating: 'positive', isFirefox: true })).toBe(true);
+  it('offers the review link after positive feedback', () => {
+    expect(shouldOfferReview({ rating: 'positive' })).toBe(true);
   });
 
   it.each([
     'neutral',
     'negative',
   ] as const)('never asks someone who reported a %s experience to go rate it', (rating) => {
-    expect(shouldOfferReview({ rating, isFirefox: true })).toBe(false);
+    expect(shouldOfferReview({ rating })).toBe(false);
   });
 
-  it('stays silent on Chrome — this build is listed on AMO, where a Chrome user cannot rate', () => {
-    expect(shouldOfferReview({ rating: 'positive', isFirefox: false })).toBe(false);
+  it('does not depend on the browser any more', () => {
+    // This assertion used to be its mirror image: the ask was withheld unless
+    // the build was Firefox, on the reasoning that AMO was the only store the
+    // extension was listed in. The Chrome listings went live and the rule was
+    // never revisited, so the ask was hidden from most of the audience while
+    // the review count across the portfolio stayed at zero. Only the URL is
+    // store-specific now.
+    expect(shouldOfferReview({ rating: 'positive' })).toBe(true);
+  });
+});
+
+describe('reviewUrl', () => {
+  const urls = { amo: 'https://amo.example/reviews/', chrome: 'https://cws.example/reviews' };
+
+  it('sends a Firefox build to AMO and a Chrome build to the Web Store', () => {
+    expect(reviewUrl(true, urls)).toBe(urls.amo);
+    expect(reviewUrl(false, urls)).toBe(urls.chrome);
+  });
+
+  it('never sends anyone to a store they cannot rate in', () => {
+    // The failure this guards is silent: a wrong link still opens a real page,
+    // and the person simply finds no way to leave the review they came for.
+    expect(reviewUrl(true, urls)).not.toContain('cws.example');
+    expect(reviewUrl(false, urls)).not.toContain('amo.example');
   });
 });
