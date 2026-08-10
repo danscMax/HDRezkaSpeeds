@@ -4,6 +4,31 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- The settings menu now decides whether to offer the "in player" slider
+  position by asking the selector table (`supportsInPlayerSlider`) instead of
+  rendering it unconditionally. No behaviour change here — this twin has one
+  site and it has a control bar — but both twins now ask the question the same
+  way, which is what stopped VideoSpeeds from withholding the mode from RuTube.
+
+### Fixed
+
+- The in-player speed slider (Settings → slider position → "in the player") no
+  longer disappears in fullscreen. It had been swept into the same hide rule as
+  the floating panel, which left that display mode with nothing on screen in
+  the one place a film is actually watched. It is a player control, not
+  extension furniture: it sits inside the player's own control bar and already
+  fades in and out with the rest of the controls. The floating panel stays
+  hidden in fullscreen, unchanged.
+- The live fullscreen smoke was asserting on that slider without ever creating
+  it — the default slider position is "right", so the element was simply absent
+  and the check passed while proving nothing. It now switches the setting
+  through the real settings UI first, and on YouTube the mock page grew the
+  `.ytp-right-controls` cluster it had always lacked.
+
 ## [0.6.6] — 2026-08-06
 
 ### Fixed

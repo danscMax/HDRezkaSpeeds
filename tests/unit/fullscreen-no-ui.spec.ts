@@ -2,10 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { showActionChip, showNotification } from '../../src/ui/notifications';
 import { injectStyles, removeStyles } from '../../src/ui/styles';
 
-// The fullscreen rule, as it stands after the 2026-08-05 revision of the
+// The fullscreen rule, as it stands after the 2026-08-10 revision of the
 // 2026-07-27 directive:
-//   - PERSISTENT chrome (panel, in-chrome slider, speed popup) stays hidden —
-//     it sits on top of the picture for as long as you watch.
+//   - The floating PANEL stays hidden — it is anchored outside the player's
+//     control bar and would sit on the picture for as long as you watch.
+//   - The IN-CHROME slider (sliderPosition='video') does show. It lives inside
+//     the player's own control bar and fades with it, so it is a player
+//     control, not furniture; hiding it left that display mode blank in
+//     fullscreen, which the owner reported as the feature being broken.
 //   - TRANSIENT messages (toasts, chips) DO show. Hiding them silenced the
 //     only feedback a hotkey gives: in fullscreen the speed changed with
 //     nothing on screen to confirm it.
@@ -26,8 +30,8 @@ afterEach(() => {
   document.getElementById('speed-notifications')?.remove();
 });
 
-describe('fullscreen: persistent UI hidden, messages allowed', () => {
-  it('hides panel, in-chrome slider and speed popup in native and Plyr-fallback fullscreen', () => {
+describe('fullscreen: the floating panel is hidden, player controls are not', () => {
+  it('hides the panel in native and Plyr-fallback fullscreen', () => {
     injectStyles('hdrezka', document);
     const css = document.getElementById('vs-styles')?.textContent ?? '';
     const rule = css
@@ -37,14 +41,33 @@ describe('fullscreen: persistent UI hidden, messages allowed', () => {
     // Both fullscreen flavours must sit in the SAME forgiving :is() matcher —
     // splitting them lets an unknown :fullscreen invalidate the whole list.
     expect(rule).toContain('.plyr--fullscreen-fallback');
-    for (const target of ['.vs-panel', '.vs-slider-in-chrome']) {
-      expect(rule, `${target} not covered`).toContain(target);
-    }
-    // The centred speed popup must NOT be hidden: in fullscreen the panel is
-    // gone, so the hotkey is the only control and this is its only feedback.
+    expect(rule, '.vs-panel not covered').toContain('.vs-panel');
+    // The centred speed popup must NOT be hidden: with the panel gone the
+    // hotkey is the only always-available control and this is its feedback.
     expect(rule, 'speed popup is hidden again — the hotkey goes silent').not.toContain(
       '.speed-popup',
     );
+  });
+
+  it('leaves the in-chrome slider visible in fullscreen', () => {
+    // Regression guard for the owner report of 2026-08-10: with
+    // sliderPosition='video' the slider is mounted into the player's control
+    // bar, which IS inside the fullscreen element, and it already fades with
+    // the rest of the controls. Sweeping it into the hide rule made that whole
+    // display mode blank exactly where a film gets watched. No :fullscreen
+    // display:none block anywhere in the sheet may name it again.
+    injectStyles('hdrezka', document);
+    const css = document.getElementById('vs-styles')?.textContent ?? '';
+    const hideBlocks = css
+      .replace(/\/\*[\s\S]*?\*\//g, '') // comments mention the class on purpose
+      .split('}')
+      .filter((block) => block.includes(':fullscreen') && block.includes('display: none'));
+    expect(hideBlocks.length, 'no fullscreen hide rule at all').toBeGreaterThan(0);
+    for (const block of hideBlocks) {
+      expect(block, 'the in-chrome slider is hidden in fullscreen again').not.toContain(
+        '.vs-slider-in-chrome',
+      );
+    }
   });
 
   it('shows a toast raised while fullscreen is active', () => {

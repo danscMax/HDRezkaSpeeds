@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Live smoke: the extension must show NO UI of its own in fullscreen.
+ * Live smoke: in fullscreen the extension hides its floating panel, but keeps
+ * the controls that belong to the player — the in-chrome slider and the
+ * feedback surfaces.
  *
  * Runs the REAL build in a REAL Chromium against the offline mock page, so it
  * catches what jsdom cannot: whether the browser actually paints our panel,
@@ -63,6 +65,26 @@ function check(label, condition, detail) {
 
 /** Hidden = absent, display:none, or outside the painted fullscreen subtree. */
 const hidden = (s) => !s.present || s.display === 'none' || s.inFsSubtree === false;
+/** Visible = built, not display:none, and (in native fullscreen) actually painted. */
+const shown = (s) => s.present && s.display !== 'none' && s.inFsSubtree !== false;
+
+/**
+ * Switch the panel to sliderPosition='video' through the real settings UI.
+ *
+ * Why this exists: the default is 'right', so `.vs-slider-in-chrome` never gets
+ * created in a default run. Every assertion about it was therefore vacuous —
+ * `hidden()` returned true purely because the element was absent, and the check
+ * passed while proving nothing (found 2026-08-10, same class of bug as the
+ * first-run chip measured by its label).
+ */
+async function useInChromeSlider(page) {
+  await page.click('.vs-gear-button');
+  await page.waitForSelector('[data-vs-pos="video"]', { timeout: 5000 });
+  await page.click('[data-vs-pos="video"]');
+  await page.waitForTimeout(300);
+  await page.click('.vs-gear-button').catch(() => null); // close the modal again
+  await page.waitForTimeout(400);
+}
 
 mkdirSync(SHOT_DIR, { recursive: true });
 const ctx = await chromium.launchPersistentContext(PROFILE_DIR, {
@@ -145,6 +167,12 @@ try {
     check(`[${scenario.name}] panel is visible outside fullscreen`, before.panel.present, JSON.stringify(before.panel));
     check(`[${scenario.name}] toast stack was created outside fullscreen`, before.stack.present, 'no stack — the run would not prove the teardown path');
 
+    // Put the slider where this run is about to make claims about it. Without
+    // this the element does not exist and every slider assertion is vacuous.
+    await useInChromeSlider(page);
+    const inChrome = await probe();
+    check(`[${scenario.name}] the slider really moved into player chrome`, inChrome.slider.present, `sliderPosition='video' did not mount .vs-slider-in-chrome — ${JSON.stringify(inChrome.slider)}`);
+
     // ── A. native fullscreen ──────────────────────────────────────────────
     // requestFullscreen needs a user gesture: click a real button.
     await page.evaluate((playerSelector) => {
@@ -180,7 +208,13 @@ try {
     const fsError = await page.evaluate(() => window.__vsFsError ?? null);
     check(`[${scenario.name}] the page really entered fullscreen`, inFs.fullscreen != null, `fullscreenElement is null (${fsError ?? 'no error reported'}) — focus stolen by another tab?`);
     check(`[${scenario.name}] panel is not rendered in fullscreen`, hidden(inFs.panel), JSON.stringify(inFs.panel));
-    check(`[${scenario.name}] in-chrome slider is not rendered in fullscreen`, hidden(inFs.slider), JSON.stringify(inFs.slider));
+    // The in-chrome slider MUST survive fullscreen (owner report 2026-08-10).
+    // It is mounted inside the player's control bar, which is inside the
+    // fullscreen element — so `inFsSubtree` is the half that matters: a slider
+    // that is styled but parked outside the painted subtree looks identical to
+    // one that was hidden on purpose.
+    check(`[${scenario.name}] in-chrome slider is still rendered in fullscreen`, shown(inFs.slider), JSON.stringify(inFs.slider));
+    check(`[${scenario.name}] in-chrome slider sits inside the painted fullscreen subtree`, inFs.slider.inFsSubtree === true, JSON.stringify(inFs.slider));
     // Messages are ALLOWED in fullscreen since 2026-08-05 — only the
     // persistent chrome above is hidden. What must hold is that a toast
     // raised there is actually PAINTED, i.e. mounted inside the element that
@@ -255,7 +289,7 @@ try {
     const inFallback = await probe();
     await shot('04-plyr-fallback');
     console.log('  in Plyr fallback:', JSON.stringify(inFallback));
-    check(`[${scenario.name}] in-chrome slider is hidden in Plyr pseudo-fullscreen`, hidden(inFallback.slider), JSON.stringify(inFallback.slider));
+    check(`[${scenario.name}] in-chrome slider is still rendered in Plyr pseudo-fullscreen`, shown(inFallback.slider), JSON.stringify(inFallback.slider));
 
     await page.dblclick('.speed-button:nth-child(4)').catch(() => null);
     await page.waitForTimeout(600);

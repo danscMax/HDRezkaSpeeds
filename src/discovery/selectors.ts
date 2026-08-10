@@ -32,6 +32,22 @@ const SELECTORS: Record<Site, SelectorMap> = {
   },
 };
 
+/**
+ * Can this site host the slider inside the player's own control bar
+ * (`sliderPosition: 'video'`)? True when there is somewhere to mount it —
+ * which is exactly what panel.applyLayout() looks up before it moves the
+ * slider, so the settings menu and the layout agree by construction.
+ *
+ * Always true here (one site, and it has a control bar); it exists so the
+ * twins keep one shared shape. In VideoSpeeds this replaced a literal
+ * `site === 'youtube'` that hid the option on RuTube even though its
+ * control-bar selectors had been in the table all along.
+ */
+export function supportsInPlayerSlider(site: Site): boolean {
+  const map = SELECTORS[site];
+  return (map.rightControls?.length ?? 0) > 0 || (map.controlsContainer?.length ?? 0) > 0;
+}
+
 export function selectorsFor(site: Site): SelectorMap {
   return SELECTORS[site];
 }

@@ -15,6 +15,7 @@
 
 import type { Site, Translator } from '../../app/ports';
 import { SPEED_POOL, speedBoundsFor } from '../../config';
+import { supportsInPlayerSlider } from '../../discovery/selectors';
 import {
   CAN_DIM_SCREENS,
   DEFAULT_DIM_LEVEL,
@@ -118,6 +119,10 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
   const { settings, site, i18n } = opts;
   const t = i18n.t;
   const sel = (v: string): string => (v === settings.sliderPosition ? 'true' : 'false');
+  // Whether the "in player" slider position is offered at all — derived from
+  // the selector table, the same source panel.applyLayout() consults. Always
+  // true here; kept so both twins ask the question the same way.
+  const canEmbedSlider = supportsInPlayerSlider(site);
 
   const sliderPosSection = vsSection(
     t('general.slider_pos'),
@@ -140,12 +145,18 @@ function generalTab(opts: ModalRenderOptions, hidden: boolean): HTMLElement {
         ' ',
         t('general.pos.bottom'),
       ),
-      vsSegmentedOption(
-        { 'data-vs-pos': 'video', 'aria-pressed': sel('video'), title: t('general.pos.video.tip') },
-        vsIcon('tv', 13),
-        ' ',
-        t('general.pos.video'),
-      ),
+      canEmbedSlider
+        ? vsSegmentedOption(
+            {
+              'data-vs-pos': 'video',
+              'aria-pressed': sel('video'),
+              title: t('general.pos.video.tip'),
+            },
+            vsIcon('tv', 13),
+            ' ',
+            t('general.pos.video'),
+          )
+        : null,
     ),
     // Audit 2026-05-10: visible only when the auto-collapse rule fires
     // (viewport narrow + sliderPosition='right'). See styles.ts.

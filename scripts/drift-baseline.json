@@ -1,15 +1,15 @@
 {
-  "src/app/ports.ts": "5ef53b1f5e1e690873f087102894c533a4bcc15994b3a7b636d09151cd9dd1bb",
-  "src/discovery/selectors.ts": "ee0562df79f1e72d50b07be5f9bfd917a346e2b5397002531db383e8008c3def",
+  "src/app/ports.ts": "ccc7736a231d6f689432e56603ff49c2da9276c6d5b121c3588f1267c41a2b81",
+  "src/discovery/selectors.ts": "18690e405365bca764c9b9cb5bd009b6c8c3ef35541ad2989557a38fa9c278c7",
   "src/discovery/validators.ts": "f1eda304c7c9d04677faf0c621f91dbf4faed088b4eb2a47b1317373b7b72403",
   "src/health/report.ts": "734064fc90cb6021d45810dad9d0fed5cd23b8ad9ad5fd3ff86e2896b7b6640e",
-  "src/i18n/dict.ts": "7231d9aac734e08d4cbdf8736e7b2796ecf6d828bd79d6cf043f17ae8f9dfcd9",
+  "src/i18n/dict.ts": "3fb26dd8204fce53bc3519d7c4a1f0829e9842b5d4359c06f0aa5b66cd9e4f52",
   "src/storage/settings-store.ts": "df835afd4f4b805b76c0b3b2fb20faf8293403fdca4facee261e42c23d14ebe4",
   "src/storage/types.ts": "ea1d7d697108e1d9862e4fdeedf89b4aed998a6898fbc671315268f3ff542a69",
-  "src/ui/insertion.ts": "4763254dd127db236b59bb2a4c327d185fb344787e7c645eb575ef0e308c1760",
+  "src/ui/insertion.ts": "97ea15a088259e8cad0a7ddbdbc9c6eb05459092305e503251cfbe1cf6fe49c2",
   "src/ui/panel.ts": "fd202adb3f1800c546130f3efe4aaa03be4fe12c75af6db7cbb8dd4d7735294d",
   "src/ui/settings/export-import.ts": "40e54d4471f60e6495c1aad767fd70cd779b60e9cce61dc0102435b46a3071ce",
   "src/ui/settings/handlers.ts": "5f33ef40497d6f0a2edbbff098520a0b63f485987af0fdd15ccce1b9934039c2",
-  "src/ui/settings/modal.ts": "acc711ba96affd21f8e33b4bdef57ab5f97d971aef43bae633d61c45fe720fef",
-  "src/ui/styles.ts": "f7d9239a6892aeac94d85a4b74dc78d9df4caf54d59f6b3db3b24b5708b5293f"
+  "src/ui/settings/modal.ts": "0fe8f152e43555d3125e45bc8d5476fb259e5f6190bba8f2d7c5d58378bffaaa",
+  "src/ui/styles.ts": "a175a601d3f57857a6d18bcd6bb2a40288e344b68f5fc970db1c4dc9360dedcd"
 }
