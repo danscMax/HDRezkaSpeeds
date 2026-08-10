@@ -192,9 +192,9 @@ GPL-3.0-or-later. See [LICENSE](./LICENSE).
 ### Установка
 
 - **Firefox AMO** — [**Установить из AMO**](https://addons.mozilla.org/firefox/addon/hdrezka-speed-controller/) ✅ одобрено
-- **Chrome Web Store** — *(на ревью)*
+- **Chrome Web Store** — [**Установить из Chrome Web Store**](https://chromewebstore.google.com/detail/bledompcjiepahghecekpeodipnpbhpl) ✅ одобрено (Chrome / Edge / Brave / Яндекс.Браузер)
 
-Ручная установка из исходников (для Chrome — пока листинг не одобрен):
+Ручная установка из исходников:
 
 ```bash
 git clone https://github.com/danscMax/HDRezkaSpeeds.git
