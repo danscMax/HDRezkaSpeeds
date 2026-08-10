@@ -4,6 +4,16 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **The in-player slider was painted YouTube red on every site.** The site
+  accent is declared on the panel, and the "in player" slider position moves the
+  slider out of the panel into the player's own control bar — where the rule no
+  longer matched and the default red won. The page now carries the site tag, so
+  every surface that leaves the panel inherits the right colour.
+
 ## [0.7.0] — 2026-08-10
 
 ### Changed

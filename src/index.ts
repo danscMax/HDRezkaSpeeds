@@ -556,6 +556,17 @@ export async function bootstrap(
   panel.applyLayout();
 
   // 9a. Wire the theme watcher AFTER the panel exists.
+  // 9a-bis. Tag <html> with the site so surfaces that live OUTSIDE the panel
+  //     still get the site accent. The accent is declared on
+  //     `.vs-panel[data-vs-site]`, which works only while a surface is inside
+  //     the panel — and sliderPosition='video' deliberately moves the slider
+  //     into the player's own control bar. Detached, it fell back to :root and
+  //     was painted YouTube red on every site (owner report 2026-08-10, seen on
+  //     HDRezka). Setting the attribute here fixes it at the shared point
+  //     instead of per-surface: anything that leaves the panel inherits.
+  //     The popup already does the same on its own document.
+  document.documentElement.dataset.vsSite = site;
+
   const reapplyTheme = installThemeWatcher(site, ctx, () => panel.element);
 
   // Audit 2026-05-11 W6.3 (REL-014 + PERF-008): debounce by 500 ms
