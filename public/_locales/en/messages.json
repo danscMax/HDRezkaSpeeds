@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "HDRezka Speed Controller",
+    "description": "Store listing title. Chrome caps it at 45 characters; AMO at 50. Unlike the sister extension this name needed no rework — 'HDRezka' is already an uncontested term, so it leads by itself."
+  },
+  "extDescription": {
+    "message": "Speed buttons, a slider and hotkeys for the HDRezka player. Bilingual EN/RU, no tracking.",
+    "description": "Store listing summary. Chrome caps it at 132 characters, AMO at 250 — keep it under 132."
+  }
+}

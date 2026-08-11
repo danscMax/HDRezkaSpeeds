@@ -53,9 +53,13 @@ export default defineConfig({
     },
   }),
   manifest: ({ browser }) => ({
-    name: 'HDRezka Speed Controller',
-    description:
-      'Adds speed buttons, slider, and hotkeys to HDRezka video player. Bilingual interface (English/Russian).',
+    // Title and summary come from public/_locales, NOT from a literal here.
+    // The store shows one listing per item and takes both from the package, so
+    // a single English string was the only thing a Russian-speaking searcher
+    // could be matched against — on an extension for a Russian-language site.
+    default_locale: 'en',
+    name: '__MSG_extName__',
+    description: '__MSG_extDescription__',
     version: pkg.version,
     author: 'MaxScorpy',
     // - storage:   settings/presets/user mirrors in browser.storage.local.

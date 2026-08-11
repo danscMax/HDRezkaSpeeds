@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Скорость видео для HDRezka",
+    "description": "Store listing title shown to Russian-speaking users. HDRezka is a Russian-language site, yet the store had a single English listing — half the installs already come from Russian speakers despite that, so the ones lost to the language mismatch are invisible in the numbers."
+  },
+  "extDescription": {
+    "message": "Кнопки скорости, ползунок и горячие клавиши для плеера HDRezka. Без рекламы и трекинга.",
+    "description": "Store listing summary in Russian. Keep it under 132 characters — Chrome's cap."
+  }
+}

@@ -15,6 +15,16 @@ versioning is [SemVer](https://semver.org/).
   the audience while the review count sat at zero. It now appears after positive
   feedback in both builds, and the link goes to the store that build came from.
 
+## [Unreleased]
+
+### Changed
+
+- **The store listing is now bilingual.** Chrome shows one listing per item and
+  takes its title and summary from the package, so a Russian-speaking searcher
+  was only ever matched against English text — on an extension for a
+  Russian-language site. The package now carries `_locales` with a Russian
+  title and summary.
+
 ## [0.7.1] — 2026-08-10
 
 ### Fixed
