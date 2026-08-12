@@ -5,25 +5,15 @@ sections come first (canonical), Russian translations follow.
 
 ---
 
-## Item name
+## Item name and short description — NOT here
 
-`HDRezka Speed Controller`
-
-## Short description (max 132 characters)
-
-Benefit-first: the first line is what a searcher sees before "read more".
-
-> Speed up HDRezka movies and shows — speed buttons under the player,
-> a slider, and hotkeys. Bilingual EN/RU, no ads, no tracking.
-
-(128 characters.)
-
-### Russian translation
-
-> Ускоряйте фильмы и сериалы на HDRezka: кнопки скорости под плеером,
-> ползунок и горячие клавиши. Без рекламы и трекинга.
-
-(119 characters.)
+Both live in `public/_locales/{en,ru}/messages.json` (`extName`,
+`extDescription`), because Chrome renders them straight from the package and
+ignores anything typed into the dashboard. This file used to keep a second
+copy; by the time the two were compared they disagreed on every word, and the
+copy nobody could see was the one being pushed to AMO. `push-amo-listing.mjs`
+now reads `_locales` for the summary, so editing it there updates both stores.
+Chrome caps it at 132 characters — half of AMO's limit, and the binding one.
 
 ---
 

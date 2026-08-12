@@ -24,7 +24,7 @@ function declarationsOf(css: string, match: (selector: string) => boolean): stri
   return '';
 }
 
-const valueOf = (body: string, prop: string): string | null =>
+const cssValue = (body: string, prop: string): string | null =>
   body.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`))?.[1]?.trim() ?? null;
 
 describe('the speed popup keeps one anchor across modes', () => {
@@ -46,9 +46,9 @@ describe('the speed popup keeps one anchor across modes', () => {
 
   it('anchors to the top centre of the player by default', () => {
     expect(base, 'base popup rule not found').not.toBe('');
-    expect(valueOf(base, 'left')).toBe('50%');
-    expect(valueOf(base, 'right')).toBe('auto');
-    expect(valueOf(base, 'transform')).toBe('translateX(-50%)');
+    expect(cssValue(base, 'left')).toBe('50%');
+    expect(cssValue(base, 'right')).toBe('auto');
+    expect(cssValue(base, 'transform')).toBe('translateX(-50%)');
   });
 
   it('does not move the popup when fullscreen takes over', () => {
@@ -57,14 +57,14 @@ describe('the speed popup keeps one anchor across modes', () => {
     // not re-anchor. Any of these appearing here means the two modes have
     // drifted apart again.
     for (const prop of ['top', 'left', 'right', 'bottom', 'transform']) {
-      expect(valueOf(fullscreen, prop), `fullscreen rule re-anchors via ${prop}`).toBeNull();
+      expect(cssValue(fullscreen, prop), `fullscreen rule re-anchors via ${prop}`).toBeNull();
     }
   });
 
   it('still scales up in fullscreen', () => {
     // Guards the other direction: unifying the anchor must not have flattened
     // the size difference, which is what makes it readable across a room.
-    expect(valueOf(fullscreen, 'font-size')).toBe('30px');
-    expect(valueOf(base, 'font-size')).not.toBe('30px');
+    expect(cssValue(fullscreen, 'font-size')).toBe('30px');
+    expect(cssValue(base, 'font-size')).not.toBe('30px');
   });
 });

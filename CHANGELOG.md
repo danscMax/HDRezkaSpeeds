@@ -4,7 +4,7 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.7.2] — 2026-08-12
 
 ### Fixed
 
@@ -14,8 +14,6 @@ versioning is [SemVer](https://semver.org/).
   nobody revisited the rule — so the ask was withheld from the larger half of
   the audience while the review count sat at zero. It now appears after positive
   feedback in both builds, and the link goes to the store that build came from.
-
-## [Unreleased]
 
 ### Changed
 

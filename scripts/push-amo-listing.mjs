@@ -55,20 +55,17 @@ if (fenced.length < 2) {
 const description = { 'en-US': fenced[0], ru: fenced[1] };
 
 /**
- * Summaries live in blockquotes under "Short description" — EN first, then the
- * Russian translation. AMO caps the summary at 250 characters.
+ * The summary has exactly ONE source: `public/_locales`. That is the file
+ * Chrome itself renders — it takes the name and the short description from the
+ * package, never from the dashboard — so a second copy in store-listing.md is
+ * a copy that cannot win. They had already drifted apart word for word by the
+ * time anyone compared them (measured 2026-08-12). AMO caps the summary at 250
+ * characters, Chrome at 132; the paste path enforces the stricter one.
  */
-const quotes = [...md.matchAll(/^> (.+(?:\n> .+)*)/gm)].map((m) =>
-  m[1]
-    .split('\n')
-    .map((l) => l.replace(/^> ?/, ''))
-    .join(' ')
-    .trim(),
-);
-if (quotes.length < 2) {
-  throw new Error(`expected 2 blockquoted summaries, found ${quotes.length}`);
-}
-const summary = { 'en-US': quotes[0], ru: quotes[1] };
+const localeSummary = (dir) =>
+  JSON.parse(readFileSync(join(root, 'public', '_locales', dir, 'messages.json'), 'utf8'))
+    .extDescription.message;
+const summary = { 'en-US': localeSummary('en'), ru: localeSummary('ru') };
 
 for (const [lang, text] of Object.entries(summary)) {
   if (text.length > 250) {
