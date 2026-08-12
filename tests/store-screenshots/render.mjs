@@ -140,6 +140,32 @@ await page1.waitForTimeout(400);
 await page1.evaluate(() => document.getElementById('speed-notifications')?.remove());
 await shoot(page1, 'hdrezka-settings');
 
+// 3. The dimming block. It is the one feature no competing extension has, and
+// it sits below the fold of the settings modal — so the deck showed everything
+// EXCEPT the reason to pick this extension over any other. Scrolled to, not
+// toggled on: switching it live starts monitor calibration and opens real dim
+// windows across the desktop, which has no business happening inside a
+// screenshot run.
+// The toggle is an <input name="..."> inside .vs-toggle, NOT an element with
+// that id — getElementById finds nothing and the shot silently comes out
+// identical to the previous one, which is exactly what happened first try.
+// Scroll the modal body by measured offset rather than scrollIntoView: the
+// body is the scroll container, and scrollIntoView moved the page instead.
+const dimScrolled = await page1.evaluate(() => {
+  const input = document.querySelector('.settings-menu input[name="dim-other-screens"]');
+  const body = document.querySelector('.settings-menu .vs-menu-body');
+  if (!input || !body) return false;
+  const row = input.closest('label') ?? input;
+  body.scrollTop += row.getBoundingClientRect().top - body.getBoundingClientRect().top - 90;
+  return true;
+});
+if (!dimScrolled) {
+  throw new Error('dimming row not found — the settings markup moved, fix the selector');
+}
+await page1.waitForTimeout(400);
+await page1.evaluate(() => document.getElementById('speed-notifications')?.remove());
+await shoot(page1, 'hdrezka-dimming');
+
 // 3. Welcome — through the built extension. Discover its ID via the service
 // worker URL, then navigate to chrome-extension://<id>/welcome.html.
 let extId = null;

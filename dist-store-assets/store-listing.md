@@ -246,7 +246,7 @@ the manifest's host_permissions, not the marketing description.)
 
 ## Screenshots to upload
 
-Three 1280x800 JPEGs in `dist-store-assets/screenshots/`, designed for
+Four 1280x800 JPEGs in `dist-store-assets/screenshots/`, designed for
 the Chrome Web Store size + format constraints (CWS rejects anything
 that isn't exactly 1280x800 / 640x400 and won't accept PNGs with an
 alpha channel). Recommended upload order:
@@ -256,7 +256,12 @@ alpha channel). Recommended upload order:
 2. `02-hdrezka-settings.jpg` — same page with the settings modal open,
    explaining presets / slider position / behaviour toggles in one
    image.
-3. `03-welcome-page.jpg` — welcome onboarding (light theme; adds
+3. `03-hdrezka-dimming.jpg` — the settings body scrolled to "Dim other
+   monitors in fullscreen", its level field and the sentence explaining
+   it. Added 2026-08-12: this is the only feature no competing
+   extension has, it lives below the fold, and the deck had been
+   showing everything except the reason to choose this one.
+4. `04-welcome-page.jpg` — welcome onboarding (light theme; adds
    visual variety to the otherwise dark deck).
 
 Re-generate any time with: `node tests/store-screenshots/render.mjs`
