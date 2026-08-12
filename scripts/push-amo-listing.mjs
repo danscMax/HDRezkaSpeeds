@@ -138,6 +138,19 @@ if (process.argv.includes('--paste')) {
       console.log(`wrote ${file} (${text.length} chars)`);
     }
   }
+  // Chrome's detailed description is ONE field with no locales, unlike the name
+  // and the summary, which it reads from _locales in the package. Pasting a
+  // single language therefore decides who can find the card: English serves the
+  // majority of installs, Russian is the language of the sites this is built
+  // for. Both fit, so both go in — EN first, RU under a rule.
+  const combined = `${description['en-US']}\n\n———\n\n${description.ru}`;
+  if (combined.length > 16000) {
+    console.error(`combined description is ${combined.length} chars; Chrome Web Store caps at 16000`);
+    process.exit(1);
+  }
+  const cwsFile = join(outDir, `${slug}-description-CWS.txt`);
+  writeFileSync(cwsFile, `${combined}\n`, 'utf8');
+  console.log(`wrote ${cwsFile} (${combined.length} chars)`);
   process.exit(0);
 }
 
