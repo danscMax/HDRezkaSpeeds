@@ -199,6 +199,28 @@ execFileSync(
   { stdio: 'inherit' },
 );
 
+// The README embeds demo.gif, so a clip refreshed without it leaves the
+// landing page showing an older product than the store does — which is exactly
+// how the July GIF survived four releases. Derive one from the other in the
+// same run and the two cannot drift apart.
+execFileSync(
+  'ffmpeg',
+  [
+    '-y',
+    // Skip the first seconds: the page is still settling there and the panel
+    // sits clipped at the bottom edge. A GIF's first frame is what a README
+    // shows before it plays, so that frame has to be the finished layout.
+    '-ss',
+    '3',
+    '-i',
+    OUT_MP4,
+    '-vf',
+    'fps=12,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=3',
+    join(OUT_DIR, 'demo.gif'),
+  ],
+  { stdio: 'inherit' },
+);
+
 const probe = execFileSync('ffprobe', [
   '-v',
   'error',
