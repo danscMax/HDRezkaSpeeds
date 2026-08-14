@@ -114,10 +114,11 @@ const version = new FormData();
 version.append('upload', uuid);
 // The build is minified, so AMO requires the sources archive.
 version.append('source', blob(zipPath('sources')), basename(zipPath('sources')));
-// Multipart carries no nested objects — the locale goes in the field NAME.
-// A JSON string here returns "You must provide an object of {lang-code:value}".
-if (existsSync(notesFile)) version.append('release_notes[en-US]', readFileSync(notesFile, 'utf8'));
 if (existsSync(reviewerFile)) version.append('approval_notes', readFileSync(reviewerFile, 'utf8'));
+// Release notes are NOT sent here. `release_notes[en-US]` as a multipart field
+// is accepted without a murmur and stored nowhere: 0.7.0, 0.7.1 and 0.7.2 all
+// went out with empty notes while this script logged a clean run (found 2026-08-14
+// by asking the API what it actually kept). They go in the PATCH below instead.
 
 res = await fetch(`${API}/addons/addon/${env.FIREFOX_EXTENSION_ID}/versions/`, {
   method: 'POST',
@@ -137,3 +138,24 @@ if (res.status === 409 && /already exists/i.test(String(data?.version ?? ''))) {
 }
 if (!res.ok) throw new Error(`version create failed ${res.status}: ${JSON.stringify(data)}`);
 console.log(`AMO: version ${data.version} created (id ${data.id}, channel ${data.channel})`);
+
+// The notes file is one document: Russian, a `---` line, then English.
+if (existsSync(notesFile)) {
+  const [ru, en] = readFileSync(notesFile, 'utf8').split(/^---$/m);
+  const notes = { ru: ru.trim(), 'en-US': (en ?? ru).trim() };
+  const patch = await fetch(
+    `${API}/addons/addon/${env.FIREFOX_EXTENSION_ID}/versions/${data.id}/`,
+    {
+      method: 'PATCH',
+      headers: { ...auth(), 'content-type': 'application/json' },
+      body: JSON.stringify({ release_notes: notes }),
+    },
+  );
+  const saved = await patch.json();
+  if (!patch.ok) throw new Error(`release notes failed ${patch.status}: ${JSON.stringify(saved)}`);
+  // Read what AMO kept, not what we sent: a green response is exactly what the
+  // multipart field gave for three releases while storing nothing.
+  const empty = Object.keys(notes).filter((l) => !saved.release_notes?.[l]?.trim());
+  if (empty.length > 0) throw new Error(`AMO kept no release notes for: ${empty.join(', ')}`);
+  console.log(`AMO: release notes stored (${Object.keys(saved.release_notes).join(', ')})`);
+}
