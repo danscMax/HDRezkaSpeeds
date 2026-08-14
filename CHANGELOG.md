@@ -4,6 +4,21 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.7.3] — 2026-08-14
+
+### Fixed
+
+- **Chrome rejected 0.7.2 over a permission the extension does use.** The
+  `system.display` call behind "dim the other monitors" was reached through
+  `globalThis.chrome`, to sidestep typings that don't cover the `system.*`
+  namespaces. The Chrome Web Store reads the submitted bundle statically, saw
+  no `chrome.system.display` in it, and rejected the draft as "Requesting but
+  not using system.display" — while users stayed on 0.7.1. The call is now
+  spelled out literally, so the scanner credits it, with the missing namespace
+  in Firefox handled by a catch rather than by optional chaining (which
+  survives the build as `chrome?.system?.display` — the very shape that was not
+  credited). No behaviour change and no new permissions.
+
 ## [0.7.2] — 2026-08-12
 
 ### Fixed

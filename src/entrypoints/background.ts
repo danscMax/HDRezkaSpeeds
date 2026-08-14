@@ -63,6 +63,15 @@ import { createBrowserStorageAdapter } from '../storage/adapter';
 import { readLastWorkingHost } from '../storage/last-host-store';
 import { MIRRORS_STORAGE_KEY, readUserMirrors, sanitizeMirrorList } from '../storage/mirrors-store';
 
+/**
+ * The `chrome` global. Present in both browsers (Firefox aliases it); only the
+ * system.* namespaces below are Chrome-only, hence every member optional.
+ * Declared here rather than pulled in as @types/chrome: this is the single
+ * member of it the codebase touches, and the rest goes through
+ * webextension-polyfill's `browser`.
+ */
+declare const chrome: { system: { display: { getInfo?: unknown } } };
+
 /** Single dynamic-registration id covering ALL user mirrors. */
 const DYNAMIC_SCRIPT_ID = 'user-mirrors';
 
@@ -417,19 +426,32 @@ export default defineBackground(() => {
   };
 
   /**
-   * chrome.system.display, or null where it doesn't exist (Firefox). Reached
-   * through globalThis because the webextension-polyfill typings the rest of
-   * this file uses don't cover the system.* namespaces.
+   * chrome.system.display, or null where it doesn't exist (Firefox).
+   *
+   * The reference has to read as a literal `chrome.system.display` in the
+   * source. The Chrome Web Store scans for it statically, and reaching the
+   * very same API through `globalThis.chrome` got 0.7.2 rejected as
+   * "Requesting but not using system.display" (violation Purple Potassium,
+   * 14 Aug 2026) — the dim-other-screens feature does call it, the scanner
+   * just could not see the call. The cast is still needed because the
+   * webextension-polyfill typings the rest of this file uses don't cover the
+   * system.* namespaces; the guard is what keeps Firefox, where the namespace
+   * is absent, from throwing.
    */
   function systemDisplay(): { getInfo(): Promise<{ bounds: Rect }[]> } | null {
-    const api = (
-      globalThis as {
-        chrome?: { system?: { display?: { getInfo?: unknown } } };
-      }
-    ).chrome?.system?.display;
-    return api && typeof api.getInfo === 'function'
-      ? (api as { getInfo(): Promise<{ bounds: Rect }[]> })
-      : null;
+    try {
+      // Spelled out, without optional chaining: the scanner matches the exact
+      // `chrome.system.display` text, and `chrome?.system?.display` survives
+      // the build as-is — the very shape that was not credited as a use. In
+      // Firefox this throws on the missing namespace, which is what the catch
+      // is for; the typeof keeps a Chrome build without the permission (the
+      // namespace present but the API withheld) on the same null path.
+      return typeof chrome.system.display.getInfo === 'function'
+        ? (chrome.system.display as { getInfo(): Promise<{ bounds: Rect }[]> })
+        : null;
+    } catch {
+      return null;
+    }
   }
 
   async function readDimState(): Promise<DimState | null> {
