@@ -20,167 +20,129 @@ Chrome caps it at 132 characters — half of AMO's limit, and the binding one.
 ## Detailed description (under 16,000 characters)
 
 ```
-Watch movies and shows on HDRezka at your own pace. HDRezka Speed
-Controller puts a row of speed buttons right under the player, so a
-slow scene or a long episode plays faster — and a single click brings
-it back to normal. A fine-grained slider and customizable keyboard
-shortcuts give you exact control.
+Watch films and shows on HDRezka at your own pace. This extension puts a
+row of speed buttons right under the player: a drawn-out scene or a long
+episode moves faster, and one click brings the normal speed back.
 
-WHAT IT DOES
+What it does
 
-- 11 preset speed buttons (1.0x to 2.0x in 0.1 steps), positioned right
-  below the player. Tuned for movie playback where small speed steps
-  matter more than wide range.
-- Slider for in-between values, with a coloured fill and a value
-  tooltip that follows the thumb so you always see the exact rate.
-- Single-click on a button = temporary speed for this video only.
-  Double-click = save as the default for new videos. The saved speed
-  is marked with a small accent dot in the corner of its button.
-- Configurable hotkeys — assign multiple combinations per action so a
-  remote and a keyboard can both trigger speed changes. Rebind them and
-  set the step size in Settings → Keys.
-- In-player gear menu with five tabs:
-  - General: slider position (right / below / inside player), language
-    switch (English / Russian), preset chips grouped by range
-    (slower than 1×, 1×–2×, faster than 2×), behaviour toggles.
-  - Keys: rebind speed-up / speed-down, add additional combos,
-    reset to defaults.
-  - Mirrors: HDRezka domains rotate constantly — add your own mirror
-    domains and the extension works on them too. One click on the
-    toolbar icon adds the site you're on; access is granted per-domain
-    via the standard browser permission prompt.
-  - Diagnostics: copy a structured report for bug submissions; clear
-    cached selectors if a site update breaks the panel.
-  - Support: feedback form (sends to the developer's Telegram via a
-    Cloudflare Worker — no third-party analytics).
-- Toolbar popup mirrors the in-player menu so you can adjust settings
-  without opening a video.
-- Automatically follows the HDRezka theme — the panel re-skins to match
-  the site's light or dark mode, including when you toggle the theme
-  on the fly. In fullscreen the panel steps out of the way — no extension
-  UI on top of the picture; the keyboard shortcuts keep working.
-- Dim the other monitors (optional, off by default). On a multi-monitor
-  desk the bright windows beside the film keep pulling your eye. While
-  the video plays fullscreen, the other displays are covered with a dark
-  window — never the one showing the film. Leaving fullscreen removes
-  them instantly. The darkness level is adjustable.
-- Accessibility: aria-labels on the gear button, aria-live status
-  announcements for diagnostic state and speed changes,
-  prefers-reduced-motion support.
+- Speed buttons under the player. Out of the box they go from 1x to 2x
+  in steps of 0.1 — for a film, a fine step is worth more than a wide
+  range. The set is yours to change, anywhere from 0.5x to 4x.
+- A slider for anything in between, with the exact rate shown above the
+  handle as you drag it.
+- One click sets the speed for the film you are watching. A double click
+  makes it the speed everything starts at — the saved button is marked
+  with a dot in the corner.
+- Keyboard shortcuts, several combinations per action if you like, so a
+  remote and a keyboard can both do the job. Rebind them and set the
+  step in the settings.
+- A gear menu inside the player: where the slider sits, interface
+  language, which buttons to show, how the panel behaves. There is also
+  a feedback form that reaches the developer directly, and a report you
+  can copy in one click if a site update ever knocks the panel out.
+- Mirrors. The mirrors that exist today work out of the box, and since
+  HDRezka's domains change constantly you can add new ones yourself:
+  open the mirror, click the extension icon, and confirm access for that
+  one site. The list is kept locally and survives updates.
+- The panel follows the site's own light or dark theme, including when
+  you switch it while watching.
+- Dimming the other monitors (optional, off by default). On a desk with
+  several screens the bright windows next to the film keep pulling your
+  eye. While the film plays fullscreen, the other monitors are covered
+  with dark — never the one you are watching — and everything clears the
+  moment you leave fullscreen. How dark it gets is up to you.
+- In fullscreen the panel keeps out of the picture, while the speed you
+  chose is confirmed by a large label. The shortcuts keep working.
 
-WHY IT'S RELIABLE
+When the site changes
 
-When HDRezka ships a layout change, the panel recovers automatically
-through a five-strategy discovery chain (cached selector → exact match
-→ substring match → walk up from the video element → geometric
-heuristic). A built-in watchdog detects broken state, purges bad cache
-entries, and re-attaches the panel. Plyr's playback rate persistence
-is intercepted so the player can't race our restore on every episode
-change.
+HDRezka redesigns without warning, and a panel pinned to one spot
+disappears the moment it does. This one looks for the player five
+different ways in turn and re-attaches itself wherever it turns up. It
+also holds your speed across episodes, which the player itself likes to
+reset.
 
-PRIVACY
+Privacy
 
-- All settings stored locally in browser.storage.local.
-- Zero telemetry, zero analytics, zero remote calls.
-- The AMO data_collection_permissions disclosure is set to "none".
-- Source available on GitHub for review.
+Your settings stay in your own browser. The extension collects no
+statistics, tracks nothing you watch and sends nothing anywhere. The
+source code is open, so any of this can be checked.
 
-LANGUAGES
+Languages
 
-English and Russian. UI language is auto-detected from your browser on
-first run; switch any time from the gear menu.
+English and Russian. The interface follows your browser on first run and
+can be switched from the menu at any time.
 
-AFTER YOU INSTALL
+Right after you install
 
-A short walkthrough opens automatically in a new tab: what each control
-does, how to set your keyboard shortcuts, and how to pin the icon to the
-toolbar. It takes about a minute, and you can close it and start using
-the extension right away.
-
-COMPATIBILITY
-
-Works on all known HDRezka mirrors out of the box, plus any mirror
-domain you add yourself in the Mirrors tab (access is requested
-per-domain via the standard browser permission prompt).
+A short guide opens in a new tab: what each control does, how to set
+your shortcuts, how to pin the icon to the toolbar. A minute to read,
+then close it and get on with it.
 ```
 
 ### Russian translation
 
 ```
-Смотрите фильмы и сериалы на HDRezka в своём темпе. HDRezka Speed
-Controller ставит ряд кнопок скорости прямо под плеером: затянутая
-сцена или длинная серия идут быстрее, а один клик возвращает обычную
-скорость. Точный ползунок и настраиваемые горячие клавиши дают полный
-контроль.
+Смотрите фильмы и сериалы на HDRezka в своём темпе. Расширение ставит ряд
+кнопок скорости прямо под плеером: затянутая сцена или длинная серия идут
+быстрее, а один клик возвращает обычную скорость.
 
-ЧТО УМЕЕТ
+Что умеет
 
-- 11 кнопок скорости (1.0x – 2.0x с шагом 0.1) под плеером. Подобраны
-  для просмотра фильмов, где важен мелкий шаг изменения скорости, а
-  не широкий диапазон.
-- Ползунок для промежуточных значений с цветной заливкой и
-  всплывающей подписью значения над бегунком — точное значение видно
-  всегда.
-- Один клик по кнопке — временная скорость для этого видео. Двойной
-  клик — сделать скоростью по умолчанию для новых видео. Сохранённая
-  кнопка отмечена маленькой точкой в углу.
-- Настраиваемые горячие клавиши — можно назначить несколько комбинаций
-  на одно действие (клавиатура + пульт ДУ), переназначить их и задать
-  шаг в настройках, вкладка «Клавиши».
-- Меню настроек на шестерёнке с пятью вкладками:
-  - «Общие»: положение ползунка, язык интерфейса, кнопки скорости
-    сгруппированы по диапазонам (медленнее 1×, 1×–2×, быстрее 2×).
-  - «Клавиши»: переназначение хоткеев, дополнительные комбинации,
-    сброс к умолчанию.
-  - «Зеркала»: домены HDRezka постоянно меняются — добавьте свои
-    зеркала, и расширение заработает и на них. Один клик по иконке
-    в тулбаре добавляет сайт, на котором вы находитесь; доступ
-    выдаётся отдельно на каждый домен через стандартный запрос
-    разрешения браузера.
-  - «Диагностика»: скопировать отчёт для бага, очистить кеш
-    селекторов.
-  - «Поддержать»: форма обратной связи (отправляется в Telegram
-    разработчика через Cloudflare Worker — без сторонней аналитики).
-- Иконка расширения в тулбаре открывает то же меню без открытия
-  видео.
-- Автоматически следует за темой HDRezka — панель перекрашивается под
-  светлый или тёмный режим сайта, в том числе при переключении темы
-  «на лету». В полноэкранном режиме панель не мешает — интерфейс
-  расширения не показывается поверх картинки, горячие клавиши работают.
-- Затемнение других мониторов (по желанию, по умолчанию выключено). На
-  многомониторном столе яркие окна сбоку тянут взгляд с фильма. Пока
-  видео идёт в полноэкранном режиме, остальные экраны закрываются
-  тёмным — монитор с фильмом не трогаем. Выход из полноэкранного
-  режима сразу всё убирает. Яркость шторки настраивается ползунком.
-- Доступность: aria-labels на шестерёнке, объявление через aria-live
-  при смене скорости и при обновлении статуса диагностики, поддержка
-  prefers-reduced-motion.
+- Кнопки скорости под плеером. Из коробки — от 1× до 2× с шагом 0.1: для
+  фильма мелкий шаг важнее широкого диапазона. Набор кнопок вы меняете
+  сами, от 0.5× до 4×.
+- Ползунок для промежуточных значений: точное число видно над бегунком,
+  пока вы его тянете.
+- Один клик задаёт скорость для этого фильма. Двойной — делает её той, с
+  которой всё начинается дальше; сохранённая кнопка помечена точкой в
+  углу.
+- Горячие клавиши. На одно действие можно назначить несколько сочетаний
+  — скажем, чтобы работали и клавиатура, и пульт. Сочетания и шаг
+  меняются в настройках.
+- Меню на шестерёнке прямо в плеере: где показывать ползунок, язык
+  интерфейса, набор кнопок, поведение панели. Там же форма обратной
+  связи — письмо приходит разработчику, — и отчёт, который копируется
+  одной кнопкой, если после обновления сайта панель собьётся.
+- Зеркала. Все нынешние работают сразу, а поскольку домены HDRezka
+  постоянно меняются, новые вы добавляете сами: откройте зеркало,
+  нажмите на значок расширения и подтвердите доступ к этому сайту.
+  Список хранится у вас и переживает обновления.
+- Панель подхватывает тему сайта — светлую или тёмную, в том числе если
+  переключить её прямо во время просмотра.
+- Затемнение соседних мониторов (по желанию, по умолчанию выключено). За
+  столом с несколькими экранами яркие окна сбоку тянут взгляд с фильма.
+  Пока фильм идёт в полноэкранном режиме, остальные мониторы закрываются
+  тёмным — тот, на котором вы смотрите, не трогается, — а на выходе всё
+  сразу убирается. Насколько темно, решаете вы.
+- В полноэкранном режиме панель не загораживает картинку, а выбранная
+  скорость подтверждается крупной плашкой. Горячие клавиши продолжают
+  работать.
 
-ПРИВАТНОСТЬ
+Если сайт изменится
 
-- Все настройки хранятся локально в browser.storage.local.
-- Никакой телеметрии, никакой аналитики, никаких удалённых вызовов.
-- Декларация AMO data_collection_permissions = "none".
-- Исходники открыты на GitHub.
+HDRezka меняет вёрстку без предупреждения, и панель, привязанная к одному
+месту, после этого просто исчезает. Эта ищет плеер пятью способами по
+очереди и прикрепляется туда, где он оказался. Она же удерживает вашу
+скорость при переходе между сериями — сам плеер норовит её сбросить.
 
-ЯЗЫКИ
+Приватность
 
-Английский и русский. Язык интерфейса определяется автоматически
-по языку браузера; переключается в меню в любой момент.
+Настройки хранятся в вашем браузере. Расширение не собирает статистику,
+не следит за тем, что вы смотрите, и никуда ничего не отправляет.
+Исходный код открыт — всё это можно проверить.
 
-СРАЗУ ПОСЛЕ УСТАНОВКИ
+Языки
 
-В новой вкладке автоматически откроётся короткая инструкция: что делает
-каждый элемент, как назначить свои горячие клавиши и как закрепить
-значок на панели. Занимает около минуты — можно закрыть и сразу
-пользоваться.
+Русский и английский. При первом запуске язык берётся из браузера, потом
+переключается в меню.
 
-СОВМЕСТИМОСТЬ
+Сразу после установки
 
-Работает на всех известных зеркалах HDRezka из коробки, а также на
-любых зеркалах, которые вы добавите сами на вкладке «Зеркала»
-(доступ запрашивается отдельно на каждый домен через стандартный
-запрос разрешения браузера).
+В новой вкладке откроется короткая инструкция: что делает каждый
+элемент, как назначить горячие клавиши и как закрепить значок на панели.
+Минута чтения — и можно закрывать.
 ```
 
 ---
