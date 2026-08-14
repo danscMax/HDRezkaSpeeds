@@ -52,7 +52,46 @@ const fenced = [...md.matchAll(/```\n([\s\S]*?)\n```/g)].map((m) => m[1]);
 if (fenced.length < 2) {
   throw new Error(`expected 2 fenced description blocks, found ${fenced.length}`);
 }
-const description = { 'en-US': fenced[0], ru: fenced[1] };
+/**
+ * The blocks are hard-wrapped at ~70 columns, which is comfortable to read in
+ * an editor and wrong everywhere else: neither store re-flows the text, so
+ * every wrap became a real line break and the live card read as a ragged
+ * column (seen on the Chrome form, 2026-08-14). Rejoin each paragraph and each
+ * list item into one line — blank lines, list markers and their indentation
+ * are the only structure the stores render.
+ *
+ * `node scripts/push-amo-listing.mjs --selftest` checks the cases below.
+ */
+function unwrap(text) {
+  const isItem = (line) => /^\s*[-*]\s/.test(line);
+  return text
+    .split('\n\n')
+    .map((block) =>
+      block
+        .split('\n')
+        .reduce((lines, line) => {
+          if (lines.length === 0 || isItem(line)) lines.push(line.replace(/\s+$/, ''));
+          else lines[lines.length - 1] += ` ${line.trim()}`;
+          return lines;
+        }, [])
+        .join('\n'),
+    )
+    .join('\n\n');
+}
+
+if (process.argv.includes('--selftest')) {
+  const eq = (got, want, name) => {
+    if (got !== want) throw new Error(`${name}\n  got:  ${JSON.stringify(got)}\n  want: ${JSON.stringify(want)}`);
+  };
+  eq(unwrap('one two\nthree four'), 'one two three four', 'paragraph rejoined');
+  eq(unwrap('a\n\nb'), 'a\n\nb', 'blank line kept');
+  eq(unwrap('- one\n  wrapped\n- two'), '- one wrapped\n- two', 'list item rejoined');
+  eq(unwrap('- top\n  - nested\n    wrapped'), '- top\n  - nested wrapped', 'nested indent kept');
+  console.log('unwrap selftest: ok');
+  process.exit(0);
+}
+
+const description = { 'en-US': unwrap(fenced[0]), ru: unwrap(fenced[1]) };
 
 /**
  * The summary has exactly ONE source: `public/_locales`. That is the file
@@ -135,19 +174,17 @@ if (process.argv.includes('--paste')) {
       console.log(`wrote ${file} (${text.length} chars)`);
     }
   }
-  // Chrome's detailed description is ONE field with no locales, unlike the name
-  // and the summary, which it reads from _locales in the package. Pasting a
-  // single language therefore decides who can find the card: English serves the
-  // majority of installs, Russian is the language of the sites this is built
-  // for. Both fit, so both go in — EN first, RU under a rule.
-  const combined = `${description['en-US']}\n\n———\n\n${description.ru}`;
-  if (combined.length > 16000) {
-    console.error(`combined description is ${combined.length} chars; Chrome Web Store caps at 16000`);
-    process.exit(1);
+  // No combined EN+RU file any more. The dashboard grew a "Current editing
+  // language" selector once the package started shipping _locales (0.7.2): the
+  // description is per-locale after all, so the two languages go into two
+  // separate forms. The stacked version — English, a rule, then Russian — was
+  // pasted into the English form on 2026-08-14 and is what the card showed.
+  for (const [lang, text] of Object.entries(description)) {
+    if (text.length > 16000) {
+      console.error(`description ${lang} is ${text.length} chars; Chrome Web Store caps at 16000`);
+      process.exit(1);
+    }
   }
-  const cwsFile = join(outDir, `${slug}-description-CWS.txt`);
-  writeFileSync(cwsFile, `${combined}\n`, 'utf8');
-  console.log(`wrote ${cwsFile} (${combined.length} chars)`);
   process.exit(0);
 }
 
