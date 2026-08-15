@@ -111,6 +111,19 @@ export default defineConfig({
                 optional: ['personalCommunications', 'technicalAndInteraction'],
               },
             },
+            // Android compatibility is NOT inherited from `gecko`: AMO marks a
+            // version desktop-only unless this key is present. Versions 0.5.2
+            // to 0.6.1 were android-compatible only because they were uploaded
+            // through the dev hub with the Android box ticked; every version
+            // since went up through scripts/submit-amo.mjs, which does not set
+            // it, so Firefox for Android stopped offering updates and installs
+            // froze on 0.6.1 (confirmed 2026-08-15 via the AMO versions API:
+            // `compatibility` carries no `android` entry from 0.6.2 on).
+            // Same floor as desktop — 142.0 is where Android Firefox learned
+            // `data_collection_permissions`.
+            gecko_android: {
+              strict_min_version: '142.0',
+            },
           },
         }
       : {}),

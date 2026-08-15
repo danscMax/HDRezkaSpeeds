@@ -4,6 +4,26 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.7.4] — 2026-08-15
+
+### Fixed
+
+- Firefox for Android stopped offering updates after 0.6.1. AMO marks a version
+  desktop-only unless the manifest declares `browser_specific_settings.
+  gecko_android`; the versions that did reach Android (0.5.1–0.6.1) were
+  uploaded through the dev hub with the Android box ticked by hand, and every
+  release since went up through `scripts/submit-amo.mjs`, which never set it.
+  Confirmed against the AMO versions API on 2026-08-15: `compatibility` carries
+  no `android` entry from 0.6.2 on. The key is now emitted by `wxt.config.ts`
+  for the Firefox target, with the same 142.0 floor as desktop.
+
+### Changed
+
+- Russian store summary: «без рекламы и трекинга» → «без рекламы и слежки».
+
+Chrome keeps 0.7.3 in review; this release goes to AMO only, so a fresh upload
+does not send the display-permission fix back to the end of the queue.
+
 ## [0.7.3] — 2026-08-14
 
 ### Fixed
