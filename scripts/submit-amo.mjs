@@ -143,15 +143,25 @@ console.log(`AMO: version ${data.version} created (id ${data.id}, channel ${data
 if (existsSync(notesFile)) {
   const [ru, en] = readFileSync(notesFile, 'utf8').split(/^---$/m);
   const notes = { ru: ru.trim(), 'en-US': (en ?? ru).trim() };
-  const patch = await fetch(
-    `${API}/addons/addon/${env.FIREFOX_EXTENSION_ID}/versions/${data.id}/`,
-    {
+  // AMO throttles: the version-create call and this one land back to back, and
+  // a 429 here leaves a published version with an empty "What's new" that can
+  // only be repaired by hand (2026-08-15, VideoSpeeds 0.7.4 — "Expected
+  // available in 8 seconds"). The wait AMO asks for is in the message, so
+  // honour it rather than guessing an interval.
+  let patch;
+  let saved;
+  for (let attempt = 0; ; attempt++) {
+    patch = await fetch(`${API}/addons/addon/${env.FIREFOX_EXTENSION_ID}/versions/${data.id}/`, {
       method: 'PATCH',
       headers: { ...auth(), 'content-type': 'application/json' },
       body: JSON.stringify({ release_notes: notes }),
-    },
-  );
-  const saved = await patch.json();
+    });
+    saved = await patch.json();
+    if (patch.status !== 429 || attempt >= 3) break;
+    const wait = Number(patch.headers.get('retry-after')) || Number(/(\d+) seconds/.exec(saved?.detail ?? '')?.[1]) || 10;
+    console.log(`AMO: throttled, retrying release notes in ${wait}s`);
+    await new Promise((r) => setTimeout(r, (wait + 2) * 1000));
+  }
   if (!patch.ok) throw new Error(`release notes failed ${patch.status}: ${JSON.stringify(saved)}`);
   // Read what AMO kept, not what we sent: a green response is exactly what the
   // multipart field gave for three releases while storing nothing.
