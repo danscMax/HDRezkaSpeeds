@@ -244,8 +244,13 @@ export const I18N_DICT = {
     'feedback.contact.hint':
       'Email, @telegram-username, Discord tag — whatever you check. Leave blank if you do not want a reply (the author still reads every message).',
     'feedback.diag.label': 'Attach diagnostic report',
+    // Describes what collectDiagnostics() actually assembles — checked against
+    // it, not written from the feature's original intent. The old wording
+    // promised the page address and a history of speed changes (neither is
+    // collected) while staying silent about the settings snapshot (which is).
+    // A consent control that misdescribes the payload is worse than none.
     'feedback.diag.hint':
-      'Anonymous: domain + page path (no query string), browser, viewport, panel state, recent rate-change events. Helps the author reproduce bugs.',
+      'Anonymous: extension version, browser, window size, interface language, your playback speed and a few settings toggles. No page address, no record of what you watched.',
     'feedback.privacy':
       "On Submit, your message goes to the author's personal Telegram inbox via a Cloudflare Worker. No third-party services, no analytics. See the Privacy Policy for the full list of fields transmitted.",
     'feedback.submit': 'Submit',
@@ -682,7 +687,7 @@ export const I18N_DICT = {
       'Email, @telegram-логин, Discord-тег — что вы проверяете. Оставьте пустым, если ответ не нужен (автор всё равно прочитает сообщение).',
     'feedback.diag.label': 'Приложить диагностический отчёт',
     'feedback.diag.hint':
-      'Анонимный: домен + путь страницы (без query-string), браузер, размер окна, состояние панели, недавние события смены скорости. Помогает воспроизвести ошибку.',
+      'Анонимно: версия расширения, браузер, размер окна, язык интерфейса, ваша скорость воспроизведения и несколько переключателей из настроек. Ни адреса страницы, ни того, что вы смотрели.',
     'feedback.privacy':
       'При нажатии «Отправить» ваше сообщение через Cloudflare Worker уходит в личный Telegram автора. Никаких третьих сервисов, никакой аналитики. Полный список передаваемых полей — в Privacy Policy.',
     'feedback.submit': 'Отправить',

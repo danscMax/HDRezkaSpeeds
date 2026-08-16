@@ -35,6 +35,17 @@ type T = (key: string) => string;
 // to prevent leaking observers on language switch.
 const liveResizeObservers: ResizeObserver[] = [];
 
+/**
+ * Point an already-opened tab at a url, or open one if the browser refused the
+ * synchronous claim. `about:blank` inherits our origin, so assigning
+ * `location.href` is allowed; if the popup was blocked, `win` is null and the
+ * late window.open is the same best-effort attempt as before — no worse.
+ */
+function redirect(win: Window | null, href: string): void {
+  if (win) win.location.href = href;
+  else window.open(href, '_blank');
+}
+
 function disconnectAllObservers(): void {
   for (const ro of liveResizeObservers.splice(0)) {
     try {
@@ -882,16 +893,29 @@ function renderCta(t: T): HTMLElement {
   );
   hdrBtn.addEventListener('click', (event) => {
     event.preventDefault();
+    // Claim the tab SYNCHRONOUSLY, while the click's user activation is still
+    // valid. The fallback used to call window.open() only after awaiting the
+    // background round trip — and that round trip really goes to the network,
+    // probing each mirror's homepage for reachability. By the time it settled
+    // the activation was spent, so a popup blocker was free to swallow the
+    // call silently: no tab, no error, nothing. On the very first button a new
+    // user presses.
+    const pending = window.open('', '_blank');
     void browser.runtime
       .sendMessage({ type: 'mirrors:open-reachable', candidates: [...BUILTIN_MIRROR_HOSTS] })
       .then((res) => {
+        if ((res as { ok?: boolean } | undefined)?.ok) {
+          // The background opened its own tab; ours is redundant.
+          pending?.close();
+          return;
+        }
         // Worker could not reach any mirror (all blocked, or it is asleep in a
-        // userscript-style build): fall back to the plain link rather than
-        // leaving the click doing nothing at all.
-        if (!(res as { ok?: boolean } | undefined)?.ok) window.open(hdrBtn.href, '_blank');
+        // userscript-style build): send the tab we already hold to the plain
+        // link rather than leaving the click doing nothing at all.
+        redirect(pending, hdrBtn.href);
       })
       .catch(() => {
-        window.open(hdrBtn.href, '_blank');
+        redirect(pending, hdrBtn.href);
       });
   });
 

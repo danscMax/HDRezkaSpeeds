@@ -125,7 +125,14 @@ export function showNotification(text: string, opts: NotificationOptions = {}): 
     align-items: center !important;
     gap: 8px !important;
     pointer-events: auto !important;
-    white-space: nowrap !important;
+    /* Wraps, like the action chip below. It used to be nowrap, and the label
+       span had overflow/text-overflow but no min-width:0 — as a flex item its
+       min-width:auto floors it at the content width, so the ellipsis could
+       never engage and a long message was simply cut. The longest real string
+       is the Tampermonkey-conflict warning at 128 characters, which is exactly
+       the one a user must be able to read. Same defect, same fix as the chip
+       (2026-08-06). */
+    white-space: normal !important;
     max-width: min(80vw, 480px) !important;
     opacity: ${reduceMotion ? '1' : '0'};
     transform: ${reduceMotion ? 'none' : 'translateX(20px)'};
@@ -144,7 +151,7 @@ export function showNotification(text: string, opts: NotificationOptions = {}): 
   toast.appendChild(
     h(
       'span',
-      { style: 'line-height:1.3; overflow:hidden; text-overflow:ellipsis;' },
+      { style: 'line-height:1.3; min-width:0; overflow-wrap:anywhere;' },
       String(text ?? ''),
     ),
   );

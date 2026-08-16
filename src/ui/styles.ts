@@ -921,7 +921,7 @@ html[data-vs-theme="dark"] .speed-button.pinned:not(.active)::after {
   margin: 0;
   transition: height 0.15s ease;
 }
-.speed-slider-container:hover .speed-slider { height: 6px; }
+.speed-slider-container:is(:hover, :active) .speed-slider { height: 6px; }
 .speed-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -936,8 +936,14 @@ html[data-vs-theme="dark"] .speed-button.pinned:not(.active)::after {
 }
 /* VIS-010: accent halo around the enlarged thumb — the bare 1.4× scale
    of a white dot was easy to miss on bright video frames; the ring also
-   signals "grabbable" before the user starts dragging. */
-.speed-slider-container:hover .speed-slider::-webkit-slider-thumb {
+   signals "grabbable" before the user starts dragging.
+   :active rides along with :hover because a touchscreen has no hover at
+   all: the thumb stayed at its bare 12px for the whole drag, which is the
+   one moment the enlargement exists for. Firefox for Android came back as
+   a supported target in 0.7.4, so this is a live surface, not a hypothetical.
+   :is() on purpose — a plain comma list is invalidated whole by any
+   selector an engine does not know. */
+.speed-slider-container:is(:hover, :active) .speed-slider::-webkit-slider-thumb {
   transform: scale(1.4);
   box-shadow: 0 1px 4px rgba(0,0,0,0.5), 0 0 0 3px rgba(var(--vs-accent-rgb), 0.30);
 }
@@ -951,7 +957,7 @@ html[data-vs-theme="dark"] .speed-button.pinned:not(.active)::after {
   box-shadow: 0 1px 4px rgba(0,0,0,0.5);
   transition: transform 0.15s ease;
 }
-.speed-slider-container:hover .speed-slider::-moz-range-thumb {
+.speed-slider-container:is(:hover, :active) .speed-slider::-moz-range-thumb {
   transform: scale(1.4);
   box-shadow: 0 1px 4px rgba(0,0,0,0.5), 0 0 0 3px rgba(var(--vs-accent-rgb), 0.30);
 }
@@ -1006,7 +1012,7 @@ html[data-vs-theme="dark"] .speed-button.pinned:not(.active)::after {
   border-right: 5px solid transparent;
   border-top: 5px solid rgba(28, 28, 28, 0.92);
 }
-.speed-slider-container:hover .speed-value,
+.speed-slider-container:is(:hover, :active) .speed-value,
 .speed-slider:active ~ .speed-value {
   opacity: 1;
   transform: translateX(-50%) scale(1);

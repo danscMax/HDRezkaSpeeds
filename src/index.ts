@@ -1274,7 +1274,18 @@ function attachToVideo(
 
   const apply = (reason: string): void => {
     const target = pickInitialSpeed(ctx);
-    if (Math.abs(v.playbackRate - target) < 0.005) return;
+    if (Math.abs(v.playbackRate - target) < 0.005) {
+      // The rate needs no write — but the READOUT still does. `playbackRate`
+      // survives an episode switch (Plyr re-mounts the element, the stored
+      // speed is re-applied), so a viewer bingeing at one speed hits this
+      // branch on every episode and it used to return before anything
+      // refreshed. The "−N min" badge is computed from the CURRENT video's
+      // duration (panel.ts updateTimeSaved), so it went on showing the saving
+      // for the previous episode. silent:true keeps the centred speed popup
+      // from firing on a switch nobody asked about.
+      ctx.ui.refreshButtons(target, { silent: true });
+      return;
+    }
     // Use applyTransient (no storage write) — storage already holds the
     // value we're applying; pickInitialSpeed READS it. Before this change
     // each retry tick called setSpeed, which wrote to storage twice. With
