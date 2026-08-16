@@ -112,6 +112,26 @@ for (const [lang, text] of Object.entries(summary)) {
   }
 }
 
+/**
+ * The NAME comes from the same `_locales` files, and it has to be pushed
+ * explicitly: AMO reads the name from the manifest when an add-on is first
+ * created and never again, so every later rename lands in the package and
+ * stops at the store. Measured 2026-08-16 — AMO was still serving the English
+ * "HDRezka Speed Controller" to Russian speakers, one day after the package
+ * carrying «Скорость видео для HDRezka» was approved. Chrome, which does take
+ * the name from each new package, would have shown it.
+ */
+const localeName = (dir) =>
+  JSON.parse(readFileSync(join(root, 'public', '_locales', dir, 'messages.json'), 'utf8')).extName
+    .message;
+const name = { 'en-US': localeName('en'), ru: localeName('ru') };
+
+for (const [lang, text] of Object.entries(name)) {
+  if (text.length > 50) {
+    throw new Error(`name ${lang} is ${text.length} chars, AMO caps at 50`);
+  }
+}
+
 function jwt() {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
   const now = Math.floor(Date.now() / 1000);
@@ -128,6 +148,7 @@ function jwt() {
   return `${head}.${body}.${sig}`;
 }
 
+console.log(`name        en-US ${name['en-US']} | ru ${name.ru}`);
 console.log(`summary     en-US ${summary['en-US'].length} chars | ru ${summary.ru.length} chars`);
 console.log(`description en-US ${description['en-US'].length} | ru ${description.ru.length}`);
 if (dryRun) {
@@ -220,6 +241,7 @@ if (process.argv.includes('--check')) {
       { headers: { Authorization: `JWT ${jwt()}` } },
     ).then((r) => r.json());
     for (const [field, want] of [
+      ['name', name],
       ['summary', summary],
       ['description', description],
     ]) {
@@ -242,7 +264,7 @@ const res = await fetch(
   {
     method: 'PATCH',
     headers: { Authorization: `JWT ${jwt()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ summary, description }),
+    body: JSON.stringify({ name, summary, description }),
   },
 );
 const data = await res.json();
