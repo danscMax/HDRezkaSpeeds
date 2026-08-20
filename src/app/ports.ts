@@ -60,6 +60,8 @@ export interface SpeedStore {
   activeMemoryKey(): string | null;
   activeMemory(): number | null;
   rememberForActive(speed: number): Promise<void>;
+  /** Forget the speed stored for the ACTIVE key. */
+  forgetActive(): Promise<void>;
   /** Drop a speed parked while the memory key was still unknown. */
   resetPendingMemory(): void;
 }

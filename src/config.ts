@@ -39,6 +39,14 @@ const SPEED_BOUNDS: Record<Site, SpeedBounds> = {
   hdrezka: { min: 0.5, max: 10.0, defaultSpeed: 1.0 },
 };
 
+/**
+ * Sites where a page identifies its content well enough to key a speed on
+ * it — the film id here, the YouTube channel in the twin.
+ */
+export function supportsContentMemory(site: Site): boolean {
+  return site === 'hdrezka';
+}
+
 export function speedBoundsFor(site: Site): SpeedBounds {
   return SPEED_BOUNDS[site];
 }

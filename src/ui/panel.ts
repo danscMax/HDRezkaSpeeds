@@ -12,12 +12,13 @@
 
 import { CleanupRegistry } from '../app/cleanup';
 import type { AppContext } from '../app/context';
-import { defaultPresetsFor, speedBoundsFor } from '../config';
+import { defaultPresetsFor, speedBoundsFor, supportsContentMemory } from '../config';
 import {
   applyTransient,
   handleSpeedButtonClick,
   setGlobal,
   setTemporary,
+  toggleContentMemory,
 } from '../speed/controller';
 import type { AddMirrorResult } from '../storage/mirrors-store';
 import { refreshActiveButton, refreshPinnedButton, renderButtonsRow } from './buttons';
@@ -219,6 +220,41 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
     }
   });
 
+  // UX-034: pin the speed for THIS channel (YouTube) / title (HDRezka).
+  // The neighbouring bookmark button saves a default for everything; this
+  // one saves it for the content you are watching, and lights up while
+  // that content has its own speed. Two visible buttons instead of one
+  // overloaded gesture: a single click on a preset is now purely
+  // "this video", which is what a viewer slowing down one clip expects.
+  // Not rendered on sites with no stable content key.
+  const channelBtn = document.createElement('button');
+  channelBtn.type = 'button';
+  channelBtn.className = 'vs-pin-button vs-channel-button';
+  channelBtn.appendChild(vsIcon('tv', 14));
+  channelBtn.style.display = supportsContentMemory(ctx.site) ? '' : 'none';
+  const refreshChannelButton = (): void => {
+    if (!supportsContentMemory(ctx.site)) return;
+    const saved = ctx.speedStore.activeMemory();
+    const known = ctx.speedStore.activeMemoryKey() !== null;
+    const on = saved !== null;
+    channelBtn.classList.toggle('is-active', on);
+    channelBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    channelBtn.disabled = !known;
+    channelBtn.setAttribute(
+      'aria-label',
+      on ? ctx.i18n.t('panel.channel.aria_on') : ctx.i18n.t('panel.channel.aria_off'),
+    );
+    channelBtn.title = !known
+      ? ctx.i18n.t('panel.channel.tooltip_unknown')
+      : on
+        ? ctx.i18n.t('panel.channel.tooltip_on', { speed: saved })
+        : ctx.i18n.t('panel.channel.tooltip_off');
+  };
+  refreshChannelButton();
+  ctx.cleanup.addEventListener(channelBtn, 'click', () => {
+    void toggleContentMemory(ctx).then(refreshChannelButton);
+  });
+
   // FEAT-016: "finish N min earlier" badge. Lives INSIDE the buttons row
   // so the bottom-layout grid areas stay untouched; re-appended after
   // every presets rebuild (replaceChildren wipes it).
@@ -253,6 +289,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
   root.appendChild(buttonsRow);
   root.appendChild(sliderContainer);
   root.appendChild(pinBtn);
+  root.appendChild(channelBtn);
   root.appendChild(gearWrapper);
 
   // ----- Tab state preserved across rerenders -----
@@ -757,6 +794,7 @@ export function createPanel(opts: CreatePanelOptions): PanelHandle {
       // change so a fresh setGlobal() (double-click) lights up the
       // matching pill within the same frame.
       refreshPinnedButton(buttonsRow, computePinnedSpeed());
+      refreshChannelButton();
       updateTimeSaved(speed);
     },
     refreshSlider(speed) {

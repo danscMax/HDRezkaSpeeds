@@ -134,19 +134,56 @@ export async function setTemporary(
   applyToVideo(ctx, validSpeed);
   ctx.ui.refreshButtons(validSpeed, opts);
   ctx.ui.refreshSlider(validSpeed);
-  rememberPerContent(ctx, validSpeed);
   ctx.logger.debug('controller.setTemporary', validSpeed);
 }
 
-/** FEAT-015: record the user's explicit choice into the per-content
- *  memory map (keyed by HDRezka title / YT channel) when the feature is
- *  enabled. Fire-and-forget — losing one write is harmless. */
-function rememberPerContent(ctx: AppContext, speed: number): void {
-  if (ctx.settingsStore.getKey('rememberPerVideo') !== true) return;
-  // No key yet? The store parks the value and writes it once the key
-  // resolves. Bailing out here is what silently ate the very first click
-  // on a page whose channel link had not rendered (measured 2026-08-20).
-  void ctx.speedStore.rememberForActive(speed);
+/**
+ * FEAT-015 / UX-034: pin or unpin the speed for the current content
+ * (YouTube channel / HDRezka title). This is the ONLY writer of the
+ * per-content memory — clicking a preset no longer records anything.
+ *
+ * Why: a single click used to mean two things at once, "play this video
+ * at 1.5x" AND "remember 1.5x for this channel forever". A viewer who
+ * just wanted to slow down one video could not do it without changing
+ * the channel's speed (owner report 2026-08-20). Now the two live on
+ * separate controls: presets are per-video, this is per-channel.
+ *
+ * Pins whatever is PLAYING (same read order as the pin-as-default
+ * button), turns the feature on if it was off — pressing the button is
+ * a clear enough statement of intent — and toggles off when the current
+ * content already has a stored speed.
+ */
+export async function toggleContentMemory(ctx: AppContext): Promise<void> {
+  if (!ctx.speedStore.activeMemoryKey()) {
+    ctx.ui.showNotification(ctx.i18n.t('toast.channel_unknown'), 'info');
+    return;
+  }
+
+  if (ctx.speedStore.activeMemory() !== null) {
+    await ctx.speedStore.forgetActive();
+    ctx.ui.refreshButtons(currentPlayingSpeed(ctx), { silent: true });
+    ctx.ui.showNotification(ctx.i18n.t('toast.channel_forgotten'), 'info');
+    return;
+  }
+
+  if (ctx.settingsStore.getKey('rememberPerVideo') !== true) {
+    await ctx.settingsStore.update({ rememberPerVideo: true });
+    ctx.logger.info('controller.toggleContentMemory: rememberPerVideo auto-enabled');
+  }
+  const speed = clamp(ctx, currentPlayingSpeed(ctx));
+  await ctx.speedStore.rememberForActive(speed);
+  ctx.ui.refreshButtons(speed, { silent: true });
+  ctx.ui.showNotification(ctx.i18n.t('toast.channel_saved', { speed }), 'success');
+}
+
+/** What is actually playing — the value a user means by "this speed". */
+function currentPlayingSpeed(ctx: AppContext): number {
+  const video = ctx.discovery.resolve('video');
+  const rate =
+    video instanceof HTMLVideoElement && Number.isFinite(video.playbackRate)
+      ? video.playbackRate
+      : null;
+  return rate ?? ctx.speedStore.smart() ?? ctx.speedStore.current();
 }
 
 /**
@@ -180,7 +217,6 @@ export async function setGlobal(
   applyToVideo(ctx, validSpeed);
   ctx.ui.refreshButtons(validSpeed, opts);
   ctx.ui.refreshSlider(validSpeed);
-  rememberPerContent(ctx, validSpeed);
   ctx.ui.showNotification(ctx.i18n.t('toast.speed_global', { speed: validSpeed }), 'success');
   ctx.logger.debug('controller.setGlobal', validSpeed);
 }
