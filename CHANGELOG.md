@@ -6,6 +6,20 @@ versioning is [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **A single click on a preset no longer changes the film's saved speed.** It
+  used to mean "play this at 1.5×" and "remember 1.5× for this film" at once;
+  presets are now purely per-video, and a new button next to the bookmark saves
+  the speed for the film you are watching (lit while the film has its own
+  speed, press again to clear). Shared-core change from the YouTube twin, where
+  the overloaded click made it impossible to slow down a single video.
+
+### Fixed
+
+- **Panel layout no longer drops the slider onto a second line** when the row is
+  one button too wide: the presets row wraps its own buttons instead, and the
+  slider plus icon cluster keep their place.
 ### Added
 
 - **Diagnostics says what the per-title speed memory knows about this page** —

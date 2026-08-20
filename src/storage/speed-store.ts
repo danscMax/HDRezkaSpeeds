@@ -26,6 +26,8 @@ export interface SpeedStoreImpl {
   /** Speed remembered for the ACTIVE key, or null. */
   activeMemory(): number | null;
   rememberForActive(speed: number): Promise<void>;
+  /** Forget the speed stored for the ACTIVE key. */
+  forgetActive(): Promise<void>;
   /** Drop a speed parked while the key was still unknown. Called on
    *  navigation so a choice made on the previous page cannot land in the
    *  next page's channel. */
@@ -173,6 +175,13 @@ export function createSpeedStore(adapter: StorageAdapter): SpeedStoreImpl {
 
     resetPendingMemory(): void {
       pendingSpeed = null;
+    },
+
+    async forgetActive(): Promise<void> {
+      pendingSpeed = null;
+      if (!activeKey || !memoryKey || !(activeKey in memory)) return;
+      delete memory[activeKey];
+      await adapter.set(memoryKey, memory);
     },
 
     async rememberForActive(speed: number): Promise<void> {

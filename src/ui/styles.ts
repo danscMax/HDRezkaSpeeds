@@ -492,8 +492,15 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   /* Audit 2026-05-10: allow wrap on narrow viewports instead of
      overflowing into the host page's adjacent columns. Preserves
      user's chosen sliderPosition. */
-  flex-wrap: wrap;
-  gap: 16px;
+  /* UX-035: nowrap on the panel itself. A wrapping flex container does not
+     shrink its children before wrapping — it moves the LAST ones to a new
+     line, which is how "slider on the right" ended up as a two-storey panel
+     with the gear underneath. With nowrap the elastic parts give way in
+     order: the slider narrows, then the presets row wraps its own buttons,
+     and the icon cluster keeps its seat. Genuinely narrow columns are
+     handled by the grid fallback in the media query below. */
+  flex-wrap: nowrap;
+  gap: 10px;
   row-gap: 8px;
   padding: 0;
   /* Auto horizontal margins center the panel within its parent column. On
@@ -564,12 +571,16 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   display: grid;
   /* Audit 2026-05-10: pin button (v0.3.15) added as explicit grid area
      to prevent auto-placement into a wrong cell on first render. */
-  grid-template-columns: auto auto auto 1fr;
+  grid-template-columns: auto auto auto auto 1fr;
   grid-template-areas:
-    "buttons pin    gear   ."
-    "slider  slider slider .";
+    "buttons pin    channel gear   ."
+    "slider  slider slider  slider .";
   align-items: center;
   gap: 12px 12px;
+}
+.vs-panel[data-vs-slider-position="bottom"] .vs-channel-button {
+  grid-area: channel;
+  justify-self: start;
 }
 .vs-panel[data-vs-slider-position="bottom"] .speed-buttons-row {
   grid-area: buttons;
@@ -599,10 +610,10 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
 @media (max-width: 1100px) {
   .vs-panel[data-vs-slider-position="right"] {
     display: grid;
-    grid-template-columns: auto auto auto 1fr;
+    grid-template-columns: auto auto auto auto 1fr;
     grid-template-areas:
-      "buttons pin    gear   ."
-      "slider  slider slider .";
+      "buttons pin    channel gear   ."
+      "slider  slider slider  slider .";
     align-items: center;
     gap: 12px 12px;
   }
@@ -612,6 +623,10 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   }
   .vs-panel[data-vs-slider-position="right"] .vs-pin-button {
     grid-area: pin;
+    justify-self: start;
+  }
+  .vs-panel[data-vs-slider-position="right"] .vs-channel-button {
+    grid-area: channel;
     justify-self: start;
   }
   .vs-panel[data-vs-slider-position="right"] .vs-gear-wrapper {
@@ -713,6 +728,14 @@ html[data-vs-site="hdrezka"] { --vs-accent: #00a1db; --vs-accent-dark: #0080b0; 
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  /* UX-035: the presets are the elastic part of the panel. Without
+     min-width 0 this row refuses to shrink, so a panel one button too
+     wide pushed the pin / channel / gear cluster onto a second line —
+     the user picked "slider on the right" and got a two-storey panel with
+     the slider underneath (owner report 2026-08-20). Now the row wraps its
+     own buttons first and the icon cluster keeps its place. */
+  flex: 1 1 auto;
+  min-width: 0;
   /* Audit 2026-05-10: allow buttons to wrap when even the buttons-only
      row exceeds available width. row-gap matches the panel's. */
   flex-wrap: wrap;
@@ -1043,6 +1066,21 @@ html[data-vs-theme="light"] .speed-value::after {
   color: var(--vs-button-text);
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+/* UX-034: the per-channel pin sits next to the default-pin and shares its
+   shape. Lit state = this channel has its own speed, so the button doubles
+   as the answer to "did it remember?" without opening diagnostics. */
+.vs-channel-button.is-active {
+  background: var(--vs-accent);
+  color: #fff;
+  box-shadow: 0 0 0 1px var(--vs-accent) inset;
+}
+.vs-channel-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.vs-channel-button:disabled:hover {
+  background: var(--vs-bg-button);
 }
 .vs-pin-button svg {
   width: 14px;
