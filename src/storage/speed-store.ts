@@ -26,6 +26,10 @@ export interface SpeedStoreImpl {
   /** Speed remembered for the ACTIVE key, or null. */
   activeMemory(): number | null;
   rememberForActive(speed: number): Promise<void>;
+  /** Drop a speed parked while the key was still unknown. Called on
+   *  navigation so a choice made on the previous page cannot land in the
+   *  next page's channel. */
+  resetPendingMemory(): void;
 }
 
 /** FEAT-015: cap the per-content memory map. Oldest entries (by write
@@ -43,6 +47,12 @@ export function createSpeedStore(adapter: StorageAdapter): SpeedStoreImpl {
   let memory: Record<string, MemoryEntry> = {};
   let memoryKey: string | null = null;
   let activeKey: string | null = null;
+  /** FEAT-015: a speed chosen BEFORE the page revealed its memory key.
+   *  YouTube renders the channel link a beat (sometimes several seconds)
+   *  after the player, and a viewer who hits 2x straight away used to have
+   *  that choice dropped on the floor — the write found no key and returned.
+   *  Park it here and flush once the key arrives. */
+  let pendingSpeed: number | null = null;
 
   function requireInit(): { current: number; smart: number | null } {
     if (state === null) {
@@ -55,6 +65,25 @@ export function createSpeedStore(adapter: StorageAdapter): SpeedStoreImpl {
     if (!bounds) return speed;
     if (Number.isNaN(speed) || !Number.isFinite(speed)) return bounds.defaultSpeed;
     return Math.min(bounds.max, Math.max(bounds.min, speed));
+  }
+
+  async function writeMemory(speed: number): Promise<void> {
+    if (!activeKey || !memoryKey) return;
+    memory[activeKey] = { s: clamp(speed), at: Date.now() };
+    // LRU eviction by write time: keep the freshest MEMORY_LIMIT keys.
+    const keys = Object.keys(memory);
+    if (keys.length > MEMORY_LIMIT) {
+      const keep = keys
+        .sort((a, b) => (memory[b]?.at ?? 0) - (memory[a]?.at ?? 0))
+        .slice(0, MEMORY_LIMIT);
+      const next: Record<string, MemoryEntry> = {};
+      for (const k of keep) {
+        const e = memory[k];
+        if (e) next[k] = e;
+      }
+      memory = next;
+    }
+    await adapter.set(memoryKey, memory);
   }
 
   return {
@@ -125,6 +154,11 @@ export function createSpeedStore(adapter: StorageAdapter): SpeedStoreImpl {
 
     setActiveMemoryKey(key: string | null): void {
       activeKey = key;
+      if (key !== null && pendingSpeed !== null) {
+        const parked = pendingSpeed;
+        pendingSpeed = null;
+        void writeMemory(parked);
+      }
     },
 
     activeMemoryKey(): string | null {
@@ -137,23 +171,17 @@ export function createSpeedStore(adapter: StorageAdapter): SpeedStoreImpl {
       return e ? clamp(e.s) : null;
     },
 
+    resetPendingMemory(): void {
+      pendingSpeed = null;
+    },
+
     async rememberForActive(speed: number): Promise<void> {
-      if (!activeKey || !memoryKey) return;
-      memory[activeKey] = { s: clamp(speed), at: Date.now() };
-      // LRU eviction by write time: keep the freshest MEMORY_LIMIT keys.
-      const keys = Object.keys(memory);
-      if (keys.length > MEMORY_LIMIT) {
-        const keep = keys
-          .sort((a, b) => (memory[b]?.at ?? 0) - (memory[a]?.at ?? 0))
-          .slice(0, MEMORY_LIMIT);
-        const next: Record<string, MemoryEntry> = {};
-        for (const k of keep) {
-          const e = memory[k];
-          if (e) next[k] = e;
-        }
-        memory = next;
+      if (!activeKey || !memoryKey) {
+        // Key not resolved yet — park the choice instead of losing it.
+        pendingSpeed = clamp(speed);
+        return;
       }
-      await adapter.set(memoryKey, memory);
+      await writeMemory(speed);
     },
   };
 }

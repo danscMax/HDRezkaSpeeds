@@ -4,6 +4,16 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [0.7.5] — 2026-08-20
+
+### Fixed
+
+- **Per-title speed memory no longer loses a choice made before the key is
+  known.** Shared-core fix ported from VideoSpeeds: `rememberForActive` used to
+  return silently when the memory key was not resolved yet; it now parks the
+  speed and writes it once the key arrives. HDRezka reads its key from the URL,
+  so the visible symptom was YouTube's — the twin keeps the same store.
+
 ## [0.7.4] — 2026-08-15
 
 ### Fixed
