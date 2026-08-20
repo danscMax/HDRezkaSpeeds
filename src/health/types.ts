@@ -63,4 +63,21 @@ export interface DiagnosticReport {
   issues: string[];
   /** Used by diag-status to render the "last check" timestamp. */
   lastCheckTime?: string;
+  /** FEAT-015 visibility: what the per-content memory currently holds for
+   *  THIS page. Added after a user could not tell whether the feature had
+   *  recognised the content at all — the answer lived only in storage. */
+  speed_memory: SpeedMemorySnapshot;
+}
+
+export interface SpeedMemorySnapshot {
+  /** Whether the per-content setting is on. */
+  enabled: boolean;
+  /** Key for the current page, or null when the content is not identified. */
+  key: string | null;
+  /** Speed stored for that key, or null when nothing is stored yet. */
+  remembered: number | null;
+  /** The saved global speed — what plays where no memory exists. */
+  global: number;
+  /** Speed actually playing right now. */
+  playing: number | null;
 }

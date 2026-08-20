@@ -58,6 +58,17 @@ export function buildReport(deps: ReportDeps): DiagnosticReport {
     kill_switch: deps.killSwitch(),
     issues,
     lastCheckTime: new Date().toLocaleTimeString(),
+    speed_memory: {
+      enabled: deps.ctx.settingsStore.getKey('rememberPerVideo') === true,
+      key: safeProbe(() => deps.ctx.speedStore.activeMemoryKey(), null),
+      remembered: safeProbe(() => deps.ctx.speedStore.activeMemory(), null),
+      global: safeProbe(() => deps.ctx.speedStore.current(), Number.NaN),
+      playing: safeProbe(
+        () =>
+          (deps.ctx.discovery.resolve('video') as HTMLVideoElement | null)?.playbackRate ?? null,
+        null,
+      ),
+    },
   };
 }
 

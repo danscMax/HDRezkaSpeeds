@@ -4,6 +4,15 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Diagnostics says what the per-title speed memory knows about this page** —
+  the identified title, the speed stored for it, the global default and what is
+  actually playing. Shared-core addition from the YouTube twin, where that state
+  being invisible turned a user report into a console session.
+
 ## [0.7.5] — 2026-08-20
 
 ### Fixed

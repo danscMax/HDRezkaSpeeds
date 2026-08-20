@@ -32,6 +32,9 @@ export function refreshDiagnosticStatus(menuRoot: Element, ctx: AppContext): voi
   statusEl.dataset.state = vm.state;
   headlineEl.textContent = vm.headline;
   detailEl.textContent = vm.detail;
+
+  const memoryEl = menuRoot.querySelector<HTMLElement>('[data-vs-diag-memory]');
+  if (memoryEl) memoryEl.textContent = describeSpeedMemory(ctx);
 }
 
 /**
@@ -40,6 +43,36 @@ export function refreshDiagnosticStatus(menuRoot: Element, ctx: AppContext): voi
  * read a few well-known fields defensively so render stays stable until
  * the full report lands.
  */
+/** One human line about the per-content speed memory for the current page. */
+function describeSpeedMemory(ctx: AppContext): string {
+  const t = ctx.i18n.t;
+  if (ctx.settingsStore.getKey('rememberPerVideo') !== true) return t('diag.memory.off');
+
+  const fmt = (n: number): string => `${Number(n.toFixed(2))}×`;
+  let key: string | null = null;
+  let remembered: number | null = null;
+  let global = Number.NaN;
+  let playing: number | null = null;
+  try {
+    key = ctx.speedStore.activeMemoryKey();
+    remembered = ctx.speedStore.activeMemory();
+    global = ctx.speedStore.current();
+    playing = (ctx.discovery.resolve('video') as HTMLVideoElement | null)?.playbackRate ?? null;
+  } catch {
+    /* a half-initialised store must not blank the whole tab */
+  }
+
+  const parts = [
+    key ? t('diag.memory.key', { key }) : t('diag.memory.no_key'),
+    t('diag.memory.remembered', {
+      speed: remembered === null ? t('diag.memory.nothing') : fmt(remembered),
+    }),
+    t('diag.memory.global', { speed: Number.isNaN(global) ? '?' : fmt(global) }),
+    t('diag.memory.playing', { speed: playing === null ? '?' : fmt(playing) }),
+  ];
+  return parts.join(' · ');
+}
+
 function projectReport(ctx: AppContext): DiagViewModel {
   const t = ctx.i18n.t;
   const report = safeReport(ctx);

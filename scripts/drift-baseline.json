@@ -2,15 +2,17 @@
   "src/app/ports.ts": "1116885520300be27a52f439098a645c4691bb146b024e9b3935efb58fe47f61",
   "src/discovery/selectors.ts": "b709fd93fd191e1a525186680a079b7791217aafff3ba9ebef99d36e1b5b17a8",
   "src/discovery/validators.ts": "f1eda304c7c9d04677faf0c621f91dbf4faed088b4eb2a47b1317373b7b72403",
-  "src/health/report.ts": "734064fc90cb6021d45810dad9d0fed5cd23b8ad9ad5fd3ff86e2896b7b6640e",
-  "src/i18n/dict.ts": "3d56c500acaa0feb049c0ebeb9cb110732447f985a727af4e7f3e83bf808e30e",
+  "src/health/report.ts": "8cffb01b9ad87c013b5a690dd26d79f9102c60cd4c9747f4bd27f28817d80639",
+  "src/i18n/dict.ts": "1ac43062105861bd782c3af2079249c231282de76b2a3683a91727b0acb2e9ea",
   "src/storage/settings-store.ts": "df835afd4f4b805b76c0b3b2fb20faf8293403fdca4facee261e42c23d14ebe4",
   "src/storage/types.ts": "ea1d7d697108e1d9862e4fdeedf89b4aed998a6898fbc671315268f3ff542a69",
   "src/ui/insertion.ts": "19d921b10ec4bc60796366be45bce1ff5e6a95a6e7e25ce76560df12bd2dd62a",
   "src/ui/panel.ts": "fd202adb3f1800c546130f3efe4aaa03be4fe12c75af6db7cbb8dd4d7735294d",
   "src/ui/settings/export-import.ts": "40e54d4471f60e6495c1aad767fd70cd779b60e9cce61dc0102435b46a3071ce",
   "src/ui/settings/handlers.ts": "5f33ef40497d6f0a2edbbff098520a0b63f485987af0fdd15ccce1b9934039c2",
-  "src/ui/settings/modal.ts": "0fe8f152e43555d3125e45bc8d5476fb259e5f6190bba8f2d7c5d58378bffaaa",
+  "src/ui/settings/modal.ts": "5c2cc02b56a4e64590463110afc79ebb92eaa25ad368199dfb9361c99a7c9e3b",
   "src/ui/styles.ts": "e066052d79de4edee89a07a1e898b64185fa1eb54cab98dc064fa3c08fe62aa0",
-  "src/storage/speed-store.ts": "609484918d5193655dce49d8951453ff64045f50010961695584d2e066774f1d"
+  "src/storage/speed-store.ts": "609484918d5193655dce49d8951453ff64045f50010961695584d2e066774f1d",
+  "src/health/types.ts": "4219552da23a876f2c970a9f320792924cae5765366d5dd089ec93b3fc444ca7",
+  "src/ui/settings/diag-status.ts": "98e28cf7e29bb99486be16b6dc8ee3f2b072653145fc97360073ffd60607aa01"
 }
