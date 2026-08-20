@@ -1,24 +1,18 @@
-0.7.4 — a manifest-only release. No source file changed, no new permissions, no
-new endpoints, no new hosts. The permission set is byte-identical to 0.7.3; in
-the Firefox build it is `storage`, `scripting`, `activeTab` (the Chrome-only
-`system.display` is added per-target and is not in this archive).
+0.7.5 — a bug-fix release. No new permissions, no new hosts, no new endpoints.
+The permission set is byte-identical to 0.7.4. Nothing is sent anywhere; the
+only storage used is browser.storage.local.
 
-1. wxt.config.ts — adds `browser_specific_settings.gecko_android` with
-   `strict_min_version: "142.0"`, the same floor already declared for desktop
-   under `gecko`. Everything the extension does on Android it already did on
-   desktop; 142.0 is where Android Firefox learned
-   `data_collection_permissions`, which this add-on declares as
-   `required: ["none"]`.
+What changed, all of it in the extension's own content-script logic:
 
-   Why now: versions 0.5.1–0.6.1 were listed as Android-compatible, then 0.6.2
-   onwards silently lost it when uploads moved to the AMO API. Declaring the key
-   in the manifest makes the flag part of the build instead of an upload-time
-   checkbox.
+1. src/storage/speed-store.ts, src/speed/controller.ts, src/app/ports.ts — the
+   opt-in "remember a speed per title" feature discarded a speed chosen before
+   the page revealed which title is open. The value is now held in memory and
+   written once the key is known; a navigation drops it so a choice from the
+   previous page cannot be attributed to the next title.
 
-2. public/_locales/ru/messages.json — one word in the Russian store summary,
-   «трекинга» → «слежки». Listing copy only, not used anywhere in code.
+This add-on shares its core with a sister add-on for YouTube, where the same
+bug made the equivalent per-channel feature unusable; the fix is applied in
+both so the shared code stays identical.
 
-Nothing else changed. Same build as 0.7.3 otherwise.
-
-Build: WXT + Vite, output minified; source archive attached.
-Build it with `npm ci && npm run zip:firefox` on Node 22.
+No change to the network surface, the host list or the data the extension
+touches.

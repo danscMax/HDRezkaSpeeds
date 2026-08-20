@@ -143,7 +143,9 @@ export async function setTemporary(
  *  enabled. Fire-and-forget — losing one write is harmless. */
 function rememberPerContent(ctx: AppContext, speed: number): void {
   if (ctx.settingsStore.getKey('rememberPerVideo') !== true) return;
-  if (!ctx.speedStore.activeMemoryKey()) return;
+  // No key yet? The store parks the value and writes it once the key
+  // resolves. Bailing out here is what silently ate the very first click
+  // on a page whose channel link had not rendered (measured 2026-08-20).
   void ctx.speedStore.rememberForActive(speed);
 }
 
