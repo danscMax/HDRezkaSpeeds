@@ -1,18 +1,22 @@
-0.7.5 — a bug-fix release. No new permissions, no new hosts, no new endpoints.
-The permission set is byte-identical to 0.7.4. Nothing is sent anywhere; the
-only storage used is browser.storage.local.
+0.8.0 — behaviour + layout fix. No new permissions, no new hosts, no new
+endpoints; the permission set is byte-identical to 0.7.4. Nothing is sent
+anywhere, the only storage used is browser.storage.local.
 
-What changed, all of it in the extension's own content-script logic:
+1. src/speed/controller.ts, src/ui/panel.ts — a click on a speed preset used to
+   ALSO write that speed into the opt-in per-content memory, so a user could not
+   change the speed of one video without changing what the whole channel/title
+   plays at. Presets are per-video now; storing a speed for the current content
+   moved to its own button in the panel (toggles, and enables the feature when
+   pressed).
 
-1. src/storage/speed-store.ts, src/speed/controller.ts, src/app/ports.ts — the
-   opt-in "remember a speed per title" feature discarded a speed chosen before
-   the page revealed which title is open. The value is now held in memory and
-   written once the key is known; a navigation drops it so a choice from the
-   previous page cannot be attributed to the next title.
+2. src/storage/speed-store.ts, src/app/ports.ts — `forgetActive()` so that
+   button can clear an entry.
 
-This add-on shares its core with a sister add-on for YouTube, where the same
-bug made the equivalent per-channel feature unusable; the fix is applied in
-both so the shared code stays identical.
+3. src/ui/styles.ts — the panel is a flex row that wrapped instead of shrinking,
+   which pushed the slider and the gear onto a second line. It is nowrap now and
+   the presets row is the elastic part.
 
-No change to the network surface, the host list or the data the extension
-touches.
+4. src/config.ts — `supportsContentMemory(site)` gates the new button to sites
+   that can identify their content.
+
+Nothing about the network surface, the host list or the data touched changes.
