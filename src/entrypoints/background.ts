@@ -626,8 +626,12 @@ export default defineBackground(() => {
    */
   let sweepInFlight: Promise<ScreenRecipe[]> | null = null;
 
-  function calibrateScreens(auto = false): Promise<ScreenRecipe[]> {
-    sweepInFlight ??= runCalibration(auto).finally(() => {
+  /**
+   * @param auto  started by a fullscreen entry rather than the settings button.
+   * @param tabId the tab to keep posted on progress (settings or player).
+   */
+  function calibrateScreens(auto = false, tabId?: number): Promise<ScreenRecipe[]> {
+    sweepInFlight ??= runCalibration(auto, tabId).finally(() => {
       sweepInFlight = null;
     });
     return sweepInFlight;
@@ -649,7 +653,20 @@ export default defineBackground(() => {
     await browser.storage.local.set({ [SCREEN_HEAL_KEY]: heal }).catch(() => undefined);
   }
 
-  async function runCalibration(auto: boolean): Promise<ScreenRecipe[]> {
+  /**
+   * The sweep moves ONE small window across the grid instead of opening and
+   * closing a fresh one per point. Measured 2026-09-25 on the owner's
+   * 3-monitor desktop (Firefox 157): same screens found, 3.0 s instead of
+   * 6.5 s, and no window-open/close animation 35 times over. 140 px is at the
+   * floor Firefox allows for a popup (it clamps anything smaller to ~132).
+   * The window shows a progress card (dim/main.ts) so what flashes across the
+   * monitors explains itself.
+   */
+  const SWEEP_WINDOW_PX = 140;
+  /** Let the window manager finish a move before asking where it landed. */
+  const SWEEP_SETTLE_MS = 80;
+
+  async function runCalibration(auto: boolean, tabId?: number): Promise<ScreenRecipe[]> {
     const found: ScreenRecipe[] = [];
     // Counted to tell "this desktop really has one monitor" apart from "the
     // browser is reporting the probe window as the screen" (see
@@ -668,26 +685,91 @@ export default defineBackground(() => {
     // Keep the active flag: this sweep may be running inside a live dim
     // request, whose overlays are raised right after it.
     await closeDimWindows(true);
-    for (const point of calibrationPoints()) {
-      const probeId = `p${sweep}-${++n}`;
-      let created: { id?: number } | undefined;
+    const points = calibrationPoints();
+    const cardId = `p${sweep}-card`;
+    let cardWindow: number | null = null;
+    /** Where the card's page last said it was (its own screenX/screenY). */
+    let cardSelf: ProbeReport['self'];
+    const started = Date.now();
+    const progress = (done: number, finished = false, screens = 0): void => {
+      const perPoint = done > 0 ? (Date.now() - started) / done : CALIBRATION_PROBE_MS / 3;
+      const s = finished ? 0 : Math.max(1, Math.ceil((perPoint * (points.length - done)) / 1000));
+      const total = points.length;
+      void browser.runtime
+        .sendMessage({ type: 'vs:sweep-progress', probeId: cardId, done, total, s })
+        .catch(() => undefined);
+      if (typeof tabId === 'number') {
+        void browser.tabs
+          .sendMessage(tabId, { type: 'vs:dim-sweep', done, total, s, auto, finished, screens })
+          .catch(() => undefined);
+      }
+    };
+    progress(0);
+    // One grid point: move the card there (or open it there, the first time
+    // and whenever it was closed — clicking a dim window closes it) and ask
+    // which screen it is on. Each answer gets its own id (see dim/main.ts).
+    const probeAt = async (point: {
+      rawLeft: number;
+      rawTop: number;
+    }): Promise<ProbeReport | null> => {
+      if (cardWindow != null) {
+        const before = await browser.windows.get(cardWindow).catch(() => null);
+        const moved = await browser.windows
+          .update(cardWindow, { left: point.rawLeft, top: point.rawTop })
+          .then(() => true)
+          .catch(() => false);
+        const after = moved ? await browser.windows.get(cardWindow).catch(() => null) : null;
+        // Did the window really change place? If so, the page must see a new
+        // position too — an answer still carrying the old screenX/screenY was
+        // read before the page caught up with the move, and its screen is the
+        // PREVIOUS point's. Ask again rather than record the wrong screen.
+        const windowMoved =
+          before != null &&
+          after != null &&
+          (before.left !== after.left || before.top !== after.top);
+        for (let attempt = 0; moved && attempt < 3; attempt++) {
+          await new Promise((r) => setTimeout(r, SWEEP_SETTLE_MS));
+          const answerId = `p${sweep}-${++n}`;
+          const pending = waitForProbe(answerId, CALIBRATION_PROBE_MS);
+          void browser.runtime
+            .sendMessage({ type: 'vs:dim-recheck', probeId: cardId, reportAs: answerId })
+            .catch(() => undefined);
+          const report = await pending;
+          if (!report) break;
+          const stale =
+            windowMoved && report.self?.x === cardSelf?.x && report.self?.y === cardSelf?.y;
+          if (!stale) {
+            cardSelf = report.self;
+            return report;
+          }
+        }
+        await browser.windows.remove(cardWindow).catch(() => undefined);
+        cardWindow = null;
+      }
+      // Recreated under the same id: a load report the previous card sent
+      // after its waiter gave up would otherwise be handed to this one.
+      earlyProbes.delete(cardId);
       try {
-        created = await browser.windows.create({
-          url: dimUrl(100, probeId, true),
+        const created = await browser.windows.create({
+          url: `${dimUrl(100, cardId, true)}&card=1`,
           type: 'popup',
           focused: false,
           left: point.rawLeft,
           top: point.rawTop,
-          width: 240,
-          height: 160,
+          width: SWEEP_WINDOW_PX,
+          height: SWEEP_WINDOW_PX,
         });
+        cardWindow = typeof created?.id === 'number' ? created.id : null;
       } catch {
-        continue;
+        return null;
       }
-      const report = await waitForProbe(probeId, CALIBRATION_PROBE_MS);
-      if (typeof created?.id === 'number') {
-        await browser.windows.remove(created.id).catch(() => undefined);
-      }
+      const report = await waitForProbe(cardId, CALIBRATION_PROBE_MS);
+      cardSelf = report?.self;
+      return report;
+    };
+    for (const [i, point] of points.entries()) {
+      const report = await probeAt(point);
+      progress(i + 1);
       // A report without the CSS rect cannot be placed OR matched against a
       // window later; storing it with a zeroed origin would put a phantom
       // screen at (0,0) that attracts every overlap test.
@@ -705,7 +787,9 @@ export default defineBackground(() => {
         });
       }
     }
+    if (cardWindow != null) await browser.windows.remove(cardWindow).catch(() => undefined);
     const map = dedupeScreens(found);
+    progress(points.length, true, map.length);
     await saveScreenMap(map);
     const isSpoofed = spoofed > 0 && spoofed === answered;
     // A manual sweep resets the brake: the user is looking and asked for it.
@@ -987,6 +1071,7 @@ export default defineBackground(() => {
     playerWindow: Rect | null,
     level: number,
     cancelled: () => boolean,
+    tabId: number,
   ): Promise<number[]> {
     let map = await readScreenMap();
     const heal = await readScreenHeal();
@@ -1013,7 +1098,7 @@ export default defineBackground(() => {
       // Whatever the stale pass did manage to raise was judged against the old
       // geometry; start clean rather than mix two generations of overlays.
       for (const id of pass.ids) await browser.windows.remove(id).catch(() => undefined);
-      map = await calibrateScreens(true);
+      map = await calibrateScreens(true, tabId);
       pass = cancelled()
         ? { ids: [], stale: false, result: null }
         : await placeOnMap(map, playerWindow, level);
@@ -1147,7 +1232,7 @@ export default defineBackground(() => {
     const cancelled = (): boolean => gen !== dimGeneration;
     const windowIds = systemDisplay()
       ? await raiseOverlays(await chromeTargets(windowId), level)
-      : await firefoxOverlays(playerWindow, level, cancelled);
+      : await firefoxOverlays(playerWindow, level, cancelled, tabId);
     dimLog('overlays raised', { windowIds });
     // The Firefox path can now run a probe sweep, long enough for the user to
     // leave fullscreen (or re-enter it) meanwhile. That dim-off found nothing
@@ -1365,7 +1450,7 @@ export default defineBackground(() => {
     // Settings → "find my monitors" (Firefox). Returns the resulting map so
     // the UI can report how many screens were found.
     if (m.type === 'vs:calibrate-screens') {
-      return calibrateScreens()
+      return calibrateScreens(false, sender.tab?.id)
         .then((map) => ({ ok: true, screens: map.length }))
         .catch((e: unknown) => ({ ok: false, error: String(e) }));
     }

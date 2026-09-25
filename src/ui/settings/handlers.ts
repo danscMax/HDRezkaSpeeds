@@ -491,6 +491,39 @@ export function attachSettingsHandlers(
             : found;
       })();
     }
+    // Live progress of the sweep the button started: "12 of 35 · ~2 s left"
+    // over a thin accent bar, so the seconds of windows hopping across the
+    // monitors read as work in progress, not as something going wrong.
+    // Relayed by the content script from the worker (see index.ts).
+    if (status) {
+      const fill = document.createElement('span');
+      fill.style.cssText =
+        'display:block;height:100%;width:0%;border-radius:2px;background:var(--vs-accent,#00a1db);box-shadow:0 0 8px rgba(var(--vs-accent-rgb,0,161,219),0.6);transition:width .25s ease;';
+      const track = document.createElement('span');
+      track.style.cssText =
+        'display:block;height:3px;margin-top:6px;border-radius:2px;background:var(--vs-menu-track-bg,rgba(255,255,255,0.08));overflow:hidden;';
+      track.appendChild(fill);
+      const line = document.createTextNode('');
+      ctx.cleanup.addEventListener(window, 'vs:dim-sweep', (event) => {
+        const d = (event as CustomEvent).detail as {
+          done?: number;
+          total?: number;
+          s?: number;
+          auto?: boolean;
+          finished?: boolean;
+        };
+        if (d?.auto === true || d?.finished || !calibrateBtn.disabled || !d?.total) return;
+        const text = ctx.i18n
+          .t('behavior.dim_screens.sweep.progress')
+          .replace('{done}', String(d.done ?? 0))
+          .replace('{total}', String(d.total))
+          .replace('{s}', String(d.s ?? 0));
+        line.textContent = text;
+        // Same elements for the whole sweep, so the width change animates.
+        if (!track.isConnected) status.replaceChildren(line, track);
+        fill.style.width = `${Math.round(((d.done ?? 0) / d.total) * 100)}%`;
+      });
+    }
     ctx.cleanup.addEventListener(calibrateBtn, 'click', async (event) => {
       event.preventDefault();
       event.stopPropagation();

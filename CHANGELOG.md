@@ -6,6 +6,14 @@ versioning is [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Firefox: finding the monitors is quieter and says what it is doing. One
+  small window with a progress ring travels across the screens instead of 35
+  windows opening and closing (about 3 s instead of 6.5 s). The player shows a
+  progress chip with the seconds left when it happens during fullscreen, and
+  the settings show a progress bar for the "Find my monitors" button.
+
 ### Fixed
 
 - Firefox: dimming the other monitors stopped working after the monitors were

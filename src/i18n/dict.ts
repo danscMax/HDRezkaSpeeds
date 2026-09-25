@@ -434,6 +434,11 @@ export const I18N_DICT = {
     'behavior.dim_screens.calibrate.running': 'Looking for monitors…',
     'behavior.dim_screens.calibrate.done': 'Found {n} screen(s). Dimming is ready.',
     'behavior.dim_screens.calibrate.failed': 'Could not measure the monitors. Try again.',
+    'behavior.dim_screens.sweep.card': 'Finding monitors',
+    'behavior.dim_screens.sweep.seconds': '~{s} s',
+    'behavior.dim_screens.sweep.progress': 'Finding monitors… {done} of {total} · ~{s} s left',
+    'behavior.dim_screens.sweep.auto': 'Monitors rearranged — setting up dimming · ~{s} s',
+    'behavior.dim_screens.sweep.auto_done': 'Found {n} monitor(s) — dimming the others',
     'behavior.volume_boost': 'Volume boost',
     'behavior.volume_boost.tip':
       'Amplify quiet audio up to 300%. Site-dependent: if the sound disappears, set it back to 100%.',
@@ -875,6 +880,11 @@ export const I18N_DICT = {
     'behavior.dim_screens.calibrate.running': 'Ищу мониторы…',
     'behavior.dim_screens.calibrate.done': 'Найдено экранов: {n}. Затемнение готово.',
     'behavior.dim_screens.calibrate.failed': 'Не удалось измерить мониторы. Попробуйте ещё раз.',
+    'behavior.dim_screens.sweep.card': 'Ищу мониторы',
+    'behavior.dim_screens.sweep.seconds': '~{s} с',
+    'behavior.dim_screens.sweep.progress': 'Ищу мониторы… {done} из {total} · осталось ~{s} с',
+    'behavior.dim_screens.sweep.auto': 'Мониторы переставлены — настраиваю затемнение · ~{s} с',
+    'behavior.dim_screens.sweep.auto_done': 'Найдено мониторов: {n} — затемняю остальные',
     'behavior.volume_boost': 'Усиление громкости',
     'behavior.volume_boost.tip':
       'Усиливает тихий звук до 300%. Зависит от сайта: если звук пропал — верните 100%.',
