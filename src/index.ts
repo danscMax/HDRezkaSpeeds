@@ -84,7 +84,13 @@ import { markHintShown, wasHintShown } from './storage/onboarding-store';
 import { createSettingsStore } from './storage/settings-store';
 import { createSpeedStore } from './storage/speed-store';
 import { createPanel, createUiPort, injectStyles, insertPanel, installThemeWatcher } from './ui';
-import { disposeNotificationStack, showActionChip, showNotification } from './ui/notifications';
+import {
+  disposeNotificationStack,
+  type ProgressChip,
+  showActionChip,
+  showNotification,
+  showProgressChip,
+} from './ui/notifications';
 import type { PanelMirrors } from './ui/panel';
 import type { MirrorsViewModel } from './ui/settings/modal';
 import { createLogger } from './utils/logger';
@@ -499,6 +505,39 @@ export async function bootstrap(
   // fires no fullscreenchange, so the overlays would outlive the player.
   ctx.cleanup.addEventListener(window, 'pagehide', () => {
     requestDim(false);
+  });
+
+  // A fullscreen entry that found the monitors rearranged re-finds them on
+  // its own (see firefoxOverlays). That takes a few seconds of a small window
+  // hopping across the screens, so the player says what is going on and how
+  // long it will take. The settings dialog shows its own progress for the
+  // manual button, hence `auto` only here.
+  let sweepChip: ProgressChip | null = null;
+  ctx.cleanup.addEventListener(window, 'vs:dim-sweep', (event) => {
+    const d = (event as CustomEvent).detail as {
+      done?: number;
+      total?: number;
+      s?: number;
+      auto?: boolean;
+      finished?: boolean;
+      screens?: number;
+    };
+    if (d?.auto !== true) return;
+    const container = discoveryPort.resolve('playerContainer');
+    if (d.finished) {
+      sweepChip?.close();
+      sweepChip = null;
+      ctx.ui.showNotification(
+        ctx.i18n.t('behavior.dim_screens.sweep.auto_done').replace('{n}', String(d.screens ?? 0)),
+        'success',
+      );
+      return;
+    }
+    const text = ctx.i18n.t('behavior.dim_screens.sweep.auto').replace('{s}', String(d.s ?? 0));
+    const fraction = d.total ? (d.done ?? 0) / d.total : 0;
+    // Recreate a chip that timed out on a slow step instead of updating a dead one.
+    if (!sweepChip?.isOpen()) sweepChip = showProgressChip(text, { playerContainer: container });
+    sweepChip.update(text, fraction);
   });
 
   const realUi = createUiPort({
@@ -950,6 +989,13 @@ export async function bootstrap(
             ok: boolean;
             speed?: number;
           });
+        }
+        // FEAT-020: monitor-sweep progress from the worker. Re-emitted as a
+        // window event so whoever shows it (the settings dialog, or the
+        // fullscreen chip below) subscribes without reaching into this switch.
+        case 'vs:dim-sweep': {
+          window.dispatchEvent(new CustomEvent('vs:dim-sweep', { detail: m }));
+          return Promise.resolve({ ok: true });
         }
         default:
           return Promise.resolve({ ok: false, error: 'unknown_type' });

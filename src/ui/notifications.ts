@@ -355,6 +355,103 @@ export function showActionChip(text: string, opts: ActionChipOptions = {}): () =
   return close;
 }
 
+/** Live handle of a progress chip. */
+export interface ProgressChip {
+  /** New label and completed share, 0..1. */
+  update: (text: string, fraction: number) => void;
+  close: () => void;
+  /** False once it closed — on request or because updates stopped. */
+  isOpen: () => boolean;
+}
+
+/**
+ * A chip for a job that takes a few seconds and reports as it goes: label on
+ * top, a thin accent bar underneath. No ✕ — it closes itself when the caller
+ * says the job is done, and a deadline (refreshed by every update) makes sure
+ * a job that stopped reporting can't leave it parked on the film.
+ */
+export function showProgressChip(
+  text: string,
+  opts: { playerContainer?: Element | null } = {},
+): ProgressChip {
+  const ACCENT = '#00a1db';
+  const STALE_MS = 6000;
+  const stack = ensureStack(opts.playerContainer ?? null);
+  mountForFullscreen(stack, opts.playerContainer ?? null);
+  const reduceMotion =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const chip = document.createElement('div');
+  chip.setAttribute('role', 'status');
+  chip.style.cssText = `
+    background: rgba(8, 8, 10, 0.92) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid ${ACCENT}66 !important;
+    border-radius: 8px !important;
+    padding: 8px 14px 10px !important;
+    color: white !important;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 7px !important;
+    min-width: 220px !important;
+    max-width: min(80vw, 480px) !important;
+    pointer-events: none !important;
+    opacity: ${reduceMotion ? '1' : '0'};
+    transition: ${reduceMotion ? 'none' : 'opacity 0.25s ease'} !important;
+  `;
+  const label = h('span', { style: 'line-height:1.3;' }, String(text ?? ''));
+  const fill = h('span', {
+    style: `display:block; height:100%; width:0%; border-radius:2px; background:${ACCENT}; box-shadow:0 0 8px ${ACCENT}99; transition:${reduceMotion ? 'none' : 'width 0.3s ease'};`,
+  });
+  const track = h(
+    'span',
+    {
+      style:
+        'display:block; height:3px; border-radius:2px; background:rgba(255,255,255,0.14); overflow:hidden;',
+    },
+    fill,
+  );
+  chip.append(label, track);
+  stack.appendChild(chip);
+  if (!reduceMotion) {
+    requestAnimationFrame(() => requestAnimationFrame(() => (chip.style.opacity = '1')));
+  }
+
+  const tagged = chip as HTMLElement & { __vsTimer1?: number; __vsTimer2?: number };
+  let closed = false;
+  const close = (): void => {
+    if (closed) return;
+    closed = true;
+    if (tagged.__vsTimer1 !== undefined) clearTimeout(tagged.__vsTimer1);
+    chip.style.opacity = '0';
+    tagged.__vsTimer2 = window.setTimeout(
+      () => chip.parentNode?.removeChild(chip),
+      reduceMotion ? 0 : 250,
+    );
+  };
+  const arm = (): void => {
+    if (tagged.__vsTimer1 !== undefined) clearTimeout(tagged.__vsTimer1);
+    tagged.__vsTimer1 = window.setTimeout(close, STALE_MS);
+  };
+  arm();
+  return {
+    update: (next, fraction) => {
+      if (closed) return;
+      label.textContent = next;
+      fill.style.width = `${Math.round(Math.min(1, Math.max(0, fraction)) * 100)}%`;
+      arm();
+    },
+    close,
+    isOpen: () => !closed,
+  };
+}
+
 /** Subtle hover feedback for an interactive chip element (no :hover inline). */
 function makeHoverable(el: HTMLElement): void {
   el.addEventListener('mouseenter', () => {
