@@ -11,7 +11,7 @@
   "src/ui/settings/export-import.ts": "40e54d4471f60e6495c1aad767fd70cd779b60e9cce61dc0102435b46a3071ce",
   "src/ui/settings/handlers.ts": "13c5eb16021d0088ab48a9fba1404fe3fd40faf9fc74eb0c29b8fa25817df613",
   "src/ui/settings/modal.ts": "5c2cc02b56a4e64590463110afc79ebb92eaa25ad368199dfb9361c99a7c9e3b",
-  "src/ui/styles.ts": "7838b89101cdb25270705bc402ad081e8ea7330563e0213ab99623355b6f2b17",
+  "src/ui/styles.ts": "393d8c1f281d56e2f516633d128fc719915531d2bd83f2828415dcec9241ef84",
   "src/storage/speed-store.ts": "164f42a41d9d63300a31ea08518946d56c493bb5ac9ffa021059e9dc5fbb78c3",
   "src/health/types.ts": "4219552da23a876f2c970a9f320792924cae5765366d5dd089ec93b3fc444ca7",
   "src/ui/settings/diag-status.ts": "98e28cf7e29bb99486be16b6dc8ee3f2b072653145fc97360073ffd60607aa01"
