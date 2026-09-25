@@ -4,6 +4,17 @@ Notable changes per release. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning is [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Firefox: dimming the other monitors stopped working after the monitors were
+  rearranged in the OS. The saved monitor map no longer matched the desktop, so
+  every placement missed ("dimmed 0 of 2") while the settings still said
+  "ready". A fullscreen entry now notices a map that no longer fits and
+  re-finds the monitors on its own (once per layout change — probe windows
+  flash briefly); leaving fullscreen mid-search no longer leaves overlays up.
+
 ## [0.8.0] — 2026-08-20
 
 ### Changed

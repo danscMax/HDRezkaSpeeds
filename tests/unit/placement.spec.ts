@@ -12,6 +12,7 @@ import {
   buildScreenReport,
   coverRect,
   isPlacementAcceptable,
+  isUnknownScreen,
   looksLikeSpoofedScreen,
   parseScreenReport,
 } from '../../src/screens/placement';
@@ -199,5 +200,26 @@ describe('looksLikeSpoofedScreen', () => {
   it('says nothing when the report is incomplete', () => {
     expect(looksLikeSpoofedScreen({ geom })).toBe(false);
     expect(looksLikeSpoofedScreen({ geom, css: { l: 0, t: 0, w: 240, h: 160 } })).toBe(false);
+  });
+});
+
+describe('isUnknownScreen', () => {
+  // The owner's map from August vs. the same desktop after the monitors were
+  // rearranged (measured 2026-09-25): the right screen moved down 612px, the
+  // bottom one left by 318px. Every probe "missed" and nothing was dimmed.
+  const august = [geom(0, 0, 3840, 2088), geom(3840, 0, 3840, 2075), geom(719, 2160, 3440, 1368)];
+
+  it('flags a monitor that moved since calibration', () => {
+    expect(isUnknownScreen(geom(3840, 612, 3840, 2075), august)).toBe(true);
+    expect(isUnknownScreen(geom(401, 2160, 3440, 1368), august)).toBe(true);
+  });
+
+  it('accepts a screen on record, within rounding', () => {
+    expect(isUnknownScreen(geom(3843, 2, 3840, 2075), august)).toBe(false);
+  });
+
+  it('proves nothing without a report or without a map', () => {
+    expect(isUnknownScreen(null, august)).toBe(false);
+    expect(isUnknownScreen(geom(0), [])).toBe(false);
   });
 });
