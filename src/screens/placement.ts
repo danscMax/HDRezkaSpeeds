@@ -171,6 +171,19 @@ export function looksLikeSpoofedScreen(report: ProbeReport): boolean {
 }
 
 /**
+ * Did a window land on a monitor the calibrated map doesn't contain?
+ *
+ * Screen identity is geometry, so rearranging the monitors in the OS silently
+ * invalidates every stored entry: each probe then "misses" its target and
+ * nothing is dimmed while the settings still read "ready". A screen missing
+ * from the map is the proof the layout changed. No report (null) proves
+ * nothing, and an empty map is the separate "never calibrated" case.
+ */
+export function isUnknownScreen(landedOn: ScreenGeom | null, map: ScreenGeom[]): boolean {
+  return landedOn != null && map.length > 0 && !map.some((s) => sameScreen(s, landedOn));
+}
+
+/**
  * Is the screen this candidate window actually landed on the one we may keep?
  *
  * Only a window that landed on the wanted screen — and not on the player's,

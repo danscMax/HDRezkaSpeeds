@@ -48,6 +48,7 @@ import {
 import {
   coverRect,
   isPlacementAcceptable,
+  isUnknownScreen,
   looksLikeSpoofedScreen,
   type ProbeReport,
   parseScreenReport,
@@ -91,8 +92,8 @@ interface DimState {
 /**
  * Firefox-only screen map (storage.local, not session): calibration costs a
  * visible sweep of probe windows, so it must survive a browser restart. It is
- * invalidated only by the user re-running it — a monitor unplugged since then
- * simply produces a recipe that lands somewhere harmless.
+ * re-recorded by the settings button, or by a fullscreen entry that finds it
+ * no longer fits the desktop (see firefoxOverlays and SCREEN_HEAL_KEY).
  */
 const SCREEN_MAP_KEY = 'vs-screen-map';
 
@@ -107,6 +108,25 @@ const SCREEN_MAP_VERSION = 4;
 interface StoredScreenMap {
   v: number;
   screens: ScreenRecipe[];
+}
+
+/**
+ * How the current screen map came to be — the brake on fullscreen-time
+ * self-healing. Without it, anything that looks like a stale map (a plain
+ * placement miss, a spoofing browser, a monitor the grid can't reach) would
+ * start a full probe sweep over the film on EVERY fullscreen entry.
+ *
+ *   auto     — written by a fullscreen-time sweep, not the settings button.
+ *   spoofed  — the browser reported probe windows as screens; sweeping again
+ *              cannot help.
+ *   gaveUp   — a fullscreen-time sweep ran and the very next pass still
+ *              failed; stop auto-sweeping until the user calibrates by hand.
+ */
+const SCREEN_HEAL_KEY = 'vs-screen-heal';
+interface ScreenHeal {
+  auto: boolean;
+  spoofed: boolean;
+  gaveUp: boolean;
 }
 
 /**
@@ -599,7 +619,37 @@ export default defineBackground(() => {
    */
   const CALIBRATION_PROBE_MS = 1500;
 
-  async function calibrateScreens(): Promise<ScreenRecipe[]> {
+  /**
+   * One sweep at a time. A fullscreen-time sweep and the settings button can
+   * overlap; both clear and read the shared probe buffer, so two concurrent
+   * sweeps would eat each other's reports and save a partial map.
+   */
+  let sweepInFlight: Promise<ScreenRecipe[]> | null = null;
+
+  function calibrateScreens(auto = false): Promise<ScreenRecipe[]> {
+    sweepInFlight ??= runCalibration(auto).finally(() => {
+      sweepInFlight = null;
+    });
+    return sweepInFlight;
+  }
+
+  async function readScreenHeal(): Promise<ScreenHeal> {
+    try {
+      const got = await browser.storage.local.get(SCREEN_HEAL_KEY);
+      const h = (got as Record<string, unknown>)[SCREEN_HEAL_KEY] as
+        | Partial<ScreenHeal>
+        | undefined;
+      return { auto: h?.auto === true, spoofed: h?.spoofed === true, gaveUp: h?.gaveUp === true };
+    } catch {
+      return { auto: false, spoofed: false, gaveUp: false };
+    }
+  }
+
+  async function saveScreenHeal(heal: ScreenHeal): Promise<void> {
+    await browser.storage.local.set({ [SCREEN_HEAL_KEY]: heal }).catch(() => undefined);
+  }
+
+  async function runCalibration(auto: boolean): Promise<ScreenRecipe[]> {
     const found: ScreenRecipe[] = [];
     // Counted to tell "this desktop really has one monitor" apart from "the
     // browser is reporting the probe window as the screen" (see
@@ -657,10 +707,13 @@ export default defineBackground(() => {
     }
     const map = dedupeScreens(found);
     await saveScreenMap(map);
+    const isSpoofed = spoofed > 0 && spoofed === answered;
+    // A manual sweep resets the brake: the user is looking and asked for it.
+    await saveScreenHeal({ auto, spoofed: isSpoofed, gaveUp: false });
     // If the browser was reporting the probe window's own size as "the screen",
     // the map is fiction — say so instead of letting the settings panel claim a
     // monitor was found. Reuses the last-result channel the panel already reads.
-    if (spoofed > 0 && spoofed === answered) {
+    if (isSpoofed) {
       await recordDimResult({ wanted: 0, placed: 0, reason: 'spoofed-screen' });
     }
     return map;
@@ -700,7 +753,8 @@ export default defineBackground(() => {
     player: ScreenGeom | null,
     covered: ScreenGeom[],
     level: number,
-  ): Promise<Placement | null> {
+    map: ScreenRecipe[],
+  ): Promise<Placement | 'stale' | null> {
     const candidates = [
       { rawLeft: target.rawLeft, rawTop: target.rawTop },
       ...calibrationPoints(),
@@ -740,6 +794,15 @@ export default defineBackground(() => {
         onPlayerScreen: landedOn != null && player != null && sameScreen(landedOn, player),
         alreadyCovered: landedOn != null && covered.some((seen) => sameScreen(seen, landedOn)),
       });
+      // A screen the map has never seen proves the monitors were rearranged
+      // since calibration. Every remaining candidate would be judged against
+      // geometry that no longer exists, so stop flashing windows and let the
+      // caller recalibrate.
+      if (isUnknownScreen(landedOn, map)) {
+        if (typeof id === 'number') await browser.windows.remove(id).catch(() => undefined);
+        dimLog('place: landed on a screen missing from the map — map is stale', { landedOn });
+        return 'stale';
+      }
       const good =
         typeof id === 'number' && isPlacementAcceptable({ landedOn, target, player, covered });
       if (good && typeof id === 'number') {
@@ -910,19 +973,79 @@ export default defineBackground(() => {
   /**
    * Firefox path: one verified placement per calibrated screen. Returns the
    * ids of the overlays that actually landed where they were meant to.
-   * Empty map = the user hasn't calibrated yet; the settings UI says so.
+   *
+   * Self-healing. The map is only valid for the monitor layout it was recorded
+   * on, and people rearrange monitors: a stale map used to make every probe
+   * miss, dim nothing, and still read "ready" in the settings. So a missing
+   * map, or a pass that proves the map stale, triggers a calibration sweep
+   * right here and one more pass on the fresh map. The sweep flashes probe
+   * windows over every monitor including the film's — accepted by the owner
+   * (2026-09-25) as the price of working on any layout without a manual step;
+   * it happens once per layout change, after which the first pass hits.
    */
-  async function firefoxOverlays(playerWindow: Rect | null, level: number): Promise<number[]> {
-    const map = await readScreenMap();
-    // NO calibration from here. The sweep walks coordinates across the whole
-    // desktop, so running it at fullscreen-time flashes probe windows over
-    // every monitor INCLUDING the one playing the video. Calibration belongs
-    // to the settings dialog, where the user is looking at the screen anyway;
-    // here we only record why nothing happened so the UI can say it.
+  async function firefoxOverlays(
+    playerWindow: Rect | null,
+    level: number,
+    cancelled: () => boolean,
+  ): Promise<number[]> {
+    let map = await readScreenMap();
+    const heal = await readScreenHeal();
+    let pass: PlacePass =
+      map.length === 0
+        ? { ids: [], stale: 'soft', result: null }
+        : await placeOnMap(map, playerWindow, level);
+    // When may a failed pass start a sweep over the film?
+    //   proven — a probe reached a monitor the map lacks: the layout changed.
+    //   soft   — no map, a plain miss, or no screen under the player: could be
+    //            staleness, could be a monitor the grid can't reach. Worth ONE
+    //            sweep, but not again if the current map already came from one.
+    // Never on a spoofing browser (a sweep only records the same fiction), and
+    // never after an auto-sweep already failed — until the user calibrates.
+    const maySweep =
+      !heal.spoofed &&
+      !heal.gaveUp &&
+      (pass.stale === 'proven' || (pass.stale === 'soft' && !heal.auto));
+    if (pass.stale && maySweep && !cancelled()) {
+      dimLog('screen map does not fit the desktop — recalibrating', {
+        stale: pass.stale,
+        placedSoFar: pass.ids,
+      });
+      // Whatever the stale pass did manage to raise was judged against the old
+      // geometry; start clean rather than mix two generations of overlays.
+      for (const id of pass.ids) await browser.windows.remove(id).catch(() => undefined);
+      map = await calibrateScreens(true);
+      pass = cancelled()
+        ? { ids: [], stale: false, result: null }
+        : await placeOnMap(map, playerWindow, level);
+      if (pass.stale) {
+        const after = await readScreenHeal();
+        await saveScreenHeal({ ...after, gaveUp: true });
+      }
+    }
+    // A spoofing browser already has its verdict on record (written by the
+    // sweep); a meaningless "0 of 0" must not replace it.
+    if ((await readScreenHeal()).spoofed) return pass.ids;
     if (map.length === 0) {
       await recordDimResult({ wanted: 0, placed: 0, reason: 'no-map' });
-      return [];
+    } else if (pass.result) {
+      await recordDimResult(pass.result);
     }
+    return pass.ids;
+  }
+
+  /** One placement pass: overlays raised, whether the map looked stale, and the verdict. */
+  interface PlacePass {
+    ids: number[];
+    stale: 'proven' | 'soft' | false;
+    result: DimResult | null;
+  }
+
+  async function placeOnMap(
+    map: ScreenRecipe[],
+    playerWindow: Rect | null,
+    level: number,
+  ): Promise<PlacePass> {
+    if (map.length === 0) return { ids: [], stale: 'soft', result: null };
     // Which monitors is the film on? Decided from the PLAYER'S WINDOW rect,
     // not from screen.avail* read in the content script: Firefox's
     // fingerprinting protection falsifies those (it says so in the page
@@ -936,10 +1059,17 @@ export default defineBackground(() => {
     // off-screen), we do NOT know where the film is — and dimming everything
     // "just in case" is precisely the bug this feature keeps producing: a
     // black rectangle over the video. Dim nothing and say why.
+    //
+    // A player window that overlaps no screen on record also means the map is
+    // stale (a monitor added or moved under it) — unless there is no rect at all.
     if (touched.length === 0) {
-      await recordDimResult({ wanted: map.length, placed: 0, reason: 'no-player-screen' });
-      return [];
+      return {
+        ids: [],
+        stale: playerWindow != null ? 'soft' : false,
+        result: { wanted: map.length, placed: 0, reason: 'no-player-screen' },
+      };
     }
+    let stale: PlacePass['stale'] = false;
     const ids: number[] = [];
     const covered: ScreenGeom[] = [];
     // The recipe in the map was recorded by a 160x120 calibration probe, and a
@@ -951,26 +1081,41 @@ export default defineBackground(() => {
     // the first try and nothing flashes.
     let learned = false;
     for (const target of wanted) {
-      const placed = await placeOverlay(target, touched[0] ?? null, covered, level);
-      if (placed != null) {
-        ids.push(placed.id);
-        covered.push(target);
-        if (placed.rawLeft !== target.rawLeft || placed.rawTop !== target.rawTop) {
-          target.rawLeft = placed.rawLeft;
-          target.rawTop = placed.rawTop;
-          learned = true;
-          dimLog('learned overlay recipe', { target: target.availLeft, ...placed });
-        }
+      const placed = await placeOverlay(target, touched[0] ?? null, covered, level, map);
+      // A target no candidate could reach is what a stale map looks like too
+      // (an unplugged monitor, a recipe that now lands elsewhere).
+      if (placed === 'stale') {
+        stale = 'proven';
+        // Proven stale: the remaining targets would only flash more windows.
+        break;
+      }
+      if (placed == null) {
+        stale = 'soft';
+        continue;
+      }
+      ids.push(placed.id);
+      covered.push(target);
+      if (placed.rawLeft !== target.rawLeft || placed.rawTop !== target.rawTop) {
+        target.rawLeft = placed.rawLeft;
+        target.rawTop = placed.rawTop;
+        learned = true;
+        dimLog('learned overlay recipe', { target: target.availLeft, ...placed });
       }
     }
     if (learned) await saveScreenMap(map);
-    await recordDimResult({
-      wanted: wanted.length,
-      placed: ids.length,
-      reason: ids.length === wanted.length ? 'ok' : 'missed',
-    });
-    return ids;
+    return {
+      ids,
+      stale,
+      result: {
+        wanted: wanted.length,
+        placed: ids.length,
+        reason: ids.length === wanted.length ? 'ok' : 'missed',
+      },
+    };
   }
+
+  /** Bumped by every dim-on and dim-off; a placement that sees it move is stale. */
+  let dimGeneration = 0;
 
   async function openDimWindows(tabId: number, windowId: number, level: number): Promise<void> {
     // The player's window rect, straight from the window API. This replaces
@@ -998,10 +1143,21 @@ export default defineBackground(() => {
     // Chrome knows the exact bounds up front and can place blind; Firefox has
     // to verify each placement (see placeOverlay), so the two paths differ in
     // kind, not just in where the coordinates come from.
+    const gen = ++dimGeneration;
+    const cancelled = (): boolean => gen !== dimGeneration;
     const windowIds = systemDisplay()
       ? await raiseOverlays(await chromeTargets(windowId), level)
-      : await firefoxOverlays(playerWindow, level);
+      : await firefoxOverlays(playerWindow, level, cancelled);
     dimLog('overlays raised', { windowIds });
+    // The Firefox path can now run a probe sweep, long enough for the user to
+    // leave fullscreen (or re-enter it) meanwhile. That dim-off found nothing
+    // to close yet, so these overlays would appear on a desktop that no longer
+    // wants them — close them instead of recording them.
+    if (cancelled()) {
+      dimLog('dim request superseded while placing — closing', { windowIds });
+      for (const id of windowIds) await browser.windows.remove(id).catch(() => undefined);
+      return;
+    }
     if (windowIds.length === 0) {
       // Nothing is on screen, so nothing may answer the heartbeat as "active".
       // Leaving the flag set kept a stray overlay — one whose close() failed —
@@ -1228,6 +1384,8 @@ export default defineBackground(() => {
         .catch(() => ({ ok: false, screens: 0 }));
     }
     if (m.type === 'vs:dim-off') {
+      // Cancels a dim-on still placing overlays (see openDimWindows).
+      dimGeneration += 1;
       return closeDimWindows().catch((e: unknown) => {
         console.warn('[HDREZKA-SPEEDS] dim off failed', e);
       });
